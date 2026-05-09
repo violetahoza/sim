@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Smart Parking Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<div class="modal-overlay" id="mgrOverlay" onclick="if(event.target===this)closeMgr()">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Scenario Manager</span>
+      <button class="modal-close" onclick="closeMgr()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="mgr-tabs">
+        <button class="mgr-tab active" id="mgrTabList" onclick="switchMgrTab('list')">All Scenarios</button>
+        <button class="mgr-tab" id="mgrTabCreate" onclick="switchMgrTab('create')">＋ New Scenario</button>
+        <button class="mgr-tab hidden" id="mgrTabEdit" onclick="switchMgrTab('edit')">✎ Edit</button>
+        <button class="mgr-tab" id="mgrTabCompare" onclick="switchMgrTab('compare')">⇌ Compare Runs</button>
+      </div>
+
+      <div id="mgrPaneList" class="mgr-pane">
+        <div id="mgrList" class="mgr-list"></div>
+      </div>
+
+      <div id="mgrPaneCreate" class="mgr-pane hidden">
+        <div class="form-grid" id="createForm">
+          <div class="form-section">Identity</div>
+          <div class="input-group full">
+            <label>Scenario Name (no spaces)</label>
+            <input class="styled-input" id="cf_name" placeholder="my_scenario_v1"/>
+          </div>
+          <div class="input-group full">
+            <label>Description</label>
+            <input class="styled-input" id="cf_desc" placeholder="Short description of what this tests"/>
+          </div>
+          <div class="input-group">
+            <label>Group Label</label>
+            <input class="styled-input" id="cf_group" placeholder="My Experiments" value="User Scenarios"/>
+          </div>
+          <div class="input-group">
+            <label>Group Order</label>
+            <input class="styled-input" type="number" id="cf_gorder" value="99"/>
+          </div>
+
+          <div class="form-section">Simulation</div>
+          <div class="input-group">
+            <label>Protocol</label>
+            <select class="styled-select" id="cf_protocol" onchange="updateCreateProtoOpts()">
+              <option value="amqp">AMQP</option>
+              <option value="mqtt">MQTT</option>
+              <option value="coap">CoAP</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Architecture</label>
+            <select class="styled-select" id="cf_arch">
+              <option value="edge_aggregated">Edge Aggregated</option>
+              <option value="edge_filtered">Edge Filtered</option>
+              <option value="cloud_only">Cloud Only</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Traffic Level</label>
+            <select class="styled-select" id="cf_traffic">
+              <option value="low">Low (0.1 ev/s)</option>
+              <option value="medium" selected>Medium (0.5 ev/s)</option>
+              <option value="peak">Peak (2.0 ev/s)</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Parking Spots</label>
+            <input class="styled-input" type="number" id="cf_spots" value="50" min="5" max="5000"/>
+          </div>
+          <div class="input-group">
+            <label>Duration (s)</label>
+            <input class="styled-input" type="number" id="cf_duration" value="45" min="5" max="7200"/>
+          </div>
+          <div class="input-group">
+            <label>Random Seed</label>
+            <input class="styled-input" type="number" id="cf_seed" value="42"/>
+          </div>
+
+          <div class="form-section">Link &amp; Edge</div>
+          <div class="input-group">
+            <label>Packet Loss %</label>
+            <input class="styled-input" type="number" id="cf_loss" value="2" min="0" max="50" step="0.5"/>
+          </div>
+          <div class="input-group">
+            <label>Rate Limit (msg/s)</label>
+            <input class="styled-input" type="number" id="cf_ratelimit" value="10" min="1" max="500"/>
+          </div>
+          <div class="input-group">
+            <label>Agg. Interval (s)</label>
+            <input class="styled-input" type="number" id="cf_agg" value="2" min="0.5" max="30" step="0.5"/>
+          </div>
+
+          <div class="form-section" id="cf_proto_section">Protocol Options</div>
+          <div id="cf_amqp" class="input-group"><label>Exchange</label>
+            <select class="styled-select" id="cf_amqp_exchange">
+              <option value="direct" selected>Direct</option>
+              <option value="topic">Topic</option>
+              <option value="fanout">Fanout</option>
+            </select>
+          </div>
+          <div id="cf_amqp2" class="input-group"><label>ACK Mode</label>
+            <select class="styled-select" id="cf_amqp_ack">
+              <option value="manual" selected>Manual</option>
+              <option value="auto">Auto</option>
+            </select>
+          </div>
+          <div id="cf_amqp3" class="input-group"><label>Durable</label>
+            <select class="styled-select" id="cf_amqp_durable">
+              <option value="true" selected>Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div id="cf_mqtt" class="input-group" style="display:none"><label>MQTT QoS</label>
+            <select class="styled-select" id="cf_qos">
+              <option value="0">QoS 0</option>
+              <option value="1" selected>QoS 1</option>
+              <option value="2">QoS 2</option>
+            </select>
+          </div>
+          <div id="cf_coap" class="input-group" style="display:none"><label>CoAP Mode</label>
+            <select class="styled-select" id="cf_coap_mode">
+              <option value="CON">CON</option>
+              <option value="NON">NON</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="mgrPaneEdit" class="mgr-pane hidden">
+        <div class="form-grid" id="editForm">
+          <div class="form-section">Identity</div>
+          <div class="input-group full">
+            <label>Scenario Name</label>
+            <input class="styled-input" id="ef_name" disabled style="opacity:.5"/>
+          </div>
+          <div class="input-group full">
+            <label>Description</label>
+            <input class="styled-input" id="ef_desc"/>
+          </div>
+          <div class="input-group">
+            <label>Group Label</label>
+            <input class="styled-input" id="ef_group"/>
+          </div>
+          <div class="input-group">
+            <label>Group Order</label>
+            <input class="styled-input" type="number" id="ef_gorder"/>
+          </div>
+
+          <div class="form-section">Simulation</div>
+          <div class="input-group">
+            <label>Protocol</label>
+            <select class="styled-select" id="ef_protocol" onchange="updateEditProtoOpts()">
+              <option value="amqp">AMQP</option>
+              <option value="mqtt">MQTT</option>
+              <option value="coap">CoAP</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Architecture</label>
+            <select class="styled-select" id="ef_arch">
+              <option value="edge_aggregated">Edge Aggregated</option>
+              <option value="edge_filtered">Edge Filtered</option>
+              <option value="cloud_only">Cloud Only</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Traffic Level</label>
+            <select class="styled-select" id="ef_traffic">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="peak">Peak</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Parking Spots</label>
+            <input class="styled-input" type="number" id="ef_spots"/>
+          </div>
+          <div class="input-group">
+            <label>Duration (s)</label>
+            <input class="styled-input" type="number" id="ef_duration"/>
+          </div>
+          <div class="input-group">
+            <label>Random Seed</label>
+            <input class="styled-input" type="number" id="ef_seed"/>
+          </div>
+
+          <div class="form-section">Link &amp; Edge</div>
+          <div class="input-group">
+            <label>Packet Loss %</label>
+            <input class="styled-input" type="number" id="ef_loss" step="0.5"/>
+          </div>
+          <div class="input-group">
+            <label>Rate Limit (msg/s)</label>
+            <input class="styled-input" type="number" id="ef_ratelimit"/>
+          </div>
+          <div class="input-group">
+            <label>Agg. Interval (s)</label>
+            <input class="styled-input" type="number" id="ef_agg" step="0.5"/>
+          </div>
+
+          <div class="form-section">Protocol Options</div>
+          <div id="ef_amqp"  class="input-group"><label>Exchange</label>
+            <select class="styled-select" id="ef_amqp_exchange">
+              <option value="direct">Direct</option><option value="topic">Topic</option><option value="fanout">Fanout</option>
+            </select></div>
+          <div id="ef_amqp2" class="input-group"><label>ACK Mode</label>
+            <select class="styled-select" id="ef_amqp_ack">
+              <option value="manual">Manual</option><option value="auto">Auto</option>
+            </select></div>
+          <div id="ef_amqp3" class="input-group"><label>Durable</label>
+            <select class="styled-select" id="ef_amqp_durable">
+              <option value="true">Yes</option><option value="false">No</option>
+            </select></div>
+          <div id="ef_mqtt"  class="input-group" style="display:none"><label>QoS</label>
+            <select class="styled-select" id="ef_qos">
+              <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+            </select></div>
+          <div id="ef_coap"  class="input-group" style="display:none"><label>CoAP Mode</label>
+            <select class="styled-select" id="ef_coap_mode">
+              <option value="CON">CON</option><option value="NON">NON</option>
+            </select></div>
+        </div>
+      </div>
+
+      <div id="mgrPaneCompare" class="mgr-pane hidden"></div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="closeMgr()">Cancel</button>
+      <button class="btn-modal-save" id="mgrSaveBtn" onclick="saveMgrForm()" style="display:none">Save Scenario</button>
+    </div>
+  </div>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <div>
+        <div class="logo-title">SMART PARKING</div>
+        <div class="logo-sub">IoT Protocol Simulator</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="progress-bar-wrap" id="progressBarWrap" style="display:none">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+        <span class="progress-bar-label" id="progressBarLabel">0%</span>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-indicator" id="statusDot"></div>
+      <span id="statusText" class="status-text">IDLE</span>
+      <button class="btn-stop" id="stopBtn" onclick="stopSim()" style="display:none">■ STOP</button>
+    </div>
+  </div>
+</header>
+
+<main class="main-grid">
+
+  <aside class="panel panel-config">
+    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span><span class="panel-title-icon">⚙</span> SCENARIO CONFIG</span>
+      <button class="btn-mgr" onclick="openMgr()">⚙ Manage</button>
+    </div>
+
+    <div class="config-tabs">
+      <button class="tab active" onclick="switchTab(event,'preset')">Presets</button>
+      <button class="tab" onclick="switchTab(event,'custom')">Custom</button>
+    </div>
+
+    <div id="tab-preset" class="tab-content">
+      <div class="input-group">
+        <label>Select Scenario</label>
+        <select id="presetSelect" class="styled-select"></select>
+      </div>
+      <div id="groupHint" class="group-hint" style="display:none"></div>
+      <div id="presetMeta" class="preset-meta"></div>
+      <div id="presetDesc" class="scenario-desc"></div>
+      <button class="btn-run" id="runPresetBtn" onclick="runPreset()">
+        <span>▶</span> RUN SCENARIO
+      </button>
+    </div>
+
+    <div id="tab-custom" class="tab-content hidden">
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Protocol</label>
+          <select id="c_protocol" class="styled-select" onchange="onProtocolChange()">
+            <option value="amqp" selected>AMQP</option>
+            <option value="mqtt">MQTT</option>
+            <option value="coap">CoAP</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Architecture</label>
+          <select id="c_arch" class="styled-select">
+            <option value="edge_aggregated">Edge Aggregated</option>
+            <option value="edge_filtered">Edge Filtered</option>
+            <option value="cloud_only">Cloud Only</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Traffic Level</label>
+          <select id="c_traffic" class="styled-select">
+            <option value="low">Low (0.1 ev/s)</option>
+            <option value="medium" selected>Medium (0.5 ev/s)</option>
+            <option value="peak">Peak (2.0 ev/s)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Parking Spots</label>
+          <input type="number" id="c_spots" class="styled-input" value="50" min="5" max="5000"/>
+        </div>
+        <div class="input-group">
+          <label>Packet Loss %</label>
+          <input type="number" id="c_loss" class="styled-input" value="2" min="0" max="50" step="0.5"/>
+        </div>
+        <div class="input-group">
+          <label>Duration (s)</label>
+          <input type="number" id="c_duration" class="styled-input" value="30" min="5" max="7200"/>
+        </div>
+        <div class="input-group">
+          <label>Rate Limit (msg/s)</label>
+          <input type="number" id="c_ratelimit" class="styled-input" value="10" min="1" max="500"/>
+        </div>
+        <div class="input-group">
+          <label>Agg. Interval (s)</label>
+          <input type="number" id="c_agg" class="styled-input" value="2" min="0.5" max="30" step="0.5"/>
+        </div>
+      </div>
+
+      <div id="amqp-opts" class="proto-opts">
+        <div class="input-grid">
+          <div class="input-group">
+            <label>Exchange Type</label>
+            <select id="c_amqp_exchange" class="styled-select">
+              <option value="direct" selected>Direct</option>
+              <option value="topic">Topic</option>
+              <option value="fanout">Fanout</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>ACK Mode</label>
+            <select id="c_amqp_ack" class="styled-select">
+              <option value="manual" selected>Manual (at-least-once)</option>
+              <option value="auto">Auto (fire-and-forget)</option>
+            </select>
+          </div>
+          <div class="input-group" style="grid-column:span 2">
+            <label>Durability</label>
+            <select id="c_amqp_durable" class="styled-select">
+              <option value="true" selected>Durable (survives restart)</option>
+              <option value="false">Non-durable (in-memory)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="mqtt-opts" class="proto-opts hidden">
+        <div class="input-group">
+          <label>MQTT QoS</label>
+          <select id="c_qos" class="styled-select">
+            <option value="0">QoS 0 - Fire &amp; forget</option>
+            <option value="1" selected>QoS 1 - At least once</option>
+            <option value="2">QoS 2 - Exactly once</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="coap-opts" class="proto-opts hidden">
+        <div class="input-group">
+          <label>CoAP Mode</label>
+          <select id="c_coap_mode" class="styled-select">
+            <option value="CON">CON - Confirmable</option>
+            <option value="NON">NON - Non-confirmable</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:.4rem; margin-top:.85rem;">
+        <button class="btn-run" id="runCustomBtn" onclick="runCustom()" style="flex:1">
+          <span>▶</span> RUN
+        </button>
+        <button class="btn-run" onclick="saveCustomAsPreset()" style="flex:1;background:transparent;border:1px solid var(--cyan);color:var(--cyan)">
+          💾 SAVE
+        </button>
+      </div>
+    </div>
+
+    <div class="live-section">
+      <div class="panel-title" style="margin-top:1.25rem"><span class="panel-title-icon">📡</span> LIVE</div>
+      <div class="prog-grid">
+        <div class="prog-item"><div class="prog-val" id="progElapsed">—</div><div class="prog-lbl">Elapsed s</div></div>
+        <div class="prog-item"><div class="prog-val" id="progGenerated">—</div><div class="prog-lbl">Generated</div></div>
+        <div class="prog-item"><div class="prog-val" id="progReceived">—</div><div class="prog-lbl">At Cloud</div></div>
+        <div class="prog-item"><div class="prog-val" id="progOccupancy">—</div><div class="prog-lbl">Occupancy</div></div>
+        <div class="prog-item"><div class="prog-val" id="progFiltered">—</div><div class="prog-lbl">Filtered</div></div>
+        <div class="prog-item"><div class="prog-val" id="progDropped">—</div><div class="prog-lbl">Dropped</div></div>
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-top:1.5rem">
+      <span class="panel-title-icon">📋</span> RUN HISTORY
+      <button class="btn-clear" onclick="clearResults()" title="Clear history">✕</button>
+    </div>
+    <div id="resultsTable" class="results-table">
+      <div class="results-empty">No runs yet. Start a scenario.</div>
+    </div>
+  </aside>
+
+  <section class="panel panel-metrics">
+    <div class="kpi-row">
+      <div class="kpi-card kpi-primary">
+        <div class="kpi-label">Mean Latency</div>
+        <div class="kpi-value" id="kpi_lat_mean">—</div>
+        <div class="kpi-unit">ms</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">P50</div>
+        <div class="kpi-value" id="kpi_lat_p50">—</div>
+        <div class="kpi-unit">ms</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">P95</div>
+        <div class="kpi-value" id="kpi_lat_p95">—</div>
+        <div class="kpi-unit">ms</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">P99</div>
+        <div class="kpi-value" id="kpi_lat_p99">—</div>
+        <div class="kpi-unit">ms</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Delivery</div>
+        <div class="kpi-value" id="kpi_delivery">—</div>
+        <div class="kpi-unit">%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Agg Ratio</div>
+        <div class="kpi-value" id="kpi_agg">—</div>
+        <div class="kpi-unit">x saved</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Filtered</div>
+        <div class="kpi-value" id="kpi_filtered">—</div>
+        <div class="kpi-unit">events</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">S→E Bytes</div>
+        <div class="kpi-value" id="kpi_bytes_se">—</div>
+        <div class="kpi-unit">KB</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">E→C Bytes</div>
+        <div class="kpi-value" id="kpi_bytes_ec">—</div>
+        <div class="kpi-unit">KB</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card span2">
+        <div class="chart-title">Protocol Comparison — Mean Latency per Traffic Level (ms)</div>
+        <canvas id="comparisonChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Latency Distribution (last run)</div>
+        <canvas id="latencyHistChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Message Counts by Link</div>
+        <canvas id="msgCountChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Bandwidth Breakdown (KB)</div>
+        <canvas id="bandwidthChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Delivery Ratio by Scenario</div>
+        <canvas id="deliveryChart" style="max-height:180px"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel panel-right">
+    <div class="panel-title">
+      <span class="panel-title-icon">🅿</span> PARKING LOT
+      <span class="lot-legend">
+        <span class="dot-free"></span>Free
+        <span class="dot-occ"></span>Occupied
+      </span>
+    </div>
+    <div id="lotGrid" class="lot-grid"></div>
+    <div class="lot-stats" id="lotStats" style="display:none">
+      <div class="lst-item"><span id="lst_total">0</span><span class="lst-label">Total</span></div>
+      <div class="lst-item lst-free"><span id="lst_free">0</span><span class="lst-label">Free</span></div>
+      <div class="lst-item lst-occ"><span id="lst_occ">0</span><span class="lst-label">Occupied</span></div>
+      <div class="lst-item"><span id="lst_pct">0%</span><span class="lst-label">Full</span></div>
+    </div>
+
+    <div class="ai-divider"></div>
+
+    <div class="ai-panel">
+      <div class="ai-header">
+        <div class="ai-title-row">
+          <span class="ai-star">✦</span>
+          <span class="ai-title-text">AI INTERPRETER</span>
+          <span id="aiBadge" class="ai-badge" style="display:none">0</span>
+        </div>
+        <span id="aiModelTag" class="ai-model-tag"></span>
+      </div>
+
+      <div class="ai-field">
+        <label class="ai-label">Focus</label>
+        <select id="aiFocus" class="ai-select">
+          <option value="general">🔍 General overview</option>
+          <option value="latency">⚡ Latency deep-dive</option>
+          <option value="reliability">📦 Reliability &amp; loss</option>
+          <option value="bandwidth">💾 Bandwidth efficiency</option>
+          <option value="protocol">📡 Protocol comparison</option>
+          <option value="architecture">🧠 Edge vs Cloud</option>
+          <option value="scale">🏙️ Large-scale analysis</option>
+          <option value="recommendation">✅ Production recommendation</option>
+        </select>
+      </div>
+
+      <div class="ai-row-two">
+        <div class="ai-field ai-field-sm">
+          <label class="ai-label">Scope</label>
+          <select id="aiScope" class="ai-select">
+            <option value="all">All runs</option>
+            <option value="last3">Last 3</option>
+            <option value="last1">Latest only</option>
+          </select>
+        </div>
+        <button class="ai-btn" id="aiAnalyseBtn" onclick="runAIAnalysis()">
+          <span class="ai-btn-star">✦</span> Analyse
+        </button>
+      </div>
+
+      <div id="aiOutput" class="ai-output">
+        <p class="ai-placeholder">Run scenarios, then click <strong>Analyse</strong> for expert insights.</p>
+      </div>
+    </div>
+  </aside>
+
+</main>
+
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/scenario_manager.js"></script>
+</body>
+</html>
