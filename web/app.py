@@ -557,8 +557,6 @@ async def _run_simulation(cfg: ScenarioConfig):
         state.results.append(result)
         state.push("sim_flushing", {"scenario": cfg.name})
         save_results(metrics, str(RESULTS_DIR))
-        state.push("sim_flushing", {"scenario": cfg.name})
-        save_results(metrics, str(RESULTS_DIR))
         state.push("sim_complete", result)
         logger.info(f"Simulation '{cfg.name}' complete")
     except asyncio.CancelledError:

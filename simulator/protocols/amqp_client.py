@@ -1,3 +1,4 @@
+# simulator/protocols/amqp_client.py
 from __future__ import annotations
 import random
 from typing import Callable
@@ -32,8 +33,7 @@ class SimulatedAMQPBackend:
         self._subscriber = subscriber_cb
         self.loss_rate = loss_rate
         self._rng = random.Random(seed)
-        self.sent = 0
-        self.bytes_sent = 0
+        self.bytes_sent = 0    
         self.nacked = 0
         self.retransmitted = 0
 
@@ -54,7 +54,6 @@ class SimulatedAMQPBackend:
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         rk = self._routing_key(batch)
         total_bytes = len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode())
-        self.sent += 1
         self.bytes_sent += total_bytes
         self._attempt(batch, payload, attempt=0)
 

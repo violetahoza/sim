@@ -1,3 +1,4 @@
+# simulator/protocols/coap_client.py
 from __future__ import annotations
 import random
 from typing import Callable
@@ -13,7 +14,6 @@ COAP_TOKEN_BYTES = 4
 
 
 class SimulatedCoAPBackend:
-    """CON: confirmable with ACK/retry. NON: fire-and-forget UDP."""
 
     CON_OVERHEAD_S = 0.008
     NON_OVERHEAD_S = 0.001
@@ -34,16 +34,12 @@ class SimulatedCoAPBackend:
         self._subscriber = subscriber_cb
         self.loss_rate = loss_rate
         self._rng = random.Random(seed)
-        self.sent = 0
-        self.bytes_sent = 0
+        self.bytes_sent = 0      
         self.retransmissions = 0
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         coap_bytes = int(len(payload) * self.CBOR_COMPRESSION)
-        total_bytes = coap_bytes + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
-        self.sent += 1
-        self.bytes_sent += total_bytes
-
+        self.bytes_sent += coap_bytes + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
         if self.config.mode == "NON":
             self._attempt_non(batch, payload)
         else:

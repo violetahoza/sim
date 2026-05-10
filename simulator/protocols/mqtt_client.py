@@ -1,3 +1,4 @@
+# simulator/protocols/mqtt_client.py
 from __future__ import annotations
 import random
 from typing import Callable
@@ -27,13 +28,11 @@ class SimulatedMQTTBackend:
         self._subscriber = subscriber_cb
         self.loss_rate = loss_rate
         self._rng = random.Random(seed)
-        self.sent = 0
-        self.bytes_sent = 0
+        self.bytes_sent = 0      
         self.retransmitted = 0
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         mqtt_overhead = 2 + len(f"parking/{batch.edge_id}/update".encode())
-        self.sent += 1
         self.bytes_sent += len(payload) + mqtt_overhead
         self._attempt(batch, payload, attempt=0)
 

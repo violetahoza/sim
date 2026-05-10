@@ -17,7 +17,7 @@ class ParkingEvent:
     state: SpotState
     timestamp: float = 0.0
     sequence: int = 0
-    is_initial: bool = False 
+    is_initial: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -80,6 +80,7 @@ class LinkStats:
             "drop_rate": self.drop_rate,
         }
 
+
 @dataclass
 class ExperimentMetrics:
     scenario_name: str
@@ -88,6 +89,7 @@ class ExperimentMetrics:
     traffic_level: str
     num_spots: int
     sim_duration_s: float
+    group: str = ""
 
     latency_mean_ms: float = 0.0
     latency_p50_ms: float = 0.0
@@ -96,20 +98,21 @@ class ExperimentMetrics:
     latency_max_ms: float = 0.0
     latency_min_ms: float = 0.0
     latency_mean_ms_with_warmup: float = 0.0
- 
+
     warmup_s: float = 0.0
     warmup_events_excluded: int = 0
- 
+
     sensor_to_edge_msgs: int = 0
     edge_to_cloud_msgs: int = 0
     cloud_only_msgs: int = 0
 
     sensor_to_edge_bytes: int = 0
     edge_to_cloud_bytes: int = 0
+    protocol_bytes: int = 0
 
     sensor_to_edge_delivery_ratio: float = 0.0
     edge_to_cloud_delivery_ratio: float = 0.0
-    end_to_end_delivery_ratio: float = 0.0 
+    end_to_end_delivery_ratio: float = 0.0
 
     aggregation_ratio: float = 0.0
     filtered_events: int = 0
