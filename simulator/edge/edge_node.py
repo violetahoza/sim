@@ -2,7 +2,6 @@ from __future__ import annotations
 import json
 import logging
 from typing import Callable, Optional
-
 import psutil
 
 from ..models import ParkingEvent, BatchUpdate, SensorState, LinkStats
@@ -22,13 +21,7 @@ class EdgeNode:
     ADAPTIVE_DEGRADE_THRESHOLD = 0.85
     ADAPTIVE_RECOVER_THRESHOLD = 0.95
 
-    def __init__(
-        self,
-        config: ScenarioConfig,
-        clock: SimClock,
-        cloud_cb: CloudForwardCallback,
-        epoch: float,
-    ) -> None:
+    def __init__(self, config: ScenarioConfig, clock: SimClock, cloud_cb: CloudForwardCallback, epoch: float) -> None:
         self.config = config
         self.edge_cfg = config.edge
         self.clock = clock
@@ -184,5 +177,5 @@ class EdgeNode:
             "mode_switches": self.mode_switches,
             "active_arch": self._active_arch,
             "link_stats": self.stats.to_dict(),
-            **res,
+            **res
         }

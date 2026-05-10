@@ -21,14 +21,7 @@ class SimulatedCoAPBackend:
     CON_MAX_RETRIES = 4
     CBOR_COMPRESSION = 0.65
 
-    def __init__(
-        self,
-        config: CoAPConfig,
-        clock: SimClock,
-        subscriber_cb: SubscriberCb,
-        loss_rate: float = 0.02,
-        seed: int = 0,
-    ) -> None:
+    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: SubscriberCb, loss_rate: float = 0.02, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb

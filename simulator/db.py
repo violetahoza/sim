@@ -1,30 +1,15 @@
 from __future__ import annotations
 import ssl
-from pathlib import Path
-from sqlalchemy import (Column, DateTime, Float, Integer, Boolean, Text, String, create_engine, )
+from sqlalchemy import Column, DateTime, Float, Integer, Boolean, Text, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-
-
-def _read_env_file() -> dict[str, str]:
-    env_path = Path(__file__).parent.parent / ".env"
-    result = {}
-    if not env_path.exists():
-        return result
-    with open(env_path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            result[k.strip()] = v.strip()
-    return result
+from .utils import read_env_file
 
 
 def make_engine(db_url: str | None = None):
-    url = db_url or _read_env_file().get("DB_URL", "")
+    url = db_url or read_env_file().get("DB_URL", "")
     if not url:
         return None
-    
+
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -37,6 +22,7 @@ def make_engine(db_url: str | None = None):
         echo=False,
     )
 
+
 class Base(DeclarativeBase):
     pass
 
@@ -44,7 +30,7 @@ class Base(DeclarativeBase):
 class ScenarioRun(Base):
     __tablename__ = "scenario_runs"
 
-    id= Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     scenario_name = Column(String(120), nullable=False, index=True)
     protocol = Column(String(10), nullable=False)
     architecture = Column(String(30), nullable=False)
@@ -91,9 +77,9 @@ class ParkingSpot(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     run_id = Column(Integer, nullable=False, index=True)
     spot_id = Column(Integer, nullable=False)
-    state = Column(String(10), nullable=False)  
-    last_updated = Column(Float, nullable=False)      
-    received_at = Column(Float, nullable=False)     
+    state = Column(String(10), nullable=False)
+    last_updated = Column(Float, nullable=False)
+    received_at = Column(Float, nullable=False)
 
 
 class LatencyRecord(Base):
@@ -105,11 +91,11 @@ class LatencyRecord(Base):
     sequence = Column(Integer, nullable=False)
     protocol = Column(String(10), nullable=False)
     architecture = Column(String(30), nullable=False)
-    sent_at = Column(Float, nullable=False)  
-    received_at = Column(Float, nullable=False)   
+    sent_at = Column(Float, nullable=False)
+    received_at = Column(Float, nullable=False)
     latency_ms = Column(Float, nullable=False)
     is_warmup = Column(Boolean, nullable=False, default=False)
- 
+
 
 def init_schema(engine) -> None:
     Base.metadata.create_all(engine)

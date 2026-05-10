@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
-from simulator.config import TrafficConfig, LinkConfig, make_scenario
+from simulator.config import TrafficConfig, make_scenario
 from simulator.des.engine import SimClock
-from simulator.models import ParkingEvent, SpotState, LinkStats
+from simulator.models import ParkingEvent, SpotState
 from simulator.traffic.traffic_model import TrafficModel
 from simulator.link.link_emulator import LinkEmulator
 from simulator.edge.edge_node import EdgeNode
@@ -19,12 +17,12 @@ def test_traffic_model_event_count():
         random_seed=0,
         parking_duration_cv=1.0,
         sim_duration_s=3600.0,
-        mean_parking_duration_s=1800.0,
+        mean_parking_duration_s=1800.0
     )
     epoch = 0.0
     events: list[ParkingEvent] = []
 
-    # arrival_rate = 0.1 events/s, duration = 3600 s  →  expected ~360 arrivals
+    # arrival_rate = 0.1 events/s, duration = 3600 s -> expected ~360 arrivals
     traffic = TrafficModel(cfg, arrival_rate=0.1, clock=clock, event_cb=events.append, epoch=epoch)
     traffic.schedule_run(3600.0)
     clock.run_until(3600.0)
@@ -46,13 +44,13 @@ def test_edge_filter_drops_same_state():
     edge = EdgeNode(cfg, clock, lambda b, r: forwarded.append((b, r)), epoch)
 
     t = epoch
-    # First OCCUPIED — new state, should forward
+    # First OCCUPIED - new state, should forward
     edge.receive(ParkingEvent("sensor_0001", 1, SpotState.OCCUPIED, timestamp=t), b"")
     t += 1.0
-    # Second OCCUPIED — same state, should be filtered
+    # Second OCCUPIED - same state, should be filtered
     edge.receive(ParkingEvent("sensor_0001", 1, SpotState.OCCUPIED, timestamp=t), b"")
     t += 1.0
-    # FREE — state change, should forward
+    # FREE - state change, should forward
     edge.receive(ParkingEvent("sensor_0001", 1, SpotState.FREE, timestamp=t), b"")
 
     assert edge.filtered_count == 1, f"Expected 1 filtered event, got {edge.filtered_count}"
@@ -66,14 +64,8 @@ def test_link_drop_rate():
     import random as _random
     delivered: list[ParkingEvent] = []
 
-    link = LinkEmulator(
-        cfg.link,
-        clock,
-        forward_cb=lambda e, b: delivered.append(e),
-        rng=_random.Random(99),
-    )
+    link = LinkEmulator(cfg.link, clock, forward_cb=lambda e, b: delivered.append(e), rng=_random.Random(99))
 
-    import time as _time
     n = 300
     for i in range(n):
         ev = ParkingEvent(f"sensor_{i:04d}", i % 10, SpotState.OCCUPIED, timestamp=float(i))
@@ -82,6 +74,4 @@ def test_link_drop_rate():
     clock.run_until(1e9)
 
     actual_drop = link.stats.dropped / link.stats.sent
-    assert abs(actual_drop - target_loss) < 0.10, (
-        f"Expected drop rate ~{target_loss:.0%}, measured {actual_drop:.2%}"
-    )
+    assert abs(actual_drop - target_loss) < 0.10, (f"Expected drop rate ~{target_loss:.0%}, measured {actual_drop:.2%}")

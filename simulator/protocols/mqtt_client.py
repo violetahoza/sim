@@ -15,14 +15,7 @@ class SimulatedMQTTBackend:
     RETRY_DELAY_S = 1.0
     MAX_RETRIES = 3
 
-    def __init__(
-        self,
-        config: MQTTConfig,
-        clock: SimClock,
-        subscriber_cb: SubscriberCb,
-        loss_rate: float = 0.0,
-        seed: int = 0,
-    ) -> None:
+    def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: SubscriberCb, loss_rate: float = 0.0, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb

@@ -28,14 +28,7 @@ class SimClock:
     def run_until(self, end_time: float) -> None:
         self.env.run(until=end_time)
 
-    async def run_until_async(
-        self,
-        end_time: float,
-        progress_cb=None,
-        cancelled_cb=None,
-        steps: int = 50,
-    ) -> None:
-
+    async def run_until_async(self, end_time: float, progress_cb=None, cancelled_cb=None, steps: int = 50) -> None:
         slice_size = end_time / max(steps, 1)
         next_stop = slice_size
 

@@ -55,5 +55,5 @@ class SensorEmulator:
             "total": total,
             "occupied": occupied,
             "free": total - occupied,
-            "occupancy_pct": round(occupied / total * 100, 1) if total else 0,
+            "occupancy_pct": round(occupied / total * 100, 1) if total else 0
         }

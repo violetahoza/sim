@@ -4,7 +4,7 @@ import random
 from typing import Callable, Optional
 
 from ..models import ParkingEvent, SpotState
-from ..config import TrafficConfig, DEFAULT_TOD_FACTORS
+from ..config import TrafficConfig
 from ..des.engine import SimClock
 
 
@@ -17,7 +17,7 @@ class TrafficModel:
         clock: SimClock,
         event_cb: Callable[[ParkingEvent], None],
         epoch: float,
-        rng: Optional[random.Random] = None,
+        rng: Optional[random.Random] = None
     ) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
@@ -27,7 +27,7 @@ class TrafficModel:
         self.event_cb = event_cb
         self.epoch = epoch
         self.rng = rng or random.Random(config.random_seed)
-        self._tod_factors = config.tod_factors if config.tod_factors else DEFAULT_TOD_FACTORS
+        self._tod_factors = config.tod_factors
 
         self.occupied: dict[int, bool] = {
             i: self.rng.random() < config.initial_occupancy
@@ -65,21 +65,11 @@ class TrafficModel:
         self._end_time = duration_s
         for spot_id, is_occ in self.occupied.items():
             if is_occ:
-                event = ParkingEvent(
-                    sensor_id=f"sensor_{spot_id:04d}",
-                    spot_id=spot_id,
-                    state=SpotState.OCCUPIED,
-                    timestamp=self.epoch,
-                    sequence=self._next_seq(),
-                    is_initial=True,
-                )
+                event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=self.epoch, sequence=self._next_seq(), is_initial=True)
                 self.event_cb(event)
                 dwell = self._sample_dwell()
                 dep_t = min(dwell, duration_s)
-                self.clock.schedule_at(
-                    dep_t,
-                    lambda s=spot_id, t=dep_t: self._on_departure(s, t),
-                )
+                self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
         self._schedule_next_arrival(0.0)
 
     def _schedule_next_arrival(self, from_time: float) -> None:
@@ -95,29 +85,15 @@ class TrafficModel:
         if free:
             spot_id = self.rng.choice(free)
             self.occupied[spot_id] = True
-            event = ParkingEvent(
-                sensor_id=f"sensor_{spot_id:04d}",
-                spot_id=spot_id,
-                state=SpotState.OCCUPIED,
-                timestamp=self.epoch + virtual_time,
-                sequence=self._next_seq(),
-            )
+            event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=self.epoch + virtual_time, sequence=self._next_seq())
             self.event_cb(event)
-
             dwell = self._sample_dwell()
             dep_t = virtual_time + dwell
             self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
-
         self._schedule_next_arrival(virtual_time)
 
     def _on_departure(self, spot_id: int, virtual_time: float) -> None:
         if self.occupied.get(spot_id, False):
             self.occupied[spot_id] = False
-            event = ParkingEvent(
-                sensor_id=f"sensor_{spot_id:04d}",
-                spot_id=spot_id,
-                state=SpotState.FREE,
-                timestamp=self.epoch + virtual_time,
-                sequence=self._next_seq(),
-            )
+            event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.FREE, timestamp=self.epoch + virtual_time, sequence=self._next_seq())
             self.event_cb(event)

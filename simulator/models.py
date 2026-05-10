@@ -1,8 +1,6 @@
 from __future__ import annotations
-import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Optional
 
 
 class SpotState(str, Enum):
@@ -25,7 +23,7 @@ class ParkingEvent:
             "spot_id": self.spot_id,
             "state": self.state.value,
             "timestamp": self.timestamp,
-            "sequence": self.sequence,
+            "sequence": self.sequence
         }
 
 
@@ -77,7 +75,7 @@ class LinkStats:
             "total_bytes_sent": self.total_bytes_sent,
             "total_bytes_received": self.total_bytes_received,
             "delivery_ratio": self.delivery_ratio,
-            "drop_rate": self.drop_rate,
+            "drop_rate": self.drop_rate
         }
 
 

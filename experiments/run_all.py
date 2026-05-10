@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import logging
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -13,12 +14,15 @@ from experiments.runner import ExperimentRunner, save_results
 
 OUTPUT_DIR = Path("results")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(name)s: %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("run_all")
+
+
+def _group_slug(group_name: str) -> str:
+    slug = re.sub(r"[^\w\s]", "", group_name)  
+    slug = re.sub(r"\s+", "_", slug.strip())    
+    slug = slug.lower()[:50]                     
+    return slug or "ungrouped"
 
 
 async def _run_one(scenario) -> tuple:
@@ -76,7 +80,7 @@ async def main(names: list[str] | None = None) -> None:
         groups[m.group].append(m)
 
     for group_name, group_metrics in sorted(groups.items()):
-        slug = group_name.split(" ")[0].rstrip("-").strip() or "ungrouped"
+        slug = _group_slug(group_name)
         group_path = OUTPUT_DIR / f"group_{slug}.csv"
         g_rows = [m.to_dict() for m in group_metrics]
         with open(group_path, "w", newline="") as f:

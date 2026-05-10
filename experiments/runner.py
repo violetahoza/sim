@@ -23,12 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExperimentRunner:
-    def __init__(
-        self,
-        config: ScenarioConfig,
-        progress_cb=None,
-        flush_cb=None,
-    ) -> None:
+    def __init__(self, config: ScenarioConfig, progress_cb=None, flush_cb=None) -> None:
         self.config = config
         self.progress_cb = progress_cb
         self.flush_cb = flush_cb
@@ -82,11 +77,7 @@ class ExperimentRunner:
         for i in range(cfg.num_spots):
             self._spot_states[i] = "free"
 
-        link = LinkEmulator(
-            cfg.link, clock,
-            forward_cb=self._make_link_cb(arch, edge, cloud, epoch),
-            rng=random.Random(seed + 1),
-        )
+        link = LinkEmulator(cfg.link, clock, forward_cb=self._make_link_cb(arch, edge, cloud, epoch), rng=random.Random(seed + 1))
 
         edge.set_sensor_link_stats(link.stats)
 
@@ -121,12 +112,7 @@ class ExperimentRunner:
             }
             self.progress_cb(snap)
 
-        await clock.run_until_async(
-            cfg.sim_duration_s,
-            progress_cb=des_progress,
-            cancelled_cb=lambda: self._cancelled,
-        )
-
+        await clock.run_until_async(cfg.sim_duration_s, progress_cb=des_progress, cancelled_cb=lambda: self._cancelled)
         edge.flush_final()
 
         protocol_bytes = backend.bytes_sent
@@ -240,7 +226,7 @@ class ExperimentRunner:
             broker_overhead_score=cloud.compute_broker_overhead_score(),
 
             latency_timeseries=cloud.get_latency_timeseries(),
-            latency_samples=post_samples[-50_000:],
+            latency_samples=post_samples[-50_000:]
         )
 
 

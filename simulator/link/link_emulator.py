@@ -32,13 +32,7 @@ class TokenBucket:
 
 class LinkEmulator:
 
-    def __init__(
-        self,
-        config: LinkConfig,
-        clock: SimClock,
-        forward_cb: ForwardCallback,
-        rng: random.Random | None = None,
-    ) -> None:
+    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: ForwardCallback, rng: random.Random | None = None) -> None:
         self.config = config
         self.clock = clock
         self._callback = forward_cb

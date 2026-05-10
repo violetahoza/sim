@@ -14,7 +14,28 @@ CoAPMode = Literal["CON", "NON"]
 AMQPExchange = Literal["direct", "fanout", "topic"]
 AMQPAckMode = Literal["auto", "manual"]
 
+DEFAULT_TOD_FACTORS: list[float] = [
+    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  # 00–05
+    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  # 06–11
+    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,  # 12–17
+    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  # 18–23
+]
+
+ARRIVAL_RATES: dict[str, float] = {
+    "low": 0.0069,
+    "medium": 0.0153,
+    "peak": 0.0236,
+}
+
+SIM_DURATION_S = 10_800.0
+DEFAULT_AGG_INTERVAL_S = 30.0
+DEFAULT_TIME_SCALE = 60.0
+
+_SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
+_CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
+
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class LinkConfig:
@@ -33,7 +54,7 @@ class EdgeConfig:
     filter_no_change: bool = True
     anomaly_detection: bool = True
     cache_ttl_s: float = 300.0
-    warmup_s: float = 60.0  
+    warmup_s: float = 60.0
     adaptive_edge: bool = False
 
 
@@ -68,22 +89,13 @@ class CoAPConfig:
     mode: CoAPMode = "CON"
     resource: str = "parking/update"
 
-
-DEFAULT_TOD_FACTORS: list[float] = [
-    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  # 00–05
-    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  # 06–11
-    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,  # 12–17
-    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  # 18–23
-]
-
-
 @dataclass
 class TrafficConfig:
     num_spots: int = 50
 
-    arrival_rate_low:    float = 0.0069
+    arrival_rate_low: float = 0.0069
     arrival_rate_medium: float = 0.0153
-    arrival_rate_peak:   float = 0.0236
+    arrival_rate_peak: float = 0.0236
 
     mean_parking_duration_s: float = 1800.0
     parking_duration_cv: float = 1.5
@@ -93,7 +105,7 @@ class TrafficConfig:
     time_scale: float = 60.0
     use_time_of_day: bool = False
     start_hour: float = 8.0
-    tod_factors: Optional[list[float]] = None
+    tod_factors: list[float] = field(default_factory=lambda: list(DEFAULT_TOD_FACTORS))
 
 
 @dataclass
@@ -137,7 +149,10 @@ class ScenarioConfig:
             "group_order": d["group_order"],
             "seed": d["random_seed"],
             "is_builtin": False,
-            **{k: link[k] for k in ("base_delay_ms", "jitter_ms", "max_payload_bytes", "payload_encoding_ratio")},
+            "base_delay_ms": link["base_delay_ms"],
+            "jitter_ms": link["jitter_ms"],
+            "max_payload_bytes": link["max_payload_bytes"],
+            "payload_encoding_ratio": link["payload_encoding_ratio"],
             "loss_rate": link["packet_loss_rate"],
             "rate_limit": link["rate_limit_msgs_per_sec"],
             "aggregation_interval": edge["aggregation_interval_s"],
@@ -149,8 +164,12 @@ class ScenarioConfig:
             "amqp_exchange": amqp["exchange_type"],
             "amqp_ack": amqp["ack_mode"],
             "amqp_durable": amqp["durable"],
-            **{k: traffic[k] for k in ("time_scale", "parking_duration_cv", "use_time_of_day", "start_hour", "initial_occupancy")},
-            "tod_factors": traffic["tod_factors"],
+            "time_scale": traffic["time_scale"],
+            "parking_duration_cv": traffic["parking_duration_cv"],
+            "use_time_of_day": traffic["use_time_of_day"],
+            "start_hour": traffic["start_hour"],
+            "initial_occupancy": traffic["initial_occupancy"],
+            "tod_factors": traffic["tod_factors"]
         }
 
     @classmethod
@@ -187,20 +206,9 @@ class ScenarioConfig:
             use_time_of_day=d.get("use_time_of_day", False),
             start_hour=d.get("start_hour", 8.0),
             initial_occupancy=d.get("initial_occupancy"),
-            tod_factors=d.get("tod_factors"),
+            tod_factors=d.get("tod_factors")
         )
-
-
-ARRIVAL_RATES: dict[str, float] = {
-    "low": 0.0069,
-    "medium": 0.0153,
-    "peak": 0.0236,
-}
-
-SIM_DURATION_S = 10_800.0
-DEFAULT_AGG_INTERVAL_S = 30.0
-DEFAULT_TIME_SCALE = 60.0
-
+    
 
 def make_scenario(
     name: str,
@@ -234,7 +242,7 @@ def make_scenario(
     use_time_of_day: bool = False,
     start_hour: float = 8.0,
     initial_occupancy: Optional[float] = None,
-    tod_factors: Optional[list[float]] = None,
+    tod_factors: Optional[list[float]] = None
 ) -> ScenarioConfig:
     arrival = ARRIVAL_RATES[traffic_level] * (num_spots / 50)
 
@@ -250,14 +258,14 @@ def make_scenario(
         base_delay_ms=base_delay_ms,
         jitter_ms=jitter_ms,
         max_payload_bytes=max_payload_bytes,
-        payload_encoding_ratio=payload_encoding_ratio,
+        payload_encoding_ratio=payload_encoding_ratio
     )
     edge = EdgeConfig(
         architecture=architecture,
         aggregation_interval_s=aggregation_interval,
         anomaly_detection=anomaly_detection,
         adaptive_edge=adaptive_edge,
-        warmup_s=warmup_s,
+        warmup_s=warmup_s
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
@@ -272,7 +280,7 @@ def make_scenario(
         time_scale=time_scale,
         use_time_of_day=use_time_of_day,
         start_hour=start_hour,
-        tod_factors=tod_factors,
+        **({"tod_factors": tod_factors} if tod_factors is not None else {})
     )
     return ScenarioConfig(
         name=name, description=description, protocol=protocol,
@@ -283,20 +291,17 @@ def make_scenario(
         amqp=AMQPConfig(exchange_type=amqp_exchange, ack_mode=amqp_ack, durable=amqp_durable),
         coap=CoAPConfig(mode=coap_mode),
         traffic=traffic, random_seed=seed,
-        group=group, group_order=group_order, is_builtin=is_builtin,
+        group=group, group_order=group_order, is_builtin=is_builtin
     )
-
-
-_SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
-_CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
 
 
 def _load_builtin_scenarios() -> list[ScenarioConfig]:
     with open(_SCENARIOS_YAML, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return [make_scenario(**{k: v for k, v in s.items() if k != "is_builtin"},
-                          is_builtin=s.get("is_builtin", True))
-            for s in data["scenarios"]]
+    return [
+        make_scenario(**{k: v for k, v in s.items() if k != "is_builtin"}, is_builtin=s.get("is_builtin", True))
+        for s in data["scenarios"]
+    ]
 
 
 PREDEFINED_SCENARIOS: list[ScenarioConfig] = _load_builtin_scenarios()

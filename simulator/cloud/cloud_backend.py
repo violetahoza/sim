@@ -13,7 +13,6 @@ from ..des.engine import SimClock
 
 logger = logging.getLogger(__name__)
 
-
 _BROKER_WEIGHT: dict[str, float] = {
     "mqtt_qos0": 1.0, "mqtt_qos1": 1.8, "mqtt_qos2": 3.2,
     "amqp_direct/auto": 2.0, "amqp_direct/manual": 2.8, "amqp_topic/manual": 3.5,
@@ -39,8 +38,8 @@ class CloudBackend:
 
         self._warmup_s: float = config.edge.warmup_s
         self._warmup_excluded: int = 0
-        self._latency_ms_all: list[float] = []    
-        self._latency_ms_post: list[float] = []  
+        self._latency_ms_all: list[float] = []
+        self._latency_ms_post: list[float] = []
 
         self._event_rows: list[tuple] = []
 
@@ -54,6 +53,9 @@ class CloudBackend:
         self._run_id: int | None = None
         self._started_at: datetime = datetime.now(timezone.utc)
 
+        self._snapshot_cache: dict | None = None
+        self._snapshot_cache_len: int = -1
+
     def receive_batch(self, batch: BatchUpdate, raw_bytes: bytes) -> None:
         arrival_virtual = self.clock.now
         arrival_epoch = self.epoch + arrival_virtual
@@ -62,13 +64,9 @@ class CloudBackend:
         for event in batch.events:
             self._process_event(event, arrival_virtual, arrival_epoch)
 
-    def _process_event(
-        self, event: ParkingEvent, arrival_virtual: float, arrival_epoch: float
-    ) -> None:
+    def _process_event(self, event: ParkingEvent, arrival_virtual: float, arrival_epoch: float) -> None:
         self.received_events += 1
-        state_val = (
-            event.state.value if isinstance(event.state, SpotState) else str(event.state)
-        )
+        state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         spot = self._spots.get(event.spot_id)
         if spot is not None:
             spot["state"] = state_val
@@ -93,24 +91,23 @@ class CloudBackend:
             "spot_id": event.spot_id,
             "state": state_val,
             "latency_ms": round(latency_ms, 2),
-            "timestamp": arrival_epoch,
+            "timestamp": arrival_epoch
         })
 
     def open_run(self, engine, config_json: str = "") -> None:
         if engine is None:
             return
-        from ..db import ScenarioRun, make_session
         session = make_session(engine)
         try:
             run = ScenarioRun(
-                scenario_name = self.config.name,
-                protocol = self.config.protocol,
-                architecture = self.config.architecture,
-                traffic_level = self.config.traffic_level,
-                num_spots = self.config.num_spots,
-                sim_duration_s = self.config.sim_duration_s,
-                started_at = self._started_at,
-                config_json = config_json,
+                scenario_name=self.config.name,
+                protocol=self.config.protocol,
+                architecture=self.config.architecture,
+                traffic_level=self.config.traffic_level,
+                num_spots=self.config.num_spots,
+                sim_duration_s=self.config.sim_duration_s,
+                started_at=self._started_at,
+                config_json=config_json
             )
             session.add(run)
             session.commit()
@@ -122,7 +119,7 @@ class CloudBackend:
     def flush_to_db(self, engine, metrics) -> None:
         if engine is None or self._run_id is None:
             return
-        
+
         session = make_session(engine)
         try:
             logger.info(
@@ -133,7 +130,7 @@ class CloudBackend:
             proto = self.config.protocol
             arch = self.config.architecture
             for i in range(0, len(self._event_rows), CHUNK):
-                chunk = self._event_rows[i : i + CHUNK]
+                chunk = self._event_rows[i: i + CHUNK]
                 session.execute(
                     sa_insert(LatencyRecord),
                     [
@@ -146,7 +143,7 @@ class CloudBackend:
                             "sent_at": row[2],
                             "received_at": row[3],
                             "latency_ms": round(row[4], 4),
-                            "is_warmup": row[5],
+                            "is_warmup": row[5]
                         }
                         for row in chunk
                     ],
@@ -161,7 +158,7 @@ class CloudBackend:
                         "spot_id": sid,
                         "state": s["state"],
                         "last_updated": s["last_updated"],
-                        "received_at": s["received_at"],
+                        "received_at": s["received_at"]
                     }
                     for sid, s in self._spots.items()
                 ],
@@ -215,7 +212,7 @@ class CloudBackend:
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
         return {
             "total": total, "occupied": occupied, "free": total - occupied,
-            "occupancy_pct": round(occupied / total * 100, 1) if total else 0,
+            "occupancy_pct": round(occupied / total * 100, 1) if total else 0
         }
 
     def get_latest_events(self, limit: int = 50) -> list[dict]:
@@ -223,27 +220,44 @@ class CloudBackend:
 
     def get_metrics_snapshot(self) -> dict:
         samples = self._latency_ms_post if self._latency_ms_post else self._latency_ms_all
+        current_len = len(samples)
+
+        if self._snapshot_cache is not None and current_len == self._snapshot_cache_len:
+            return self._snapshot_cache
+
         if samples:
             arr = np.array(samples)
-            mean, p50 = float(np.mean(arr)), float(np.percentile(arr, 50))
-            p95, p99 = float(np.percentile(arr, 95)), float(np.percentile(arr, 99))
-            mn, mx = float(np.min(arr)), float(np.max(arr))
+            mean = float(np.mean(arr))
+            p50 = float(np.percentile(arr, 50))
+            p95 = float(np.percentile(arr, 95))
+            p99 = float(np.percentile(arr, 99))
+            mn = float(np.min(arr))
+            mx = float(np.max(arr))
         else:
             mean = p50 = p95 = p99 = mn = mx = 0.0
 
         cpu = self._process.cpu_percent()
         mem = self._process.memory_info().rss / (1024 * 1024)
-        return {
+
+        snapshot = {
             "received_batches": self.received_batches,
             "received_events": self.received_events,
             "total_bytes_received": self._total_bytes_received,
-            "latency_mean_ms": round(mean, 2), "latency_p50_ms": round(p50, 2),
-            "latency_p95_ms": round(p95, 2), "latency_p99_ms": round(p99, 2),
-            "latency_min_ms": round(mn, 2), "latency_max_ms": round(mx, 2),
+            "latency_mean_ms": round(mean, 2),
+            "latency_p50_ms": round(p50, 2),
+            "latency_p95_ms": round(p95, 2),
+            "latency_p99_ms": round(p99, 2),
+            "latency_min_ms": round(mn, 2),
+            "latency_max_ms": round(mx, 2),
             "warmup_excluded": self._warmup_excluded,
-            "cpu_pct": cpu, "mem_mb": round(mem, 2),
-            "latency_samples": [round(v, 2) for v in samples[-200:]],
+            "cpu_pct": cpu,
+            "mem_mb": round(mem, 2),
+            "latency_samples": [round(v, 2) for v in samples[-200:]]
         }
+
+        self._snapshot_cache = snapshot
+        self._snapshot_cache_len = current_len
+        return snapshot
 
     def get_all_latency_samples(self) -> tuple[list[float], list[float]]:
         return self._latency_ms_post, self._latency_ms_all
