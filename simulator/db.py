@@ -1,7 +1,7 @@
 from __future__ import annotations
 import ssl
 from pathlib import Path
-from sqlalchemy import (Column, DateTime, Float, Integer, String, create_engine, )
+from sqlalchemy import (Column, DateTime, Float, Integer, Boolean, Text, String, create_engine, )
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
@@ -53,6 +53,7 @@ class ScenarioRun(Base):
     sim_duration_s = Column(Float, nullable=False)
     started_at = Column(DateTime, nullable=False)
     completed_at = Column(DateTime)
+    config_json = Column(Text)
 
     latency_mean_ms = Column(Float)
     latency_p50_ms = Column(Float)
@@ -60,17 +61,28 @@ class ScenarioRun(Base):
     latency_p99_ms = Column(Float)
     latency_min_ms = Column(Float)
     latency_max_ms = Column(Float)
+    latency_mean_ms_with_warmup = Column(Float)
+    warmup_s = Column(Float)
+    warmup_events_excluded = Column(Integer)
+
     sensor_to_edge_msgs = Column(Integer)
     edge_to_cloud_msgs = Column(Integer)
+
     sensor_to_edge_delivery_ratio = Column(Float)
     edge_to_cloud_delivery_ratio = Column(Float)
+    end_to_end_delivery_ratio = Column(Float)
+
     aggregation_ratio = Column(Float)
     filtered_events = Column(Integer)
     anomalies_detected = Column(Integer)
+    adaptive_mode_switches = Column(Integer)
+
     edge_cpu_pct = Column(Float)
     edge_mem_mb = Column(Float)
     cloud_cpu_pct = Column(Float)
     cloud_mem_mb = Column(Float)
+
+    broker_overhead_score = Column(Float)
 
 
 class ParkingSpot(Base):
@@ -96,7 +108,8 @@ class LatencyRecord(Base):
     sent_at = Column(Float, nullable=False)  
     received_at = Column(Float, nullable=False)   
     latency_ms = Column(Float, nullable=False)
-
+    is_warmup = Column(Boolean, nullable=False, default=False)
+ 
 
 def init_schema(engine) -> None:
     Base.metadata.create_all(engine)

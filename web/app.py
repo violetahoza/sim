@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from simulator.config import ( PREDEFINED_SCENARIOS, make_scenario, load_custom_scenarios, save_custom_scenarios, ScenarioConfig, )
 from experiments.runner import ExperimentRunner, save_results
+from simulator.db import make_engine, ScenarioRun, ParkingSpot, LatencyRecord, make_session
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -208,6 +209,9 @@ def _make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         num_spots=max(5, min(5000, int(body.get("num_spots", 50)))),
         loss_rate=max(0.0, min(0.5, float(body.get("loss_rate", 0.02)))),
         aggregation_interval=max(0.5, float(body.get("aggregation_interval", 2.0))),
+        anomaly_detection=bool(body.get("anomaly_detection", True)),
+        adaptive_edge=bool(body.get("adaptive_edge", False)),
+        warmup_s=max(0.0, float(body.get("warmup_s", 60.0))),
         mqtt_qos=int(body.get("mqtt_qos", 1)),
         coap_mode=body.get("coap_mode", "CON"),
         amqp_exchange=body.get("amqp_exchange", "direct"),
@@ -280,6 +284,21 @@ async def clear_results():
     if RESULTS_DIR.exists():
         for f in RESULTS_DIR.glob("*.json"):
             f.unlink(missing_ok=True)
+
+    engine = make_engine()
+    if engine is not None:
+        session = make_session(engine)
+        try:
+            session.query(LatencyRecord).delete()
+            session.query(ParkingSpot).delete()
+            session.query(ScenarioRun).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.warning(f"DB clear failed: {e}")
+        finally:
+            session.close()
+
     return {"status": "cleared"}
 
 @app.get("/api/stream")
@@ -525,7 +544,10 @@ async def _run_simulation(cfg: ScenarioConfig):
         state.progress = snap
         state.push("progress", snap)
 
-    runner = ExperimentRunner(cfg, progress_cb=progress_cb)
+    def flush_cb():
+        state.push("sim_flushing", {"scenario": cfg.name})
+
+    runner = ExperimentRunner(cfg, progress_cb=progress_cb, flush_cb=flush_cb)
     state._runner = runner
     try:
         metrics = await runner.run()
@@ -533,6 +555,9 @@ async def _run_simulation(cfg: ScenarioConfig):
         result["latency_samples"] = metrics.latency_samples
         result["source"] = "live"
         state.results.append(result)
+        state.push("sim_flushing", {"scenario": cfg.name})
+        save_results(metrics, str(RESULTS_DIR))
+        state.push("sim_flushing", {"scenario": cfg.name})
         save_results(metrics, str(RESULTS_DIR))
         state.push("sim_complete", result)
         logger.info(f"Simulation '{cfg.name}' complete")

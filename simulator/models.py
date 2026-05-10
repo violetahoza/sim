@@ -17,6 +17,7 @@ class ParkingEvent:
     state: SpotState
     timestamp: float = 0.0
     sequence: int = 0
+    is_initial: bool = False 
 
     def to_dict(self) -> dict:
         return {
@@ -94,7 +95,11 @@ class ExperimentMetrics:
     latency_p99_ms: float = 0.0
     latency_max_ms: float = 0.0
     latency_min_ms: float = 0.0
-
+    latency_mean_ms_with_warmup: float = 0.0
+ 
+    warmup_s: float = 0.0
+    warmup_events_excluded: int = 0
+ 
     sensor_to_edge_msgs: int = 0
     edge_to_cloud_msgs: int = 0
     cloud_only_msgs: int = 0
@@ -104,16 +109,19 @@ class ExperimentMetrics:
 
     sensor_to_edge_delivery_ratio: float = 0.0
     edge_to_cloud_delivery_ratio: float = 0.0
+    end_to_end_delivery_ratio: float = 0.0 
 
     aggregation_ratio: float = 0.0
     filtered_events: int = 0
-
     anomalies_detected: int = 0
+    adaptive_mode_switches: int = 0
 
     edge_cpu_pct: float = 0.0
     edge_mem_mb: float = 0.0
     cloud_cpu_pct: float = 0.0
     cloud_mem_mb: float = 0.0
+
+    broker_overhead_score: float = 0.0
 
     latency_timeseries: list[dict] = field(default_factory=list)
     latency_samples: list[float] = field(default_factory=list)
@@ -123,23 +131,3 @@ class ExperimentMetrics:
         d.pop("latency_samples", None)
         d.pop("latency_timeseries", None)
         return d
-
-    def to_prompt_context(self) -> str:
-        reduction = (1.0 - self.aggregation_ratio) * 100
-        lines = [
-            f"Results for scenario '{self.scenario_name}':",
-            f"  Protocol: {self.protocol.upper()}  Architecture: {self.architecture}",
-            f"  Spots: {self.num_spots}  Traffic: {self.traffic_level}  Duration: {self.sim_duration_s / 3600:.1f} h",
-            f"  Events: sensor→edge={self.sensor_to_edge_msgs}  edge→cloud={self.edge_to_cloud_msgs}  (cloud_only={self.cloud_only_msgs})",
-            f"  Bytes:  sensor→edge={self.sensor_to_edge_bytes:,}  edge→cloud={self.edge_to_cloud_bytes:,}",
-            f"  Latency (ms): mean={self.latency_mean_ms:.1f}  P50={self.latency_p50_ms:.1f}  P95={self.latency_p95_ms:.1f}  P99={self.latency_p99_ms:.1f}  min={self.latency_min_ms:.1f}  max={self.latency_max_ms:.1f}",
-            f"  Delivery: S→E={self.sensor_to_edge_delivery_ratio:.1%}  E→C={self.edge_to_cloud_delivery_ratio:.1%}",
-            f"  Aggregation ratio: {self.aggregation_ratio:.3f}  ({reduction:.1f}% cloud message reduction)",
-            f"  Filtered events: {self.filtered_events}  Anomalies detected: {self.anomalies_detected}",
-            f"  Resources: edge CPU={self.edge_cpu_pct:.1f}%  edge mem={self.edge_mem_mb:.1f} MB  cloud CPU={self.cloud_cpu_pct:.1f}%  cloud mem={self.cloud_mem_mb:.1f} MB",
-        ]
-        if self.latency_timeseries:
-            last = self.latency_timeseries[-1]
-            first = self.latency_timeseries[0]
-            lines.append(f"  Latency drift: {first['mean_ms']:.1f} ms at t={first['t_s']:.0f}s → {last['mean_ms']:.1f} ms at t={last['t_s']:.0f}s")
-        return "\n".join(lines)

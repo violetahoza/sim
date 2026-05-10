@@ -31,9 +31,9 @@ class SimClock:
     async def run_until_async(
         self,
         end_time: float,
-        progress_cb: Callable[[float, float], None] | None = None,
-        cancelled_cb: Callable[[], bool] | None = None,
-        steps: int = 200,
+        progress_cb=None,
+        cancelled_cb=None,
+        steps: int = 50,
     ) -> None:
 
         slice_size = end_time / max(steps, 1)
@@ -50,4 +50,4 @@ class SimClock:
                 progress_cb(self.env.now, end_time)
 
             next_stop += slice_size
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.05)

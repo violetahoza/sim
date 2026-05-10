@@ -64,6 +64,23 @@ class TrafficModel:
 
     def schedule_run(self, duration_s: float) -> None:
         self._end_time = duration_s
+        for spot_id, is_occ in self.occupied.items():
+            if is_occ:
+                event = ParkingEvent(
+                    sensor_id=f"sensor_{spot_id:04d}",
+                    spot_id=spot_id,
+                    state=SpotState.OCCUPIED,
+                    timestamp=self.epoch,      
+                    sequence=self._next_seq(),
+                    is_initial=True,
+                )
+                self.event_cb(event)
+                dwell = self._sample_dwell()
+                dep_t = min(dwell, duration_s)
+                self.clock.schedule_at(
+                    dep_t,
+                    lambda s=spot_id, t=dep_t: self._on_departure(s, t),
+                )
         self._schedule_next_arrival(0.0)
 
     def _schedule_next_arrival(self, from_time: float) -> None:

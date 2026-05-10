@@ -17,7 +17,7 @@ class TokenBucket:
         self.tokens = 1.0
         self._last_virtual = 0.0
 
-    def wait_time(self, clock: SimClock) -> float:
+    def consume(self, clock: SimClock) -> float:
         elapsed = clock.now - self._last_virtual
         self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
         self._last_virtual = clock.now
@@ -63,15 +63,15 @@ class LinkEmulator:
         self.stats.sent += 1
         self.stats.total_bytes_sent += wire_bytes
 
-        token_delay = self._bucket.wait_time(self.clock)
-
+        if wire_bytes > self.config.max_payload_bytes:
+            self.stats.dropped += 1
+            return
+ 
         if self._should_drop():
             self.stats.dropped += 1
             return
 
-        if wire_bytes > self.config.max_payload_bytes:
-            self.stats.dropped += 1
-            return
+        token_delay = self._bucket.consume(self.clock)
 
         total_delay = token_delay + self._compute_delay()
 

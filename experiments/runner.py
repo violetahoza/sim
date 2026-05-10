@@ -28,10 +28,12 @@ class ExperimentRunner:
     def __init__(
         self,
         config: ScenarioConfig,
-        progress_cb: Optional[Callable[[dict], None]] = None,
+        progress_cb= None,
+        flush_cb=None,
     ) -> None:
         self.config = config
         self.progress_cb = progress_cb
+        self.flush_cb = flush_cb 
         self._start_time: float = 0.0
         self._cancelled = False
         self._cancel_event = asyncio.Event()
@@ -54,9 +56,10 @@ class ExperimentRunner:
         sensors = SensorEmulator(cfg.traffic, cfg.arrival_rate)
         cloud = CloudBackend(cfg, clock, epoch)
 
-        cloud.open_run(engine)
+        config_json = json.dumps(cfg.to_save_dict())
+        cloud.open_run(engine, config_json=config_json)
 
-        seed = cfg.random_seed
+        seed  = cfg.random_seed
         proto = cfg.protocol
 
         def cloud_recv(batch: BatchUpdate, raw: bytes) -> None:
@@ -82,11 +85,12 @@ class ExperimentRunner:
             self._spot_states[i] = "free"
 
         link = LinkEmulator(
-            cfg.link,
-            clock,
+            cfg.link, clock,
             forward_cb=self._make_link_cb(arch, edge, cloud, epoch),
             rng=random.Random(seed + 1),
         )
+
+        edge.set_sensor_link_stats(link.stats)
 
         def sensor_cb(event: ParkingEvent) -> None:
             if not self._cancelled:
@@ -103,11 +107,9 @@ class ExperimentRunner:
         def des_progress(virtual_now: float, end_time: float) -> None:
             if self.progress_cb is None:
                 return
-            wall_elapsed = time.time() - self._start_time
-            wall_duration = end_time / cfg.traffic.time_scale
             snap = {
-                "elapsed_s": round(wall_elapsed, 1),
-                "wall_duration_s": round(wall_duration, 1),
+                "elapsed_s": round(time.time() - self._start_time, 1),
+                "wall_duration_s": round(end_time / cfg.traffic.time_scale, 1),
                 "simulated_elapsed_s": round(virtual_now, 0),
                 "simulated_duration_s": end_time,
                 "time_scale": cfg.traffic.time_scale,
@@ -131,13 +133,18 @@ class ExperimentRunner:
 
         metrics = self._collect_metrics(cfg, sensors, link, edge, cloud)
         logger.info(
-            f"[{cfg.name}] Done. events={metrics.sensor_to_edge_msgs} "
-            f"cloud={cloud.received_events} lat={metrics.latency_mean_ms:.1f} ms "
+            f"[{cfg.name}] Done. "
+            f"events={metrics.sensor_to_edge_msgs}  cloud={cloud.received_events}  "
+            f"lat={metrics.latency_mean_ms:.1f} ms  "
+            f"warmup_excl={metrics.warmup_events_excluded}  "
+            f"e2e_dr={metrics.end_to_end_delivery_ratio:.1%}  "
             f"filtered={metrics.filtered_events}"
         )
 
-        cloud.flush_to_db(engine, metrics)
+        if self.flush_cb:
+            self.flush_cb()
 
+        cloud.flush_to_db(engine, metrics)
         return metrics
 
     def _make_link_cb(self, arch: str, edge: EdgeNode, cloud: CloudBackend, epoch: float):
@@ -152,17 +159,20 @@ class ExperimentRunner:
             return cb
 
     def _collect_metrics(self, cfg, sensors, link, edge, cloud) -> ExperimentMetrics:
-        latency_samples = cloud.get_all_latency_samples()
-        if latency_samples:
-            arr = np.array(latency_samples)
-            lat_mean = float(np.mean(arr))
-            lat_p50  = float(np.percentile(arr, 50))
-            lat_p95  = float(np.percentile(arr, 95))
-            lat_p99  = float(np.percentile(arr, 99))
-            lat_min  = float(np.min(arr))
-            lat_max  = float(np.max(arr))
-        else:
-            lat_mean = lat_p50 = lat_p95 = lat_p99 = lat_min = lat_max = 0.0
+        post_samples, all_samples = cloud.get_all_latency_samples()
+
+        def _stats(samples):
+            if not samples:
+                return (0.0,) * 6
+            arr = np.array(samples)
+            return (
+                float(np.mean(arr)), float(np.percentile(arr, 50)),
+                float(np.percentile(arr, 95)), float(np.percentile(arr, 99)),
+                float(np.min(arr)), float(np.max(arr)),
+            )
+
+        lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
+        lat_mean_all = float(np.mean(all_samples)) if all_samples else 0.0
 
         sensor_events = sensors.total_generated
         cloud_events  = cloud.received_events
@@ -172,52 +182,64 @@ class ExperimentRunner:
         arch = cfg.architecture
 
         if arch == "cloud_only":
-            s2e_msgs  = ls.sent
-            s2e_bytes = ls.total_bytes_sent
-            e2c_msgs  = 0
-            e2c_bytes = 0
-            s2e_dr    = ls.delivery_ratio
-            e2c_dr    = 1.0
+            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
+            e2c_msgs, e2c_bytes = 0, 0
+            s2e_dr, e2c_dr = ls.delivery_ratio, 1.0
         else:
-            s2e_msgs  = ls.sent
-            s2e_bytes = ls.total_bytes_sent
-            e2c_msgs  = es.get("link_stats", {}).get("sent", 0)
+            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
+            e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
-            s2e_dr    = ls.delivery_ratio
-            e2c_dr    = es.get("link_stats", {}).get("delivery_ratio", 1.0)
+            s2e_dr = ls.delivery_ratio
+            forwarded = es.get("forwarded_events", 0)
+            e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
 
+        e2e_dr = (cloud_events / sensor_events) if sensor_events > 0 else 1.0
         cloud_msgs = e2c_msgs if arch != "cloud_only" else cloud_events
-        agg_ratio  = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
+        agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
 
         return ExperimentMetrics(
-            scenario_name    = cfg.name,
-            protocol         = cfg.protocol,
-            architecture     = cfg.architecture,
-            traffic_level    = cfg.traffic_level,
-            num_spots        = cfg.num_spots,
-            sim_duration_s   = cfg.sim_duration_s,
-            latency_mean_ms  = round(lat_mean, 2),
-            latency_p50_ms   = round(lat_p50,  2),
-            latency_p95_ms   = round(lat_p95,  2),
-            latency_p99_ms   = round(lat_p99,  2),
-            latency_min_ms   = round(lat_min,  2),
-            latency_max_ms   = round(lat_max,  2),
-            sensor_to_edge_msgs           = s2e_msgs,
-            edge_to_cloud_msgs            = e2c_msgs,
-            cloud_only_msgs               = cloud_events if arch == "cloud_only" else 0,
-            sensor_to_edge_bytes          = s2e_bytes,
-            edge_to_cloud_bytes           = e2c_bytes,
+            scenario_name = cfg.name,
+            protocol = cfg.protocol,
+            architecture = cfg.architecture,
+            traffic_level = cfg.traffic_level,
+            num_spots = cfg.num_spots,
+            sim_duration_s = cfg.sim_duration_s,
+
+            latency_mean_ms = round(lat_mean, 2),
+            latency_p50_ms = round(lat_p50, 2),
+            latency_p95_ms = round(lat_p95, 2),
+            latency_p99_ms = round(lat_p99, 2),
+            latency_min_ms = round(lat_min, 2),
+            latency_max_ms = round(lat_max, 2),
+
+            latency_mean_ms_with_warmup = round(lat_mean_all, 2),
+            warmup_s = cfg.edge.warmup_s,
+            warmup_events_excluded = cs.get("warmup_excluded", 0),
+
+            sensor_to_edge_msgs = s2e_msgs,
+            edge_to_cloud_msgs = e2c_msgs,
+            cloud_only_msgs = cloud_events if arch == "cloud_only" else 0,
+            sensor_to_edge_bytes = s2e_bytes,
+            edge_to_cloud_bytes = e2c_bytes,
+
             sensor_to_edge_delivery_ratio = round(s2e_dr, 4),
-            edge_to_cloud_delivery_ratio  = round(e2c_dr, 4),
-            aggregation_ratio             = round(agg_ratio, 4),
-            filtered_events               = es.get("filtered", 0),
-            anomalies_detected            = es.get("anomalies", 0),
-            edge_cpu_pct                  = es.get("cpu_pct", 0.0),
-            edge_mem_mb                   = es.get("mem_mb",  0.0),
-            cloud_cpu_pct                 = cs.get("cpu_pct", 0.0),
-            cloud_mem_mb                  = cs.get("mem_mb",  0.0),
-            latency_timeseries            = cloud.get_latency_timeseries(),
-            latency_samples               = latency_samples[-50_000:],
+            edge_to_cloud_delivery_ratio = round(e2c_dr, 4),
+            end_to_end_delivery_ratio = round(e2e_dr, 4),
+
+            aggregation_ratio = round(agg_ratio, 4),
+            filtered_events = es.get("filtered", 0),
+            anomalies_detected = es.get("anomalies", 0),
+            adaptive_mode_switches = es.get("mode_switches", 0),
+
+            edge_cpu_pct = es.get("cpu_pct", 0.0),
+            edge_mem_mb = es.get("mem_mb", 0.0),
+            cloud_cpu_pct = cs.get("cpu_pct", 0.0),
+            cloud_mem_mb = cs.get("mem_mb", 0.0),
+
+            broker_overhead_score = cloud.compute_broker_overhead_score(),
+
+            latency_timeseries = cloud.get_latency_timeseries(),
+            latency_samples = post_samples[-50_000:],
         )
 
 
@@ -225,7 +247,7 @@ def save_results(metrics: ExperimentMetrics, output_dir: str = "results") -> str
     Path(output_dir).mkdir(exist_ok=True)
     path = Path(output_dir) / f"{metrics.scenario_name}.json"
     data = metrics.to_dict()
-    data["latency_samples"]    = metrics.latency_samples
+    data["latency_samples"] = metrics.latency_samples
     data["latency_timeseries"] = metrics.latency_timeseries
     with open(path, "w") as f:
         json.dump(data, f, indent=2)

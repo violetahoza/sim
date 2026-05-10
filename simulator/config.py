@@ -33,6 +33,8 @@ class EdgeConfig:
     filter_no_change: bool = True
     anomaly_detection: bool = True
     cache_ttl_s: float = 300.0
+    warmup_s: float = 60.0  
+    adaptive_edge: bool = False
 
 
 @dataclass
@@ -140,6 +142,8 @@ class ScenarioConfig:
             "rate_limit": link["rate_limit_msgs_per_sec"],
             "aggregation_interval": edge["aggregation_interval_s"],
             "anomaly_detection": edge["anomaly_detection"],
+            "adaptive_edge": edge["adaptive_edge"],
+            "warmup_s": edge["warmup_s"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
             "amqp_exchange": amqp["exchange_type"],
@@ -148,21 +152,6 @@ class ScenarioConfig:
             **{k: traffic[k] for k in ("time_scale", "parking_duration_cv", "use_time_of_day", "start_hour", "initial_occupancy")},
             "tod_factors": traffic["tod_factors"],
         }
-
-    def to_prompt_context(self) -> str:
-        lines = [
-            f"Scenario: {self.name}",
-            f"Description: {self.description}",
-            f"Protocol: {self.protocol.upper()}  Architecture: {self.architecture}",
-            f"Spots: {self.num_spots}  Traffic: {self.traffic_level}  Duration: {self.sim_duration_s / 3600:.1f} h  Seed: {self.random_seed}",
-            f"Link: delay={self.link.base_delay_ms:.0f}±{self.link.jitter_ms:.0f} ms  loss={self.link.packet_loss_rate:.1%}  rate_limit={self.link.rate_limit_msgs_per_sec:.0f} msg/s",
-            f"Edge: arch={self.edge.architecture}  agg_interval={self.edge.aggregation_interval_s:.0f} s  anomaly_detection={self.edge.anomaly_detection}",
-        ]
-        if self.traffic.use_time_of_day:
-            lines.append(f"Time-of-day: start_hour={self.traffic.start_hour:.0f}  custom_factors={'yes' if self.traffic.tod_factors else 'no (default NHTS)'}")
-        if self.group:
-            lines.append(f"Group: {self.group}  order={self.group_order}")
-        return "\n".join(lines)
 
     @classmethod
     def from_dict(cls, d: dict) -> "ScenarioConfig":
@@ -176,6 +165,8 @@ class ScenarioConfig:
             loss_rate=d.get("loss_rate", 0.05),
             aggregation_interval=d.get("aggregation_interval", DEFAULT_AGG_INTERVAL_S),
             anomaly_detection=d.get("anomaly_detection", True),
+            adaptive_edge=d.get("adaptive_edge", False),
+            warmup_s=d.get("warmup_s", 60.0),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
             amqp_exchange=d.get("amqp_exchange", "direct"),
@@ -221,6 +212,8 @@ def make_scenario(
     loss_rate: float = 0.05,
     aggregation_interval: float = DEFAULT_AGG_INTERVAL_S,
     anomaly_detection: bool = True,
+    adaptive_edge: bool = False,
+    warmup_s: float = 60.0,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
     amqp_exchange: AMQPExchange = "direct",
@@ -263,6 +256,8 @@ def make_scenario(
         architecture=architecture,
         aggregation_interval_s=aggregation_interval,
         anomaly_detection=anomaly_detection,
+        adaptive_edge=adaptive_edge,
+        warmup_s=warmup_s,
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
@@ -297,7 +292,7 @@ _CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenari
 
 
 def _load_builtin_scenarios() -> list[ScenarioConfig]:
-    with open(_SCENARIOS_YAML) as f:
+    with open(_SCENARIOS_YAML, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return [make_scenario(**{k: v for k, v in s.items() if k != "is_builtin"},
                           is_builtin=s.get("is_builtin", True))

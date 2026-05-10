@@ -53,7 +53,8 @@ async function loadScenarios() {
   sel.addEventListener('change', () => {
     const name = sel.value;
     const full = allScenarios.find(s => s.name === name);
-    setText('presetDesc', full?.description || '');
+    const rawDesc = full?.description || '';
+    setText('presetDesc', rawDesc.includes('|') ? rawDesc.split('|').slice(1).join('|').trim() : rawDesc);
     setText('presetMeta', full
       ? `${(full.protocol || '').toUpperCase()} · ${full.architecture} · ${full.traffic_level} · ${full.num_spots} spots · ${full.sim_duration_s}s`
       : '');
@@ -184,7 +185,17 @@ function connectSSE() {
     if (ls) ls.style.display = 'grid';
     resetLiveSection();
   });
-  es.addEventListener('progress',     e => onProgress(JSON.parse(e.data)));
+  es.addEventListener('progress', e => onProgress(JSON.parse(e.data)));
+  es.addEventListener('sim_flushing', e => {
+      const pf = document.getElementById('progressBarFill');
+      const pl = document.getElementById('progressBarLabel');
+      if (pf) pf.style.width = '100%';
+      if (pl) pl.textContent = 'Saving...';
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+      if (dot) dot.className = 'status-indicator running';
+      if (txt) txt.textContent = 'SAVING…';
+  });
   es.addEventListener('sim_complete', e => {
     const r = JSON.parse(e.data);
     setRunning(false);
@@ -217,6 +228,10 @@ function onProgress(d) {
   if (pf) pf.style.width = pct + '%';
   if (pl) pl.textContent = pct + '%';
   setText('progElapsed', d.elapsed_s ?? '—');
+  const simSec = d.simulated_elapsed_s ?? 0;
+  const simH = Math.floor(simSec / 3600);
+  const simM = Math.floor((simSec % 3600) / 60);
+  setText('progSimTime', `${simH}h ${String(simM).padStart(2,'0')}m`);
   setText('progGenerated', d.generated ?? '—');
   setText('progReceived', d.cloud_events ?? '—');
   const occ = d.occupancy || {};
@@ -224,6 +239,8 @@ function onProgress(d) {
   setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '—');
   setText('progFiltered', edge.filtered ?? '—');
   setText('progDropped', edge.link_stats?.dropped ?? '—');
+  const es = d.edge || {};
+  setText('progAnomalies', es.anomalies ?? '—');
   const spots = d.spot_states;
   if (spots) {
     const n = Object.keys(spots).length;
@@ -532,3 +549,4 @@ async function fetchJSON(url) {
   if (!r.ok) throw new Error(`fetchJSON ${url} → ${r.status}`);
   return r.json();
 }
+
