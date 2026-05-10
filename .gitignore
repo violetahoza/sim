@@ -4,10 +4,12 @@ __pycache__/
 *.pyd
 
 results/
+isrgrootx1.pem
 
 venv/
 env/
 .env
+
 
 .vscode/
 .idea/

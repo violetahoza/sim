@@ -15,7 +15,7 @@ class ParkingEvent:
     sensor_id: str
     spot_id: int
     state: SpotState
-    timestamp: float = field(default_factory=time.time)
+    timestamp: float = 0.0
     sequence: int = 0
 
     def to_dict(self) -> dict:
@@ -32,13 +32,10 @@ class ParkingEvent:
 class BatchUpdate:
     edge_id: str
     events: list[ParkingEvent]
-    created_at: float = field(default_factory=time.time)
-    bytes_size: int = 0
 
     def to_dict(self) -> dict:
         return {
             "edge_id": self.edge_id,
-            "created_at": self.created_at,
             "events": [e.to_dict() for e in self.events],
         }
 
@@ -48,7 +45,7 @@ class SensorState:
     spot_id: int
     state: SpotState = SpotState.FREE
     last_event_seq: int = 0
-    last_updated: float = field(default_factory=time.time)
+    last_updated: float = 0.0
     total_events: int = 0
     consecutive_same: int = 0
 
@@ -81,17 +78,6 @@ class LinkStats:
             "delivery_ratio": self.delivery_ratio,
             "drop_rate": self.drop_rate,
         }
-
-
-@dataclass
-class LatencyRecord:
-    event_id: str
-    protocol: str
-    sent_at: float
-    received_at: float
-    latency_ms: float
-    architecture: str
-
 
 @dataclass
 class ExperimentMetrics:

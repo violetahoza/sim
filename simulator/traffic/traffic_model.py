@@ -105,8 +105,3 @@ class TrafficModel:
                 sequence=self._next_seq(),
             )
             self.event_cb(event)
-
-    def occupancy_rate(self) -> float:
-        if not self.occupied:
-            return 0.0
-        return sum(1 for v in self.occupied.values() if v) / len(self.occupied)

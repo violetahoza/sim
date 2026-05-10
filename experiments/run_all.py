@@ -73,27 +73,27 @@ async def main(names: list[str] | None = None) -> None:
 
     groups: dict[str, list] = defaultdict(list)
     for m in all_metrics:
-        prefix = m.scenario_name.split("_")[0]
-        groups[prefix].append(m)
+        groups[m.group].append(m)
 
-    for prefix, group_metrics in sorted(groups.items()):
-        group_path = OUTPUT_DIR / f"group_{prefix}.csv"
+    for group_name, group_metrics in sorted(groups.items()):
+        slug = group_name.split(" ")[0].rstrip("-").strip() or "ungrouped"
+        group_path = OUTPUT_DIR / f"group_{slug}.csv"
         g_rows = [m.to_dict() for m in group_metrics]
         with open(group_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=g_rows[0].keys())
             writer.writeheader()
             writer.writerows(g_rows)
-        logger.info(f"  Group '{prefix}' → {group_path}  ({len(g_rows)} rows)")
+        logger.info(f"  Group '{group_name}' → {group_path}  ({len(g_rows)} rows)")
 
-    scale_metrics = [m for m in all_metrics if m.scenario_name.startswith("scale_")]
+    scale_metrics = [m for m in all_metrics if m.group == "E - Scalability"]
     if scale_metrics:
         ts_path = OUTPUT_DIR / "scale_latency_timeseries.csv"
         with open(ts_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["scenario", "num_spots", "t_s", "mean_ms"])
+            writer.writerow(["scenario", "group", "num_spots", "t_s", "mean_ms"])
             for m in scale_metrics:
                 for point in m.latency_timeseries:
-                    writer.writerow([m.scenario_name, m.num_spots, point["t_s"], point["mean_ms"]])
+                    writer.writerow([m.scenario_name, m.group, m.num_spots, point["t_s"], point["mean_ms"]])
         logger.info(f"  Latency drift chart → {ts_path}")
 
     logger.info("Done.")

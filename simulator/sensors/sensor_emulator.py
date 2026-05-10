@@ -24,9 +24,6 @@ class SensorEmulator:
     def add_callback(self, cb: SensorCallback) -> None:
         self._callbacks.append(cb)
 
-    def get_state(self, spot_id: int) -> SensorState:
-        return self._sensor_states[spot_id]
-
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
         if state.state == event.state:
