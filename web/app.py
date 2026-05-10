@@ -17,12 +17,16 @@ import uvicorn
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from simulator.config import ( PREDEFINED_SCENARIOS, make_scenario, load_custom_scenarios, save_custom_scenarios, ScenarioConfig, )
+from simulator.config import (
+    PREDEFINED_SCENARIOS, make_scenario, load_custom_scenarios,
+    save_custom_scenarios, ScenarioConfig,
+)
 from experiments.runner import ExperimentRunner, save_results
 from simulator.db import make_engine, ScenarioRun, ParkingSpot, LatencyRecord, make_session
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
 
 def _load_dotenv():
     env_path = Path(__file__).parent.parent / ".env"
@@ -36,6 +40,7 @@ def _load_dotenv():
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
+
 _load_dotenv()
 GROQ_API_KEY: str = os.environ.get("AI_API_KEY", "").strip()
 app = FastAPI(title="Smart Parking IoT Simulator", version="3.0.0")
@@ -45,14 +50,17 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 _custom_scenarios: list[ScenarioConfig] = load_custom_scenarios()
 
+
 def _all_scenarios() -> list[ScenarioConfig]:
     return PREDEFINED_SCENARIOS + _custom_scenarios
+
 
 def _find_scenario(name: str) -> Optional[ScenarioConfig]:
     for s in _all_scenarios():
         if s.name == name:
             return s
     return None
+
 
 class SimState:
     def __init__(self):
@@ -95,7 +103,9 @@ class SimState:
         finally:
             self._remove_queue(q)
 
+
 state = SimState()
+
 
 def _load_historical_results():
     if not RESULTS_DIR.exists():
@@ -113,13 +123,16 @@ def _load_historical_results():
     if state.results:
         logger.info(f"Loaded {len(state.results)} historical result(s) from {RESULTS_DIR}")
 
+
 @app.on_event("startup")
 async def startup_event():
     _load_historical_results()
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/api/scenarios")
 async def list_scenarios():
@@ -148,6 +161,7 @@ async def list_scenarios():
         for s in _all_scenarios()
     ]
 
+
 @app.post("/api/scenarios")
 async def create_scenario(body: dict):
     name = (body.get("name") or "").strip().replace(" ", "_")
@@ -163,6 +177,7 @@ async def create_scenario(body: dict):
     save_custom_scenarios(_custom_scenarios)
     return {"status": "created", "name": name}
 
+
 @app.put("/api/scenarios/{scenario_name}")
 async def update_scenario(scenario_name: str, body: dict):
     existing = _find_scenario(scenario_name)
@@ -174,7 +189,6 @@ async def update_scenario(scenario_name: str, body: dict):
         cfg = _make_cfg_from_body(scenario_name, body)
     except Exception as e:
         raise HTTPException(400, f"Invalid parameters: {e}")
-    # Replace in list
     for i, s in enumerate(_custom_scenarios):
         if s.name == scenario_name:
             _custom_scenarios[i] = cfg
@@ -195,20 +209,31 @@ async def delete_scenario(scenario_name: str):
     save_custom_scenarios(_custom_scenarios)
     return {"status": "deleted", "name": scenario_name}
 
+
 def _make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
-    duration = float(body.get("sim_duration_s", 30.0))
-    duration = max(5.0, min(7200.0, duration))
+    duration_h = float(body.get("sim_duration_h", 8.0))
+    duration_h = max(0.5, min(720.0, duration_h))  
+    duration_s = duration_h * 3600.0
+
+    agg_interval = float(body.get("aggregation_interval", 30.0))
+    agg_interval = max(5.0, min(300.0, agg_interval))
+
+    num_spots = max(5, min(5000, int(body.get("num_spots", 50))))
+    default_rate_limit = max(5.0, num_spots / 10.0)
+    rate_limit = max(1.0, float(body.get("rate_limit", default_rate_limit)))
+
     initial_occ_raw = body.get("initial_occupancy")
     initial_occ = float(initial_occ_raw) if initial_occ_raw is not None else None
+
     return make_scenario(
         name=name,
         description=body.get("description", name),
         protocol=body.get("protocol", "amqp"),
         architecture=body.get("architecture", "edge_aggregated"),
         traffic_level=body.get("traffic_level", "medium"),
-        num_spots=max(5, min(5000, int(body.get("num_spots", 50)))),
+        num_spots=num_spots,
         loss_rate=max(0.0, min(0.5, float(body.get("loss_rate", 0.02)))),
-        aggregation_interval=max(0.5, float(body.get("aggregation_interval", 2.0))),
+        aggregation_interval=agg_interval,
         anomaly_detection=bool(body.get("anomaly_detection", True)),
         adaptive_edge=bool(body.get("adaptive_edge", False)),
         warmup_s=max(0.0, float(body.get("warmup_s", 60.0))),
@@ -217,9 +242,9 @@ def _make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         amqp_exchange=body.get("amqp_exchange", "direct"),
         amqp_ack=body.get("amqp_ack", "manual"),
         amqp_durable=bool(body.get("amqp_durable", True)),
-        sim_duration_s=duration,
+        sim_duration_s=duration_s,
         seed=int(body.get("seed", 42)),
-        rate_limit=max(1.0, float(body.get("rate_limit", 10.0))),
+        rate_limit=rate_limit,
         group=body.get("group", "User Scenarios"),
         group_order=int(body.get("group_order", 99)),
         is_builtin=False,
@@ -234,6 +259,7 @@ def _make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         initial_occupancy=initial_occ,
     )
 
+
 @app.post("/api/run/preset/{scenario_name}")
 async def run_preset(scenario_name: str):
     if state.running:
@@ -243,6 +269,7 @@ async def run_preset(scenario_name: str):
         raise HTTPException(404, f"Unknown scenario: {scenario_name}")
     asyncio.create_task(_run_simulation(cfg))
     return {"status": "started", "scenario": scenario_name}
+
 
 @app.post("/api/run/custom")
 async def run_custom(body: dict):
@@ -255,6 +282,7 @@ async def run_custom(body: dict):
     asyncio.create_task(_run_simulation(cfg))
     return {"status": "started", "scenario": cfg.name}
 
+
 @app.post("/api/stop")
 async def stop_simulation():
     if not state.running or state._runner is None:
@@ -262,21 +290,25 @@ async def stop_simulation():
     state._runner.cancel()
     return {"status": "stopping"}
 
+
 @app.get("/api/status")
 async def get_status():
     return {
-        "running":  state.running,
+        "running": state.running,
         "scenario": state.scenario_name,
         "progress": state.progress,
     }
+
 
 @app.get("/api/results")
 async def get_results():
     return state.results
 
+
 @app.get("/api/results/latest")
 async def get_latest_result():
     return state.results[-1] if state.results else {}
+
 
 @app.delete("/api/results")
 async def clear_results():
@@ -301,13 +333,16 @@ async def clear_results():
 
     return {"status": "cleared"}
 
+
 @app.get("/api/stream")
 async def sse_stream(request: Request):
     return EventSourceResponse(state.event_generator(request))
 
+
 @app.get("/api/ai_available")
 async def ai_available():
     return {"available": bool(GROQ_API_KEY)}
+
 
 async def _call_groq(system: str, user: str) -> str:
     import httpx
@@ -322,10 +357,10 @@ async def _call_groq(system: str, user: str) -> str:
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": system},
-                    {"role": "user",   "content": user},
+                    {"role": "user", "content": user},
                 ],
                 "temperature": 0.3,
-                "max_tokens":  1500,
+                "max_tokens": 1500,
             },
         )
         if r.status_code == 200:
@@ -334,8 +369,9 @@ async def _call_groq(system: str, user: str) -> str:
             f"Groq {r.status_code}: {r.json().get('error', {}).get('message', r.text)}"
         )
 
+
 SYSTEM_PROMPT = """\
-You are analysing output from a discrete-event smart parking simulator. The model generates Poisson arrivals and log-normal dwell times across configurable spot counts, 
+You are analysing output from a discrete-event smart parking simulator. The model generates Poisson arrivals and log-normal dwell times across configurable spot counts,
 then routes each state-change event through a link emulator (delay, jitter, packet loss, rate limiting) to one of 3 edge architectures before reaching the cloud.
 Link model: LoRa SF7 + 4G default - 80 ms ±30 ms one-way. Deployment archetypes override this: WiFi 15 ms ±8 ms, NB-IoT connected 250 ms ±80 ms, NB-IoT eDRX
 ~5370 ms ±5120 ms, LoRa with repeater 130 ms ±50 ms. Packet loss applies to all architectures.
@@ -361,7 +397,8 @@ FOCUS_PROMPTS = {
     "architecture": "Quantify the architecture trade-offs: measure the latency penalty and bandwidth saving of edge aggregation relative to cloud-only, assess how much filtering actually reduces cloud load, and give concrete guidance on which architecture fits a street-side installation versus a large structured car park.",
     "recommendation": "Write a deployment recommendation: name the single best protocol and architecture combination with the reasoning behind it, list the three most likely failure modes and what would mitigate them, and be explicit about what this simulation does not model.",
     "scale": "Focus on the scalability runs: describe how latency and delivery ratio shift as sensor count grows, identify which protocol holds up best under load, and estimate what the numbers imply for gateway hardware at 10 000 sensors.",
-    }
+}
+
 
 def _build_prompt(summaries: list[dict], focus: str) -> str:
     fi = FOCUS_PROMPTS.get(focus, FOCUS_PROMPTS["general"])
@@ -385,16 +422,16 @@ Respond using these markdown sections — paragraphs only, no tables:
 ### ✅ Recommendations
 3–4 concrete action items, each tagged [Easy], [Medium], or [Hard]."""
 
+
 @app.post("/api/interpret")
 async def interpret_results(body: dict):
     results = body.get("results", [])
-    focus   = body.get("focus", "general")
+    focus = body.get("focus", "general")
     if not results:
         raise HTTPException(400, "No results provided.")
 
-    summaries = []
-    for r in results:
-        summaries.append({
+    summaries = [
+        {
             "scenario": r.get("scenario_name"),
             "protocol": r.get("protocol"),
             "architecture": r.get("architecture"),
@@ -412,7 +449,9 @@ async def interpret_results(body: dict):
             "edge_to_cloud_bytes_kb": round(r.get("edge_to_cloud_bytes", 0) / 1024, 2),
             "sensor_to_edge_msgs": r.get("sensor_to_edge_msgs"),
             "edge_to_cloud_msgs": r.get("edge_to_cloud_msgs"),
-        })
+        }
+        for r in results
+    ]
 
     if GROQ_API_KEY:
         try:
@@ -433,6 +472,7 @@ async def interpret_results(body: dict):
         "powered_by": "Built-in Analyzer",
     }
 
+
 def _rule_based_interpret(summaries: list[dict]) -> str:
     if not summaries:
         return "No results to analyse."
@@ -447,7 +487,7 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
         lines.append(
             f"- 🥇 **Lowest latency**: `{best['scenario']}` — "
             f"mean {best['latency_mean_ms']:.1f} ms, "
-            f"P95 {best.get('latency_p95_ms','?')} ms"
+            f"P95 {best.get('latency_p95_ms', '?')} ms"
         )
         if len(by_lat) > 1:
             diff = worst["latency_mean_ms"] - best["latency_mean_ms"]
@@ -458,20 +498,20 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
     if by_del:
         lines.append(
             f"- 📦 **Best delivery**: `{by_del[0]['scenario']}` "
-            f"at {by_del[0]['delivery_ratio']*100:.2f}%"
+            f"at {by_del[0]['delivery_ratio'] * 100:.2f}%"
         )
         if by_del[-1]["delivery_ratio"] < 0.98:
             lines.append(
                 f"- ⚠️ **Worst delivery**: `{by_del[-1]['scenario']}` — "
-                f"{by_del[-1]['delivery_ratio']*100:.2f}% "
-                f"({(1-by_del[-1]['delivery_ratio'])*100:.2f}% loss)"
+                f"{by_del[-1]['delivery_ratio'] * 100:.2f}% "
+                f"({(1 - by_del[-1]['delivery_ratio']) * 100:.2f}% loss)"
             )
     agg_list = [s for s in summaries if s.get("aggregation_ratio") and s["aggregation_ratio"] < 0.9]
     if agg_list:
         best_agg = min(agg_list, key=lambda x: x["aggregation_ratio"])
         lines.append(
             f"- 💾 **Best compression**: `{best_agg['scenario']}` — "
-            f"{(1-best_agg['aggregation_ratio'])*100:.1f}% fewer cloud messages "
+            f"{(1 - best_agg['aggregation_ratio']) * 100:.1f}% fewer cloud messages "
             f"(ratio {best_agg['aggregation_ratio']:.3f})"
         )
 
@@ -484,7 +524,7 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
         for p, runs in protos.items():
             lats = [r["latency_mean_ms"] for r in runs if r.get("latency_mean_ms")]
             if lats:
-                parts.append(f"**{p.upper()}** avg {sum(lats)/len(lats):.1f} ms")
+                parts.append(f"**{p.upper()}** avg {sum(lats) / len(lats):.1f} ms")
         lines.append("Protocol latency averages: " + ", ".join(parts) + ".\n")
 
     archs: dict = {}
@@ -494,9 +534,9 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
         parts = []
         for a, runs in archs.items():
             lats = [r["latency_mean_ms"] for r in runs if r.get("latency_mean_ms")]
-            bw   = sum(r.get("sensor_to_edge_bytes_kb", 0) for r in runs) / max(len(runs), 1)
+            bw = sum(r.get("sensor_to_edge_bytes_kb", 0) for r in runs) / max(len(runs), 1)
             if lats:
-                parts.append(f"`{a}` averaged {sum(lats)/len(lats):.1f} ms, {bw:.1f} KB S→E")
+                parts.append(f"`{a}` averaged {sum(lats) / len(lats):.1f} ms, {bw:.1f} KB S→E")
         lines.append("Architecture comparison: " + "; ".join(parts) + ".\n")
 
     lines.append("\n### ✅ Recommendations\n")
@@ -509,7 +549,7 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
             r = balanced[0]
             lines.append(
                 f"- ✅ **Best balanced**: `{r['scenario']}` — "
-                f"{r['latency_mean_ms']:.1f} ms with {r['delivery_ratio']*100:.2f}% delivery [Easy]"
+                f"{r['latency_mean_ms']:.1f} ms with {r['delivery_ratio'] * 100:.2f}% delivery [Easy]"
             )
     lines.append(
         "- 📡 **Default stack**: AMQP direct + manual-ACK + durable + edge_aggregated, "
@@ -527,6 +567,7 @@ def _rule_based_interpret(summaries: list[dict]) -> str:
         "\n\n*Built-in analysis — set `AI_API_KEY` in `.env` for Groq-powered insights.*"
     )
     return "\n".join(lines)
+
 
 async def _run_simulation(cfg: ScenarioConfig):
     state.running = True
@@ -555,8 +596,7 @@ async def _run_simulation(cfg: ScenarioConfig):
         result["latency_samples"] = metrics.latency_samples
         result["source"] = "live"
         state.results.append(result)
-        state.push("sim_flushing", {"scenario": cfg.name})
-        save_results(metrics, str(RESULTS_DIR))
+        save_results(metrics, str(RESULTS_DIR))  
         state.push("sim_complete", result)
         logger.info(f"Simulation '{cfg.name}' complete")
     except asyncio.CancelledError:
@@ -569,8 +609,10 @@ async def _run_simulation(cfg: ScenarioConfig):
         state.scenario_name = None
         state._runner = None
 
+
 def start():
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="warning")
+
 
 if __name__ == "__main__":
     start()

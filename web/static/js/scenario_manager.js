@@ -53,10 +53,11 @@ async function loadMgrList() {
       items.sort((a, b) => a.group_order - b.group_order).forEach(s => {
         const row = document.createElement('div');
         row.className = 'mgr-row';
+        const dh = (s.sim_duration_s / 3600).toFixed(1);
         row.innerHTML = `
           <div class="mgr-row-info">
             <div class="mgr-row-name">${s.name}</div>
-            <div class="mgr-row-meta">${s.protocol.toUpperCase()} · ${s.architecture} · ${s.traffic_level} · ${s.num_spots} spots · ${s.sim_duration_s}s</div>
+            <div class="mgr-row-meta">${s.protocol.toUpperCase()} · ${s.architecture} · ${s.traffic_level} · ${s.num_spots} spots · ${dh} h</div>
           </div>
           ${s.is_builtin ? '<span class="builtin-badge">built-in</span>' : ''}
           <div class="mgr-row-actions">
@@ -310,6 +311,7 @@ function _buildCmpTable(sel) {
     { label:'Architecture',key:r=>r.architecture||'—' },
     { label:'Traffic',     key:r=>r.traffic_level||'—' },
     { label:'Spots',       key:r=>r.num_spots??'—' },
+    { label:'Duration',    key:r=>r.sim_duration_s, fmt:v=>v!=null?`${(v/3600).toFixed(1)} h`:'—' },
     { label:'Mean Lat',    key:r=>r.latency_mean_ms,      fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
     { label:'P50',         key:r=>r.latency_p50_ms,       fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
     { label:'P95',         key:r=>r.latency_p95_ms,       fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
@@ -373,13 +375,24 @@ function startEdit(name) {
   if (!s) return;
   _editingScenario = name;
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.value=val??''; };
-  set('ef_name',s.name); set('ef_desc',s.description); set('ef_group',s.group); set('ef_gorder',s.group_order);
-  set('ef_protocol',s.protocol); set('ef_arch',s.architecture); set('ef_traffic',s.traffic_level);
-  set('ef_spots',s.num_spots); set('ef_duration',s.sim_duration_s); set('ef_seed',s.seed??42);
-  set('ef_loss',((s.loss_rate??0.02)*100).toFixed(1)); set('ef_ratelimit',s.rate_limit??10);
-  set('ef_agg',s.aggregation_interval??2); set('ef_amqp_exchange',s.amqp_exchange??'direct');
-  set('ef_amqp_ack',s.amqp_ack??'manual'); set('ef_amqp_durable',(s.amqp_durable??true)?'true':'false');
-  set('ef_qos',s.mqtt_qos??1); set('ef_coap_mode',s.coap_mode??'CON');
+  set('ef_name', s.name);
+  set('ef_desc', s.description);
+  set('ef_group', s.group);
+  set('ef_gorder', s.group_order);
+  set('ef_protocol', s.protocol);
+  set('ef_arch', s.architecture);
+  set('ef_traffic', s.traffic_level);
+  set('ef_spots', s.num_spots);
+  set('ef_duration', (s.sim_duration_s / 3600).toFixed(1));
+  set('ef_seed', s.seed ?? 42);
+  set('ef_loss', ((s.loss_rate ?? 0.02) * 100).toFixed(1));
+  set('ef_ratelimit', s.rate_limit ?? 5);
+  set('ef_agg', s.aggregation_interval ?? 30);
+  set('ef_amqp_exchange', s.amqp_exchange ?? 'direct');
+  set('ef_amqp_ack', s.amqp_ack ?? 'manual');
+  set('ef_amqp_durable', (s.amqp_durable ?? true) ? 'true' : 'false');
+  set('ef_qos', s.mqtt_qos ?? 1);
+  set('ef_coap_mode', s.coap_mode ?? 'CON');
   updateEditProtoOpts();
   const isBuiltin = s.is_builtin;
   ['ef_protocol','ef_arch','ef_traffic','ef_spots','ef_duration','ef_seed','ef_loss','ef_ratelimit',
@@ -406,20 +419,42 @@ async function saveMgrForm() {
   const isEdit = !document.getElementById('mgrPaneEdit')?.classList.contains('hidden');
   const get = id => document.getElementById(id)?.value ?? '';
   const body = isEdit ? {
-    description:get('ef_desc'), group:get('ef_group'), group_order:+get('ef_gorder')||99,
-    protocol:get('ef_protocol'), architecture:get('ef_arch'), traffic_level:get('ef_traffic'),
-    num_spots:+get('ef_spots'), sim_duration_s:+get('ef_duration'), seed:+get('ef_seed'),
-    loss_rate:+get('ef_loss')/100, rate_limit:+get('ef_ratelimit'), aggregation_interval:+get('ef_agg'),
-    amqp_exchange:get('ef_amqp_exchange'), amqp_ack:get('ef_amqp_ack'), amqp_durable:get('ef_amqp_durable')==='true',
-    mqtt_qos:+get('ef_qos'), coap_mode:get('ef_coap_mode'),
+    description: get('ef_desc'),
+    group: get('ef_group'),
+    group_order: +get('ef_gorder') || 99,
+    protocol: get('ef_protocol'),
+    architecture: get('ef_arch'),
+    traffic_level: get('ef_traffic'),
+    num_spots: +get('ef_spots'),
+    sim_duration_h: +get('ef_duration'),        
+    seed: +get('ef_seed'),
+    loss_rate: +get('ef_loss') / 100,
+    rate_limit: +get('ef_ratelimit'),          
+    aggregation_interval: +get('ef_agg'),       
+    amqp_exchange: get('ef_amqp_exchange'),
+    amqp_ack: get('ef_amqp_ack'),
+    amqp_durable: get('ef_amqp_durable') === 'true',
+    mqtt_qos: +get('ef_qos'),
+    coap_mode: get('ef_coap_mode'),
   } : {
     name: get('cf_name').trim().replace(/\s+/g,'_'),
-    description:get('cf_desc')||get('cf_name'), group:get('cf_group')||'User Scenarios', group_order:+get('cf_gorder')||99,
-    protocol:get('cf_protocol'), architecture:get('cf_arch'), traffic_level:get('cf_traffic'),
-    num_spots:+get('cf_spots'), sim_duration_s:+get('cf_duration'), seed:+get('cf_seed'),
-    loss_rate:+get('cf_loss')/100, rate_limit:+get('cf_ratelimit'), aggregation_interval:+get('cf_agg'),
-    amqp_exchange:get('cf_amqp_exchange'), amqp_ack:get('cf_amqp_ack'), amqp_durable:get('cf_amqp_durable')==='true',
-    mqtt_qos:+get('cf_qos'), coap_mode:get('cf_coap_mode'),
+    description: get('cf_desc') || get('cf_name'),
+    group: get('cf_group') || 'User Scenarios',
+    group_order: +get('cf_gorder') || 99,
+    protocol: get('cf_protocol'),
+    architecture: get('cf_arch'),
+    traffic_level: get('cf_traffic'),
+    num_spots: +get('cf_spots'),
+    sim_duration_h: +get('cf_duration'),         
+    seed: +get('cf_seed'),
+    loss_rate: +get('cf_loss') / 100,
+    rate_limit: +get('cf_ratelimit'),             
+    aggregation_interval: +get('cf_agg'),         
+    amqp_exchange: get('cf_amqp_exchange'),
+    amqp_ack: get('cf_amqp_ack'),
+    amqp_durable: get('cf_amqp_durable') === 'true',
+    mqtt_qos: +get('cf_qos'),
+    coap_mode: get('cf_coap_mode'),
   };
   if (!isEdit && !body.name) { showToast('Name is required','var(--amber)'); return; }
   try {
@@ -438,12 +473,24 @@ async function saveCustomAsPreset() {
   const cleanName = name.trim().replace(/\s+/g,'_');
   const get = id => document.getElementById(id)?.value ?? '';
   const body = {
-    name:cleanName, description:`Custom: ${cleanName}`, group:'User Scenarios', group_order:99,
-    protocol:get('c_protocol'), architecture:get('c_arch'), traffic_level:get('c_traffic'),
-    num_spots:+get('c_spots'), sim_duration_s:+get('c_duration'), seed:42,
-    loss_rate:+get('c_loss')/100, rate_limit:+get('c_ratelimit'), aggregation_interval:+get('c_agg'),
-    amqp_exchange:get('c_amqp_exchange')||'direct', amqp_ack:get('c_amqp_ack')||'manual',
-    amqp_durable:(get('c_amqp_durable')||'true')==='true', mqtt_qos:+(get('c_qos')||1), coap_mode:get('c_coap_mode')||'CON',
+    name: cleanName,
+    description: `Custom: ${cleanName}`,
+    group: 'User Scenarios',
+    group_order: 99,
+    protocol: get('c_protocol'),
+    architecture: get('c_arch'),
+    traffic_level: get('c_traffic'),
+    num_spots: +get('c_spots'),
+    sim_duration_h: +get('c_duration'),          
+    seed: 42,
+    loss_rate: +get('c_loss') / 100,
+    rate_limit: +get('c_ratelimit'),            
+    aggregation_interval: +get('c_agg'),          
+    amqp_exchange: get('c_amqp_exchange') || 'direct',
+    amqp_ack: get('c_amqp_ack') || 'manual',
+    amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
+    mqtt_qos: +(get('c_qos') || 1),
+    coap_mode: get('c_coap_mode') || 'CON',
   };
   try {
     const r = await fetch('/api/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

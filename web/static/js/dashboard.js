@@ -56,7 +56,7 @@ async function loadScenarios() {
     const rawDesc = full?.description || '';
     setText('presetDesc', rawDesc.includes('|') ? rawDesc.split('|').slice(1).join('|').trim() : rawDesc);
     setText('presetMeta', full
-      ? `${(full.protocol || '').toUpperCase()} · ${full.architecture} · ${full.traffic_level} · ${full.num_spots} spots · ${full.sim_duration_s}s`
+      ? `${(full.protocol || '').toUpperCase()} · ${full.architecture} · ${full.traffic_level} · ${full.num_spots} spots · ${(full.sim_duration_s / 3600).toFixed(1)} h`
       : '');
     const hint = document.getElementById('groupHint');
     if (hint && full?.group) {
@@ -111,9 +111,9 @@ async function runCustom() {
     traffic_level: get('c_traffic'),
     num_spots: +get('c_spots'),
     loss_rate: +get('c_loss') / 100,
-    sim_duration_s: +get('c_duration'),
-    rate_limit: +get('c_ratelimit'),
-    aggregation_interval: +get('c_agg'),
+    sim_duration_h: +get('c_duration'),      
+    rate_limit: +get('c_ratelimit'),           
+    aggregation_interval: +get('c_agg'),       
     amqp_exchange: get('c_amqp_exchange') || 'direct',
     amqp_ack: get('c_amqp_ack') || 'manual',
     amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
@@ -285,6 +285,7 @@ function addResultRow(r, scrollIntoView) {
   row.className = 'result-row';
   const protoClass = r.protocol === 'amqp' ? 'tag-amqp' : `tag-${r.protocol}`;
   const historicalBadge = r.source === 'historical' ? '<span class="result-tag tag-historical">saved</span>' : '';
+  const durationLabel = r.sim_duration_s ? `${(r.sim_duration_s / 3600).toFixed(1)}h` : '';
   row.innerHTML = `
     <div class="result-name" title="${r.scenario_name}">${r.scenario_name}</div>
     <div class="result-meta">
@@ -292,6 +293,7 @@ function addResultRow(r, scrollIntoView) {
       <span class="result-tag ${protoClass}">${(r.protocol || '').toUpperCase()}</span>
       <span class="result-tag">${r.architecture || ''}</span>
       <span class="result-tag">${r.traffic_level || ''}</span>
+      ${durationLabel ? `<span class="result-tag">${durationLabel}</span>` : ''}
       <span class="result-lat">${r.latency_mean_ms?.toFixed(1) ?? '—'}ms</span>
     </div>`;
   row.onclick = () => {
@@ -549,4 +551,3 @@ async function fetchJSON(url) {
   if (!r.ok) throw new Error(`fetchJSON ${url} → ${r.status}`);
   return r.json();
 }
-

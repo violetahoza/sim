@@ -5,8 +5,6 @@ import logging
 import random
 import time
 from pathlib import Path
-from typing import Callable, Optional
-
 import numpy as np
 
 from simulator.config import ScenarioConfig

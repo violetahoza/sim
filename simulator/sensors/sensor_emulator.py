@@ -8,7 +8,6 @@ from ..des.engine import SimClock
 
 SensorCallback = Callable[[ParkingEvent], None]
 
-
 class SensorEmulator:
     def __init__(self, config: TrafficConfig, arrival_rate: float) -> None:
         self.config = config
@@ -19,7 +18,6 @@ class SensorEmulator:
         }
         self._callbacks: list[SensorCallback] = []
         self._total_generated = 0
-        self._traffic: TrafficModel | None = None
 
     def add_callback(self, cb: SensorCallback) -> None:
         self._callbacks.append(cb)
@@ -39,10 +37,10 @@ class SensorEmulator:
             cb(event)
 
     def schedule_run(self, clock: SimClock, duration_s: float, epoch: float) -> None:
-        self._traffic = TrafficModel(
+        traffic = TrafficModel(
             self.config, self.arrival_rate, clock, self._on_event, epoch
         )
-        self._traffic.schedule_run(duration_s)
+        traffic.schedule_run(duration_s)
 
     @property
     def total_generated(self) -> int:
