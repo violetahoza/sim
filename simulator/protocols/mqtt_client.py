@@ -3,8 +3,8 @@ import json
 import logging
 import threading
 import time
-import paho.mqtt.client as mqtt
 import random
+import paho.mqtt.client as mqtt
 
 from simulator.models import BatchUpdate, ParkingEvent, SpotState
 from simulator.config import MQTTConfig
@@ -17,11 +17,18 @@ logger = logging.getLogger(__name__)
 
 _TOPIC_TMPL = "{prefix}/{edge_id}/update"
 
-class SimulatedMQTTBackend(ProtocolBackend):
-    QOS_OVERHEAD_S = {0: 0.0, 1: 0.005, 2: 0.015}
-    RETRY_DELAY_S = 1.0
-    MAX_RETRIES = 3
+MQTT_FIXED_HEADER = 2  
+MQTT_PUBACK_BYTES = 4   
+MQTT_PUBREL_BYTES = 4    
+MQTT_CONNACK_BYTES = 4
 
+_QOS_OVERHEAD_S = {0: 0.0, 1: 0.005, 2: 0.015}
+_MAX_RETRIES = {0: 0, 1: 3, 2: 5}
+_RETRY_BASE_S = 1.0  
+
+
+class SimulatedMQTTBackend(ProtocolBackend):
+    
     def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.0, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
@@ -30,28 +37,53 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self._rng = random.Random(seed)
         self.bytes_sent = 0
         self.retransmitted = 0
+        self.duplicates_delivered = 0
+        self._qos2_delivered: dict[int, bool] = {}
+        self._msg_seq = 0
+
+    def _next_id(self) -> int:
+        self._msg_seq += 1
+        return self._msg_seq
+
+    def _topic_overhead(self, batch: BatchUpdate) -> int:
+        topic = _TOPIC_TMPL.format(prefix=self.config.topic_prefix, edge_id=batch.edge_id)
+        return MQTT_FIXED_HEADER + len(topic.encode())
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
-        topic = _TOPIC_TMPL.format(prefix=self.config.topic_prefix, edge_id=batch.edge_id)
-        mqtt_overhead = 2 + len(topic.encode())
-        self.bytes_sent += len(payload) + mqtt_overhead
-        self._attempt(batch, payload, attempt=0)
+        topic_oh = self._topic_overhead(batch)
+        qos = self.config.qos
+        qos_extra = MQTT_PUBACK_BYTES if qos == 1 else (MQTT_PUBACK_BYTES + MQTT_PUBREL_BYTES * 2) if qos == 2 else 0
+        self.bytes_sent += len(payload) + topic_oh + qos_extra
+        msg_id = self._next_id()
+        self._attempt(batch, payload, msg_id, attempt=0)
 
-    def _attempt(self, batch: BatchUpdate, payload: bytes, attempt: int) -> None:
-        overhead = self.QOS_OVERHEAD_S[self.config.qos]
+    def _attempt(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
+        qos = self.config.qos
+        overhead = _QOS_OVERHEAD_S[qos]
 
         def on_overhead_elapsed() -> None:
             if self._rng.random() < self.loss_rate:
-                if self.config.qos == 0:
+                if qos == 0:
                     return
-                self.retransmitted += 1
-                if attempt < self.MAX_RETRIES - 1:
-                    backoff = self.RETRY_DELAY_S * (2**attempt)
-                    self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, a))
+                max_r = _MAX_RETRIES[qos]
+                if attempt < max_r:
+                    backoff = _RETRY_BASE_S * (2 ** attempt)
+                    self.retransmitted += 1
+                    self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, msg_id, a))
                 return
+
+            if qos == 2:
+                if self._qos2_delivered.get(msg_id):
+                    self.duplicates_delivered += 1
+                    return
+                self._qos2_delivered[msg_id] = True
+            elif qos == 1 and attempt > 0:
+                self.duplicates_delivered += 1
+
             self._subscriber(batch, payload)
 
         self.clock.schedule(overhead, on_overhead_elapsed)
+
 
 class RealMQTTBackend(ProtocolBackend):
 
@@ -70,10 +102,8 @@ class RealMQTTBackend(ProtocolBackend):
         self._sub_ready = threading.Event()
 
     async def start(self) -> None:
-        """Connect publisher + subscriber and block until both are ready."""
         self._start_publisher()
         self._start_subscriber()
-        # Give both clients up to 10 s to connect
         deadline = time.monotonic() + 10.0
         while time.monotonic() < deadline:
             if self._connected.is_set() and self._sub_ready.is_set():
@@ -98,7 +128,7 @@ class RealMQTTBackend(ProtocolBackend):
         if self._pub_client is None:
             raise RuntimeError("RealMQTTBackend.start() was not called")
         topic = _TOPIC_TMPL.format(prefix=self.config.topic_prefix, edge_id=batch.edge_id)
-        wire_bytes = len(payload) + 2 + len(topic.encode())
+        wire_bytes = len(payload) + MQTT_FIXED_HEADER + len(topic.encode())
         self.bytes_sent += wire_bytes
         result = self._pub_client.publish(topic, payload, qos=self.config.qos)
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
@@ -139,7 +169,7 @@ class RealMQTTBackend(ProtocolBackend):
         def on_connect(client, userdata, flags, rc):
             if rc == 0:
                 client.subscribe(subscribe_topic, qos=self.config.qos)
-                logger.info(f"[MQTT-real] Subscriber connected, subscribed to {subscribe_topic}")
+                logger.info(f"[MQTT-real] Subscriber subscribed to {subscribe_topic}")
                 self._sub_ready.set()
             else:
                 logger.error(f"[MQTT-real] Subscriber connect failed rc={rc}")
@@ -158,6 +188,7 @@ class RealMQTTBackend(ProtocolBackend):
         c.connect_async(self.broker.host, self.broker.port, keepalive=self.config.keepalive)
         c.loop_start()
         self._sub_client = c
+
 
 def _batch_from_dict(data: dict) -> BatchUpdate:
     events = []

@@ -57,6 +57,8 @@ class LinkStats:
     dropped: int = 0
     total_bytes_sent: int = 0
     total_bytes_received: int = 0
+    retransmissions: int = 0
+    duplicate_deliveries: int = 0
 
     @property
     def delivery_ratio(self) -> float:
@@ -75,7 +77,9 @@ class LinkStats:
             "total_bytes_sent": self.total_bytes_sent,
             "total_bytes_received": self.total_bytes_received,
             "delivery_ratio": self.delivery_ratio,
-            "drop_rate": self.drop_rate
+            "drop_rate": self.drop_rate,
+            "retransmissions": self.retransmissions,
+            "duplicate_deliveries": self.duplicate_deliveries
         }
 
 
@@ -103,6 +107,10 @@ class ExperimentMetrics:
     sensor_to_edge_msgs: int = 0
     edge_to_cloud_msgs: int = 0
     cloud_only_msgs: int = 0
+
+    transport_msgs_total: int = 0  
+    retransmissions_total: int = 0   
+    duplicate_deliveries: int = 0 
 
     sensor_to_edge_bytes: int = 0
     edge_to_cloud_bytes: int = 0

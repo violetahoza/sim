@@ -14,17 +14,20 @@ from simulator.protocols.mqtt_client import _batch_from_dict
 
 logger = logging.getLogger(__name__)
 
-AMQP_FRAME_OVERHEAD = 37
-AMQP_EXCHANGE_OVERHEAD = 16
+AMQP_FRAME_OVERHEAD = 37   
+AMQP_EXCHANGE_OVERHEAD  = 16   
+
+_EXCHANGE_OVERHEAD_S: dict[str, float] = {"direct": 0.002, "fanout": 0.003, "topic":  0.005}
+_ACK_OVERHEAD_S: dict[str, float] = {"auto": 0.0, "manual": 0.006}
+
+_DURABLE_OVERHEAD_S = 0.004
+_CONFIRM_OVERHEAD_S = 0.003
+_MAX_RETRIES  = 3
+_RETRY_BASE_S = 1.0
 
 
 class SimulatedAMQPBackend(ProtocolBackend):
-    EXCHANGE_OVERHEAD_S = {"direct": 0.002, "fanout": 0.003, "topic": 0.004}
-    ACK_OVERHEAD_S = {"auto": 0.0, "manual": 0.006}
-    DURABLE_OVERHEAD_S = 0.004
-    RETRY_DELAY_S = 1.0
-    MAX_RETRIES = 3
-
+   
     def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
@@ -35,16 +38,14 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.nacked = 0
         self.retransmitted = 0
 
-    def _overhead_s(self, include_durable: bool = True) -> float:
-        return (
-            self.EXCHANGE_OVERHEAD_S.get(self.config.exchange_type, 0.002)
-            + self.ACK_OVERHEAD_S.get(self.config.ack_mode, 0.0)
-            + (
-                self.DURABLE_OVERHEAD_S
-                if (self.config.durable and include_durable)
-                else 0.0
-            )
+    def _overhead_s(self) -> float:
+        total = (
+            _EXCHANGE_OVERHEAD_S.get(self.config.exchange_type, 0.002)
+            + _ACK_OVERHEAD_S.get(self.config.ack_mode, 0.0)
+            + (_DURABLE_OVERHEAD_S if self.config.durable else 0.0)
+            + _CONFIRM_OVERHEAD_S
         )
+        return total
 
     def _routing_key(self, batch: BatchUpdate) -> str:
         if self.config.exchange_type == "fanout":
@@ -55,28 +56,20 @@ class SimulatedAMQPBackend(ProtocolBackend):
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         rk = self._routing_key(batch)
-        total_bytes = (
-            len(payload)
-            + AMQP_FRAME_OVERHEAD
-            + AMQP_EXCHANGE_OVERHEAD
-            + len(rk.encode())
-        )
+        total_bytes = (len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode()))
         self.bytes_sent += total_bytes
         self._attempt(batch, payload, attempt=0)
 
     def _attempt(self, batch: BatchUpdate, payload: bytes, attempt: int) -> None:
-        overhead = self._overhead_s(include_durable=(attempt == 0))
+        overhead = self._overhead_s()
 
         def on_overhead() -> None:
             if self._rng.random() < self.loss_rate:
                 self.nacked += 1
-                if self.config.ack_mode == "manual" and attempt < self.MAX_RETRIES - 1:
-                    backoff = self.RETRY_DELAY_S * (2**attempt)
+                if self.config.ack_mode == "manual" and attempt < _MAX_RETRIES - 1:
+                    backoff = _RETRY_BASE_S * (2 ** attempt)
                     self.retransmitted += 1
-                    self.clock.schedule(
-                        backoff,
-                        lambda a=attempt + 1: self._attempt(batch, payload, a),
-                    )
+                    self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, a))
                 return
             self._subscriber(batch, payload)
 
@@ -92,11 +85,9 @@ class RealAMQPBackend(ProtocolBackend):
         self.broker = broker
         self._cloud_recv_cb = cloud_recv_cb
         self._scenario_name = scenario_name
-
         self.bytes_sent: int = 0
         self.nacked: int = 0
         self.retransmitted: int = 0
-
         self._pub_connection = None
         self._pub_channel = None
         self._pub_exchange = None
@@ -105,22 +96,15 @@ class RealAMQPBackend(ProtocolBackend):
 
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
-
         self._pub_connection = await aio_pika.connect_robust(self.broker.url)
         self._pub_channel = await self._pub_connection.channel()
-
-        exchange_type_map = {
-            "direct": aio_pika.ExchangeType.DIRECT,
-            "fanout": aio_pika.ExchangeType.FANOUT,
-            "topic":  aio_pika.ExchangeType.TOPIC,
-        }
-        etype = exchange_type_map.get(self.config.exchange_type, aio_pika.ExchangeType.DIRECT)
+        etype_map = {"direct": aio_pika.ExchangeType.DIRECT, "fanout": aio_pika.ExchangeType.FANOUT, "topic":  aio_pika.ExchangeType.TOPIC}
+        etype = etype_map.get(self.config.exchange_type, aio_pika.ExchangeType.DIRECT)
         self._pub_exchange = await self._pub_channel.declare_exchange(self.config.exchange, etype, durable=self.config.durable)
         logger.info(
             f"[AMQP-real] Publisher ready — exchange={self.config.exchange} "
             f"type={self.config.exchange_type}"
         )
-
         self._consume_task = asyncio.create_task(self._consume_loop())
         await asyncio.sleep(0.3)
 
@@ -135,13 +119,12 @@ class RealAMQPBackend(ProtocolBackend):
             await self._pub_connection.close()
         logger.info("[AMQP-real] Disconnected.")
 
-
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         if self._loop is None:
             raise RuntimeError("RealAMQPBackend.start() was not called")
         rk = self._routing_key(batch)
-        wire_bytes = (len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode()))
-        self.bytes_sent += wire_bytes
+        wire = len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode())
+        self.bytes_sent += wire
         asyncio.ensure_future(self._async_publish(payload, rk), loop=self._loop)
 
     async def _async_publish(self, payload: bytes, routing_key: str) -> None:
@@ -162,20 +145,13 @@ class RealAMQPBackend(ProtocolBackend):
         connection = await aio_pika.connect_robust(self.broker.url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=self.config.prefetch_count)
-
-        exchange_type_map = {
-            "direct": aio_pika.ExchangeType.DIRECT,
-            "fanout": aio_pika.ExchangeType.FANOUT,
-            "topic":  aio_pika.ExchangeType.TOPIC,
-        }
-        etype = exchange_type_map.get(self.config.exchange_type, aio_pika.ExchangeType.DIRECT)
+        etype_map = {"direct": aio_pika.ExchangeType.DIRECT, "fanout": aio_pika.ExchangeType.FANOUT, "topic": aio_pika.ExchangeType.TOPIC}
+        etype = etype_map.get(self.config.exchange_type, aio_pika.ExchangeType.DIRECT)
         exchange = await channel.declare_exchange(self.config.exchange, etype, durable=self.config.durable)
         queue = await channel.declare_queue(self.QUEUE_NAME, durable=self.config.durable)
 
         if self.config.exchange_type == "fanout":
             await queue.bind(exchange)
-        elif self.config.exchange_type == "topic":
-            await queue.bind(exchange, routing_key="parking.#")
         else:
             await queue.bind(exchange, routing_key="parking.#")
 
@@ -197,7 +173,6 @@ class RealAMQPBackend(ProtocolBackend):
                         if not auto_ack:
                             await message.nack(requeue=False)
                         self.nacked += 1
-
 
     def _routing_key(self, batch: BatchUpdate) -> str:
         if self.config.exchange_type == "fanout":
