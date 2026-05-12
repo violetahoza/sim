@@ -108,23 +108,13 @@ async def run_simulation(cfg: ScenarioConfig) -> None:
     state.running = True
     state.scenario_name = cfg.name
     state.progress = {}
-    state.push("sim_started", {
-        "scenario": cfg.name,
-        "num_spots": cfg.num_spots,
-        "sim_duration_s": cfg.sim_duration_s,
-        "protocol": cfg.protocol,
-        "architecture": cfg.architecture
-    })
+    state.push("sim_started", {"scenario": cfg.name, "num_spots": cfg.num_spots, "sim_duration_s": cfg.sim_duration_s, "protocol": cfg.protocol, "architecture": cfg.architecture})
 
     def _progress(snap: dict) -> None:
         state.progress = snap
         state.push("progress", snap)
 
-    runner = ExperimentRunner(
-        cfg,
-        progress_cb=_progress,
-        flush_cb=lambda: state.push("sim_flushing", {"scenario": cfg.name}),
-    )
+    runner = ExperimentRunner(cfg, progress_cb=_progress, flush_cb=lambda: state.push("sim_flushing", {"scenario": cfg.name}))
     state._runner = runner
     try:
         metrics = await runner.run()

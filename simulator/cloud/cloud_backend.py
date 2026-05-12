@@ -1,6 +1,7 @@
 from __future__ import annotations
 import collections
 import logging
+import time
 from datetime import datetime, timezone
 import numpy as np
 import psutil
@@ -45,7 +46,7 @@ class CloudBackend:
 
         self._total_bytes_received = 0
         self._process = psutil.Process()
-        self._process.cpu_percent()
+        self._process.cpu_percent(interval=None)
         self._event_buffer: collections.deque = collections.deque(maxlen=50_000)
         self._agg_interval = config.edge.aggregation_interval_s
         self._lat_buckets: dict[int, list[float]] = collections.defaultdict(list)
@@ -55,44 +56,54 @@ class CloudBackend:
 
         self._snapshot_cache: dict | None = None
         self._snapshot_cache_len: int = -1
+        self._last_cpu_time: float = time.monotonic()
+
+        from simulator.protocols.broker_config import use_real_brokers
+        self._real_mode: bool = use_real_brokers()
 
     def receive_batch(self, batch: BatchUpdate, raw_bytes: bytes) -> None:
-        arrival_virtual = self.clock.now
-        arrival_epoch = self.epoch + arrival_virtual
+        if self._real_mode:
+            arrival = time.time()
+        else:
+            arrival = self.epoch + self.clock.now
+
         self.received_batches += 1
         self._total_bytes_received += len(raw_bytes)
         for event in batch.events:
-            self._process_event(event, arrival_virtual, arrival_epoch)
+            self._process_event(event, arrival)
 
-    def _process_event(self, event: ParkingEvent, arrival_virtual: float, arrival_epoch: float) -> None:
+    def receive_batch_real(self, batch: BatchUpdate, raw_bytes: bytes, wall_arrival: float | None = None) -> None:
+        import time as _t
+        arrival = wall_arrival if wall_arrival is not None else _t.time()
+        self.received_batches += 1
+        self._total_bytes_received += len(raw_bytes)
+        for event in batch.events:
+            self._process_event(event, arrival)
+
+    def _process_event(self, event: ParkingEvent, arrival: float) -> None:
         self.received_events += 1
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         spot = self._spots.get(event.spot_id)
         if spot is not None:
             spot["state"] = state_val
             spot["last_updated"] = event.timestamp
-            spot["received_at"] = arrival_epoch
+            spot["received_at"] = arrival
 
-        latency_ms = (arrival_epoch - event.timestamp) * 1000
+        latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
         self._latency_ms_all.append(latency_ms)
 
-        is_warmup = arrival_virtual < self._warmup_s or getattr(event, "is_initial", False)
+        event_virtual = event.timestamp - self.epoch
+        is_warmup = event_virtual < self._warmup_s or getattr(event, "is_initial", False)
         if is_warmup:
             self._warmup_excluded += 1
         else:
             self._latency_ms_post.append(latency_ms)
-            bucket = int(arrival_virtual / self._agg_interval)
+            bucket = int(event_virtual / self._agg_interval)
             self._lat_buckets[bucket].append(latency_ms)
 
-        self._event_rows.append(
-            (event.spot_id, event.sequence, event.timestamp, arrival_epoch, latency_ms, is_warmup)
-        )
-        self._event_buffer.append({
-            "spot_id": event.spot_id,
-            "state": state_val,
-            "latency_ms": round(latency_ms, 2),
-            "timestamp": arrival_epoch
-        })
+        self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms, is_warmup))
+        self._event_buffer.append({"spot_id": event.spot_id, "state": state_val, "latency_ms": round(latency_ms, 2), "timestamp": arrival})
+        self._snapshot_cache = None
 
     def open_run(self, engine, config_json: str = "") -> None:
         if engine is None:
@@ -119,12 +130,11 @@ class CloudBackend:
     def flush_to_db(self, engine, metrics) -> None:
         if engine is None or self._run_id is None:
             return
-
         session = make_session(engine)
         try:
             logger.info(
                 f"[DB] Flushing run {self._run_id}: "
-                f"{len(self._event_rows)} latency records, {len(self._spots)} spots …"
+                f"{len(self._event_rows)} latency records, {len(self._spots)} spots ..."
             )
             CHUNK = 1000
             proto = self.config.protocol
@@ -133,35 +143,18 @@ class CloudBackend:
                 chunk = self._event_rows[i: i + CHUNK]
                 session.execute(
                     sa_insert(LatencyRecord),
-                    [
-                        {
-                            "run_id": self._run_id,
-                            "spot_id": row[0],
-                            "sequence": row[1],
-                            "protocol": proto,
-                            "architecture": arch,
-                            "sent_at": row[2],
-                            "received_at": row[3],
-                            "latency_ms": round(row[4], 4),
-                            "is_warmup": row[5]
-                        }
-                        for row in chunk
-                    ],
+                    [{"run_id": self._run_id, "spot_id": row[0], "sequence": row[1],
+                      "protocol": proto, "architecture": arch, "sent_at": row[2],
+                      "received_at": row[3], "latency_ms": round(row[4], 4), "is_warmup": row[5]}
+                     for row in chunk],
                 )
             session.flush()
 
             session.execute(
                 sa_insert(ParkingSpot),
-                [
-                    {
-                        "run_id": self._run_id,
-                        "spot_id": sid,
-                        "state": s["state"],
-                        "last_updated": s["last_updated"],
-                        "received_at": s["received_at"]
-                    }
-                    for sid, s in self._spots.items()
-                ],
+                [{"run_id": self._run_id, "spot_id": sid, "state": s["state"],
+                  "last_updated": s["last_updated"], "received_at": s["received_at"]}
+                 for sid, s in self._spots.items()],
             )
             session.flush()
 
@@ -212,7 +205,7 @@ class CloudBackend:
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
         return {
             "total": total, "occupied": occupied, "free": total - occupied,
-            "occupancy_pct": round(occupied / total * 100, 1) if total else 0
+            "occupancy_pct": round(occupied / total * 100, 1) if total else 0,
         }
 
     def get_latest_events(self, limit: int = 50) -> list[dict]:
@@ -231,12 +224,15 @@ class CloudBackend:
             p50 = float(np.percentile(arr, 50))
             p95 = float(np.percentile(arr, 95))
             p99 = float(np.percentile(arr, 99))
-            mn = float(np.min(arr))
+            mn  = float(np.min(arr))
             mx = float(np.max(arr))
         else:
             mean = p50 = p95 = p99 = mn = mx = 0.0
 
-        cpu = self._process.cpu_percent()
+        now = time.monotonic()
+        elapsed = now - self._last_cpu_time
+        cpu = self._process.cpu_percent(interval=0.1 if elapsed < 0.5 else None)
+        self._last_cpu_time = time.monotonic()
         mem = self._process.memory_info().rss / (1024 * 1024)
 
         snapshot = {
@@ -250,9 +246,9 @@ class CloudBackend:
             "latency_min_ms": round(mn, 2),
             "latency_max_ms": round(mx, 2),
             "warmup_excluded": self._warmup_excluded,
-            "cpu_pct": cpu,
+            "cpu_pct": round(cpu, 1),
             "mem_mb": round(mem, 2),
-            "latency_samples": [round(v, 2) for v in samples[-200:]]
+            "latency_samples": [round(v, 2) for v in samples[-200:]],
         }
 
         self._snapshot_cache = snapshot
