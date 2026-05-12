@@ -17,7 +17,8 @@ class TrafficModel:
         clock: SimClock,
         event_cb: Callable[[ParkingEvent], None],
         epoch: float,
-        rng: Optional[random.Random] = None
+        rng: Optional[random.Random] = None,
+        wall_clock: bool = False
     ) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
@@ -28,7 +29,9 @@ class TrafficModel:
         self.epoch = epoch
         self.rng = rng or random.Random(config.random_seed)
         self._tod_factors = config.tod_factors
-
+        self._wall_clock = wall_clock
+        self._time_scale = config.time_scale
+        
         self.occupied: dict[int, bool] = {
             i: self.rng.random() < config.initial_occupancy
             for i in range(self.num_spots)
@@ -97,3 +100,9 @@ class TrafficModel:
             self.occupied[spot_id] = False
             event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.FREE, timestamp=self.epoch + virtual_time, sequence=self._next_seq())
             self.event_cb(event)
+
+    def _make_timestamp(self, virtual_time: float) -> float:
+        if self._wall_clock:
+            # wall-clock instant at which the sensor fires
+            return self.epoch + virtual_time / self._time_scale
+        return self.epoch + virtual_time   

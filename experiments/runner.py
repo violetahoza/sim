@@ -59,7 +59,6 @@ class ExperimentRunner:
         cloud.open_run(engine, config_json=config_json)
 
         seed = cfg.random_seed
-        proto = cfg.protocol
 
         def cloud_recv(batch: BatchUpdate, raw: bytes) -> None:
             cloud.receive_batch(batch, raw)
@@ -224,7 +223,7 @@ class ExperimentRunner:
         edge_proc.start()
 
         clock = SimClock()
-        sensors = SensorEmulator(cfg.traffic, cfg.arrival_rate)
+        sensors = SensorEmulator(cfg.traffic, cfg.arrival_rate, wall_clock=True)
 
         arch = cfg.architecture
 

@@ -9,13 +9,12 @@ from ..des.engine import SimClock
 SensorCallback = Callable[[ParkingEvent], None]
 
 class SensorEmulator:
-    def __init__(self, config: TrafficConfig, arrival_rate: float) -> None:
+    def __init__(self, config: TrafficConfig, arrival_rate: float, wall_clock: bool = False) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
+        self._wall_clock = wall_clock
         self.num_spots = config.num_spots
-        self._sensor_states: dict[int, SensorState] = {
-            i: SensorState(spot_id=i) for i in range(self.num_spots)
-        }
+        self._sensor_states: dict[int, SensorState] = {i: SensorState(spot_id=i) for i in range(self.num_spots)}
         self._callbacks: list[SensorCallback] = []
         self._total_generated = 0
 
@@ -37,9 +36,7 @@ class SensorEmulator:
             cb(event)
 
     def schedule_run(self, clock: SimClock, duration_s: float, epoch: float) -> None:
-        traffic = TrafficModel(
-            self.config, self.arrival_rate, clock, self._on_event, epoch
-        )
+        traffic = TrafficModel(self.config, self.arrival_rate, clock, self._on_event, epoch, wall_clock=self._wall_clock)
         traffic.schedule_run(duration_s)
 
     @property
@@ -48,9 +45,7 @@ class SensorEmulator:
 
     def occupancy_snapshot(self) -> dict:
         total = self.num_spots
-        occupied = sum(
-            1 for s in self._sensor_states.values() if s.state == SpotState.OCCUPIED
-        )
+        occupied = sum(1 for s in self._sensor_states.values() if s.state == SpotState.OCCUPIED)
         return {
             "total": total,
             "occupied": occupied,
