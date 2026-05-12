@@ -11,23 +11,26 @@ ForwardCallback = Callable[[ParkingEvent, bytes], None]
 
 
 class TokenBucket:
-
     def __init__(self, rate: float) -> None:
         self.rate = rate
         self.tokens = 1.0
         self._last_virtual = 0.0
+        self._next_free: float = 0.0 
 
     def consume(self, clock: SimClock) -> float:
         elapsed = clock.now - self._last_virtual
         self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
         self._last_virtual = clock.now
-        if self.tokens >= 1.0:
+
+        now = clock.now
+        if self._next_free <= now and self.tokens >= 1.0:
             self.tokens -= 1.0
+            self._next_free = now + (1.0 / self.rate)
             return 0.0
-        deficit = 1.0 - self.tokens
-        wait = deficit / self.rate
-        self.tokens = 0.0
-        return wait
+        else:
+            self._next_free = max(self._next_free, now) + (1.0 / self.rate)
+            self.tokens = 0.0
+            return self._next_free - (1.0 / self.rate) - now
 
 
 class LinkEmulator:
