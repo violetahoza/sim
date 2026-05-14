@@ -29,7 +29,7 @@ class EdgeNode:
         self._epoch = epoch
         self.edge_id = "edge_01"
 
-        self._active_arch = config.architecture  
+        self._active_arch = config.architecture
         self._cache: dict[int, SensorState] = {}
         self._pending: list[ParkingEvent] = []
         self.stats = LinkStats(name="edge_to_cloud")
@@ -41,7 +41,6 @@ class EdgeNode:
         self._reported_silent: set[int] = set()
         self._process = psutil.Process()
         self._process.cpu_percent()
-        self._ui_update_cb: Optional[Callable] = None
         self._sensor_link_stats: Optional[LinkStats] = None
 
         if self._active_arch == "edge_aggregated":
@@ -51,9 +50,6 @@ class EdgeNode:
 
     def set_sensor_link_stats(self, stats: LinkStats) -> None:
         self._sensor_link_stats = stats
-
-    def set_ui_callback(self, cb: Callable) -> None:
-        self._ui_update_cb = cb
 
     def receive(self, event: ParkingEvent, raw_bytes: bytes) -> None:
         self.received_count += 1
@@ -77,9 +73,6 @@ class EdgeNode:
             self._forward_single(event)
         elif self._active_arch == "edge_aggregated":
             self._pending.append(event)
-
-        if self._ui_update_cb:
-            self._ui_update_cb(event)
 
     def flush_final(self) -> None:
         if self._active_arch == "edge_aggregated" and self._pending:
@@ -128,9 +121,7 @@ class EdgeNode:
                     self._reported_silent.add(spot_id)
                 self.anomaly_count += 1
             if state.consecutive_same > self.STUCK_THRESHOLD:
-                logger.warning(
-                    f"[ANOMALY] Sensor {spot_id} stuck: consecutive_same={state.consecutive_same}"
-                )
+                logger.warning(f"[ANOMALY] Sensor {spot_id} stuck: consecutive_same={state.consecutive_same}")
                 self.anomaly_count += 1
 
     def _check_adaptive_mode(self) -> None:

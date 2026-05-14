@@ -1,6 +1,6 @@
 from __future__ import annotations
 import ssl
-from sqlalchemy import Column, DateTime, Float, Integer, Boolean, Text, String, create_engine
+from sqlalchemy import Column, DateTime, Float, Integer, Text, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from .utils import read_env_file
 
@@ -14,13 +14,7 @@ def make_engine(db_url: str | None = None):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    return create_engine(
-        url,
-        connect_args={"ssl": ctx},
-        pool_pre_ping=True,
-        pool_recycle=1800,
-        echo=False,
-    )
+    return create_engine(url, connect_args={"ssl": ctx}, pool_pre_ping=True, pool_recycle=1800, echo=False)
 
 
 class Base(DeclarativeBase):
@@ -47,9 +41,6 @@ class ScenarioRun(Base):
     latency_p99_ms = Column(Float)
     latency_min_ms = Column(Float)
     latency_max_ms = Column(Float)
-    latency_mean_ms_with_warmup = Column(Float)
-    warmup_s = Column(Float)
-    warmup_events_excluded = Column(Integer)
 
     sensor_to_edge_msgs = Column(Integer)
     edge_to_cloud_msgs = Column(Integer)
@@ -94,7 +85,6 @@ class LatencyRecord(Base):
     sent_at = Column(Float, nullable=False)
     received_at = Column(Float, nullable=False)
     latency_ms = Column(Float, nullable=False)
-    is_warmup = Column(Boolean, nullable=False, default=False)
 
 
 def init_schema(engine) -> None:

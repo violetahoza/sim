@@ -23,7 +23,7 @@ class ParkingEvent:
             "spot_id": self.spot_id,
             "state": self.state.value,
             "timestamp": self.timestamp,
-            "sequence": self.sequence
+            "sequence": self.sequence,
         }
 
 
@@ -79,7 +79,7 @@ class LinkStats:
             "delivery_ratio": self.delivery_ratio,
             "drop_rate": self.drop_rate,
             "retransmissions": self.retransmissions,
-            "duplicate_deliveries": self.duplicate_deliveries
+            "duplicate_deliveries": self.duplicate_deliveries,
         }
 
 
@@ -99,18 +99,14 @@ class ExperimentMetrics:
     latency_p99_ms: float = 0.0
     latency_max_ms: float = 0.0
     latency_min_ms: float = 0.0
-    latency_mean_ms_with_warmup: float = 0.0
-
-    warmup_s: float = 0.0
-    warmup_events_excluded: int = 0
 
     sensor_to_edge_msgs: int = 0
     edge_to_cloud_msgs: int = 0
     cloud_only_msgs: int = 0
 
-    transport_msgs_total: int = 0  
-    retransmissions_total: int = 0   
-    duplicate_deliveries: int = 0 
+    transport_msgs_total: int = 0
+    retransmissions_total: int = 0
+    duplicate_deliveries: int = 0
 
     sensor_to_edge_bytes: int = 0
     edge_to_cloud_bytes: int = 0
@@ -132,11 +128,9 @@ class ExperimentMetrics:
 
     broker_overhead_score: float = 0.0
 
-    latency_timeseries: list[dict] = field(default_factory=list)
     latency_samples: list[float] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d.pop("latency_samples", None)
-        d.pop("latency_timeseries", None)
         return d

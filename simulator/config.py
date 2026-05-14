@@ -53,8 +53,6 @@ class EdgeConfig:
     aggregation_interval_s: float = 30.0
     filter_no_change: bool = True
     anomaly_detection: bool = True
-    cache_ttl_s: float = 300.0
-    warmup_s: float = 60.0
     adaptive_edge: bool = False
 
 
@@ -158,7 +156,6 @@ class ScenarioConfig:
             "aggregation_interval": edge["aggregation_interval_s"],
             "anomaly_detection": edge["anomaly_detection"],
             "adaptive_edge": edge["adaptive_edge"],
-            "warmup_s": edge["warmup_s"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
             "amqp_exchange": amqp["exchange_type"],
@@ -185,7 +182,6 @@ class ScenarioConfig:
             aggregation_interval=d.get("aggregation_interval", DEFAULT_AGG_INTERVAL_S),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
-            warmup_s=d.get("warmup_s", 60.0),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
             amqp_exchange=d.get("amqp_exchange", "direct"),
@@ -221,7 +217,6 @@ def make_scenario(
     aggregation_interval: float = DEFAULT_AGG_INTERVAL_S,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
-    warmup_s: float = 60.0,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
     amqp_exchange: AMQPExchange = "direct",
@@ -264,8 +259,7 @@ def make_scenario(
         architecture=architecture,
         aggregation_interval_s=aggregation_interval,
         anomaly_detection=anomaly_detection,
-        adaptive_edge=adaptive_edge,
-        warmup_s=warmup_s
+        adaptive_edge=adaptive_edge
     )
     traffic = TrafficConfig(
         num_spots=num_spots,

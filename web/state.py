@@ -81,7 +81,6 @@ def make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         aggregation_interval = max(5.0, min(300.0, float(body.get("aggregation_interval", 30.0)))),
         anomaly_detection = bool(body.get("anomaly_detection", True)),
         adaptive_edge = bool(body.get("adaptive_edge", False)),
-        warmup_s = max(0.0, float(body.get("warmup_s", 60.0))),
         mqtt_qos = int(body.get("mqtt_qos", 1)),
         coap_mode = body.get("coap_mode", "CON"),
         amqp_exchange = body.get("amqp_exchange", "direct"),

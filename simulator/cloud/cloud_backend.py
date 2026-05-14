@@ -37,19 +37,13 @@ class CloudBackend:
         self.received_batches = 0
         self.received_events = 0
 
-        self._warmup_s: float = config.edge.warmup_s
-        self._warmup_excluded: int = 0
-        self._latency_ms_all: list[float] = []
-        self._latency_ms_post: list[float] = []
-
+        self._latency_ms: list[float] = []
         self._event_rows: list[tuple] = []
 
         self._total_bytes_received = 0
         self._process = psutil.Process()
         self._process.cpu_percent(interval=None)
         self._event_buffer: collections.deque = collections.deque(maxlen=50_000)
-        self._agg_interval = config.edge.aggregation_interval_s
-        self._lat_buckets: dict[int, list[float]] = collections.defaultdict(list)
 
         self._run_id: int | None = None
         self._started_at: datetime = datetime.now(timezone.utc)
@@ -90,19 +84,15 @@ class CloudBackend:
             spot["received_at"] = arrival
 
         latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
-        self._latency_ms_all.append(latency_ms)
+        self._latency_ms.append(latency_ms)
 
-        event_virtual = event.timestamp - self.epoch
-        is_warmup = event_virtual < self._warmup_s or getattr(event, "is_initial", False)
-        if is_warmup:
-            self._warmup_excluded += 1
-        else:
-            self._latency_ms_post.append(latency_ms)
-            bucket = int(event_virtual / self._agg_interval)
-            self._lat_buckets[bucket].append(latency_ms)
-
-        self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms, is_warmup))
-        self._event_buffer.append({"spot_id": event.spot_id, "state": state_val, "latency_ms": round(latency_ms, 2), "timestamp": arrival})
+        self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
+        self._event_buffer.append({
+            "spot_id": event.spot_id,
+            "state": state_val,
+            "latency_ms": round(latency_ms, 2),
+            "timestamp": arrival,
+        })
         self._snapshot_cache = None
 
     def open_run(self, engine, config_json: str = "") -> None:
@@ -145,8 +135,8 @@ class CloudBackend:
                     sa_insert(LatencyRecord),
                     [{"run_id": self._run_id, "spot_id": row[0], "sequence": row[1],
                       "protocol": proto, "architecture": arch, "sent_at": row[2],
-                      "received_at": row[3], "latency_ms": round(row[4], 4), "is_warmup": row[5]}
-                     for row in chunk],
+                      "received_at": row[3], "latency_ms": round(row[4], 4)}
+                     for row in chunk]
                 )
             session.flush()
 
@@ -154,7 +144,7 @@ class CloudBackend:
                 sa_insert(ParkingSpot),
                 [{"run_id": self._run_id, "spot_id": sid, "state": s["state"],
                   "last_updated": s["last_updated"], "received_at": s["received_at"]}
-                 for sid, s in self._spots.items()],
+                 for sid, s in self._spots.items()]
             )
             session.flush()
 
@@ -167,9 +157,6 @@ class CloudBackend:
                 run.latency_p99_ms = metrics.latency_p99_ms
                 run.latency_min_ms = metrics.latency_min_ms
                 run.latency_max_ms = metrics.latency_max_ms
-                run.latency_mean_ms_with_warmup = metrics.latency_mean_ms_with_warmup
-                run.warmup_s = metrics.warmup_s
-                run.warmup_events_excluded = metrics.warmup_events_excluded
                 run.sensor_to_edge_msgs = metrics.sensor_to_edge_msgs
                 run.edge_to_cloud_msgs = metrics.edge_to_cloud_msgs
                 run.sensor_to_edge_delivery_ratio = metrics.sensor_to_edge_delivery_ratio
@@ -194,25 +181,19 @@ class CloudBackend:
         finally:
             session.close()
 
-    def get_latency_timeseries(self) -> list[dict]:
-        return [
-            {"t_s": b * self._agg_interval, "mean_ms": round(sum(lats) / len(lats), 2)}
-            for b, lats in sorted(self._lat_buckets.items()) if lats
-        ]
-
     def get_occupancy(self) -> dict:
         total = len(self._spots)
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
         return {
             "total": total, "occupied": occupied, "free": total - occupied,
-            "occupancy_pct": round(occupied / total * 100, 1) if total else 0,
+            "occupancy_pct": round(occupied / total * 100, 1) if total else 0
         }
 
     def get_latest_events(self, limit: int = 50) -> list[dict]:
         return list(self._event_buffer)[-limit:]
 
     def get_metrics_snapshot(self) -> dict:
-        samples = self._latency_ms_post if self._latency_ms_post else self._latency_ms_all
+        samples = self._latency_ms
         current_len = len(samples)
 
         if self._snapshot_cache is not None and current_len == self._snapshot_cache_len:
@@ -224,7 +205,7 @@ class CloudBackend:
             p50 = float(np.percentile(arr, 50))
             p95 = float(np.percentile(arr, 95))
             p99 = float(np.percentile(arr, 99))
-            mn  = float(np.min(arr))
+            mn = float(np.min(arr))
             mx = float(np.max(arr))
         else:
             mean = p50 = p95 = p99 = mn = mx = 0.0
@@ -245,18 +226,17 @@ class CloudBackend:
             "latency_p99_ms": round(p99, 2),
             "latency_min_ms": round(mn, 2),
             "latency_max_ms": round(mx, 2),
-            "warmup_excluded": self._warmup_excluded,
             "cpu_pct": round(cpu, 1),
             "mem_mb": round(mem, 2),
-            "latency_samples": [round(v, 2) for v in samples[-200:]],
+            "latency_samples": [round(v, 2) for v in samples[-200:]]
         }
 
         self._snapshot_cache = snapshot
         self._snapshot_cache_len = current_len
         return snapshot
 
-    def get_all_latency_samples(self) -> tuple[list[float], list[float]]:
-        return self._latency_ms_post, self._latency_ms_all
+    def get_all_latency_samples(self) -> list[float]:
+        return self._latency_ms
 
     def compute_broker_overhead_score(self) -> float:
         cfg = self.config

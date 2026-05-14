@@ -7,7 +7,6 @@ import psutil
 
 if TYPE_CHECKING:
     from simulator.config import ScenarioConfig
-    from simulator.models import ExperimentMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +31,6 @@ def _cloud_worker(config_dict: dict, epoch: float, batch_queue: mp.Queue, metric
 
     proc = psutil.Process()
     proc.cpu_percent(interval=None)
-    import time as _time
-    _last_cpu_t = _time.monotonic()
 
     metric_queue.put_nowait({"type": "ready"})
 
@@ -70,15 +67,13 @@ def _cloud_worker(config_dict: dict, epoch: float, batch_queue: mp.Queue, metric
                     logger.exception("cloud_worker: DB flush error")
             metric_queue.put_nowait({"type": "flushed"})
         elif ctype == "get_all":
-            post, all_ = cloud.get_all_latency_samples()
+            samples = cloud.get_all_latency_samples()
             metric_queue.put_nowait({
                 "type": "all_samples",
-                "post": post,
-                "all": all_,
-                "timeseries": cloud.get_latency_timeseries(),
+                "samples": samples,
                 "occupancy": cloud.get_occupancy(),
                 "snapshot": cloud.get_metrics_snapshot(),
-                "received_events": cloud.received_events
+                "received_events": cloud.received_events,
             })
         elif ctype == "stop":
             break
@@ -95,10 +90,9 @@ def _handle_batch(item: dict, cloud) -> None:
         logger.exception("cloud_worker: batch handling error")
 
 
-
 class CloudWorkerProcess:
 
-    def __init__(self, config: "ScenarioConfig", epoch: float, db_url: str | None = None,) -> None:
+    def __init__(self, config: "ScenarioConfig", epoch: float, db_url: str | None = None) -> None:
         self._config = config
         self._epoch = epoch
         self._db_url = db_url
@@ -148,7 +142,6 @@ class CloudWorkerProcess:
 
     def get_metrics_snapshot(self) -> dict:
         self.request_snapshot()
-        # Drain with a short timeout
         deadline = time.monotonic() + 1.0
         while time.monotonic() < deadline:
             self._drain_metrics(block=True, timeout=0.2)
@@ -162,7 +155,7 @@ class CloudWorkerProcess:
         deadline = time.monotonic() + 30.0
         while time.monotonic() < deadline:
             self._drain_metrics(block=True, timeout=0.5)
-            if "post" in self._last_snapshot:
+            if "samples" in self._last_snapshot:
                 return self._last_snapshot
         return {}
 
@@ -174,13 +167,9 @@ class CloudWorkerProcess:
             if self._last_snapshot.get("type") == "flushed":
                 return
 
-    def get_latency_timeseries(self) -> list[dict]:
+    def get_all_latency_samples(self) -> list[float]:
         data = self.get_all_data()
-        return data.get("timeseries", [])
-
-    def get_all_latency_samples(self) -> tuple[list[float], list[float]]:
-        data = self.get_all_data()
-        return data.get("post", []), data.get("all", [])
+        return data.get("samples", [])
 
     def get_occupancy(self) -> dict:
         data = self.get_all_data()
