@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 import numpy as np
 
-from simulator.config import ScenarioConfig
+from simulator.config import ScenarioConfig, LinkConfig, BackhaulLinkConfig
 from simulator.models import BatchUpdate, ExperimentMetrics, ParkingEvent, SpotState
 from simulator.des.engine import SimClock
 from simulator.protocols.broker_config import use_real_brokers
@@ -22,15 +22,19 @@ from simulator.cloud.cloud_process import CloudWorkerProcess
 
 logger = logging.getLogger(__name__)
 
-
+_SF7_TX_J: float = 0.030      
+_AA_BATTERY_J: float = 12_960.0 
+\
 class ExperimentRunner:
-    def __init__(self, config: ScenarioConfig, progress_cb=None, flush_cb=None) -> None:
+    def __init__(self, config: ScenarioConfig, progress_cb=None, flush_cb=None, fault_injector=None) -> None:
         self.config = config
         self.progress_cb = progress_cb
         self.flush_cb = flush_cb
         self._start_time: float = 0.0
-        self._cancelled: bool  = False
+        self._cancelled: bool = False
         self._spot_states: dict[int, str] = {}
+        self._fault_injector = fault_injector
+        self._edge_summary: dict = {} 
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -40,24 +44,26 @@ class ExperimentRunner:
             return await self._run_real()
         return await self._run_simulated()
 
-
     async def _run_simulated(self) -> ExperimentMetrics:
         cfg = self.config
         self._start_time = time.time()
         epoch = self._start_time
+        seed = cfg.random_seed
 
         engine = make_engine()
         if engine is not None:
             init_schema(engine)
 
         clock = SimClock()
+
         sensors = SensorEmulator(cfg.traffic, cfg.arrival_rate)
+        if self._fault_injector is not None:
+            sensors.set_fault_injector(self._fault_injector)
+
         cloud = CloudBackend(cfg, clock, epoch)
 
         config_json = json.dumps(cfg.to_save_dict())
         cloud.open_run(engine, config_json=config_json)
-
-        seed = cfg.random_seed
 
         def cloud_recv(batch: BatchUpdate, raw: bytes) -> None:
             cloud.receive_batch(batch, raw)
@@ -65,16 +71,38 @@ class ExperimentRunner:
         backend = _make_simulated_backend(cfg, clock, cloud_recv, seed)
         arch = cfg.architecture
 
-        def proto_publish(batch: BatchUpdate, raw: bytes) -> None:
-            backend.publish(batch, raw)
+        _backhaul_rng = random.Random(seed + 1 + abs(hash(cfg.protocol)) % 10000 + 5000)
+        backhaul_link = LinkEmulator(cfg.backhaul_link.to_link_config(), clock, rng=_backhaul_rng)
+        backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
+        backhaul_link.set_batch_callback(backend.publish)
 
-        edge = EdgeNode(cfg, clock, proto_publish, epoch)
+        def edge_to_cloud(batch: BatchUpdate, raw: bytes) -> None:
+            backhaul_link.transmit_batch(batch, raw)
+
+        edge = EdgeNode(cfg, clock, edge_to_cloud, epoch)
+
+        if arch != "cloud_only":
+            backhaul_link.on_drop = lambda: edge.record_cloud_drop()
+            backend.on_drop = lambda: edge.record_cloud_drop()
 
         for i in range(cfg.num_spots):
             self._spot_states[i] = "free"
 
-        link = LinkEmulator(cfg.link, clock, forward_cb=self._make_link_cb_simulated(arch, edge, cloud, epoch), rng=random.Random(seed + 1))
-        edge.set_sensor_link_stats(link.stats)
+        _sensor_rng = random.Random(seed + 1 + abs(hash(cfg.protocol)) % 10000)
+
+        if arch == "cloud_only":
+            def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
+                batch = BatchUpdate(edge_id="direct", events=[event])
+                payload = EdgeNode._serialize_batch(batch)
+                backhaul_link.transmit_batch(batch, payload)
+        else:
+            def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
+                edge.receive(event, raw)
+
+        link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng)
+
+        if arch != "cloud_only":
+            edge.set_sensor_link_stats(link.stats)
 
         def sensor_cb(event: ParkingEvent) -> None:
             if not self._cancelled:
@@ -116,6 +144,7 @@ class ExperimentRunner:
         dup_deliveries = getattr(backend, "duplicates_delivered", 0) or getattr(backend, "duplicates_suppressed", 0)
         protocol_bytes = backend.bytes_sent
 
+        self._edge_summary = edge.summary()
         metrics = self._collect_metrics_simulated(cfg, sensors, link, edge, cloud, protocol_bytes, retransmits=retransmits, dup_deliveries=dup_deliveries)
         self._log_done(cfg, metrics, cloud)
 
@@ -125,17 +154,6 @@ class ExperimentRunner:
         cloud.flush_to_db(engine, metrics)
         return metrics
 
-    def _make_link_cb_simulated(self, arch, edge, cloud, epoch):
-        if arch == "cloud_only":
-            def cb(event: ParkingEvent, raw: bytes) -> None:
-                batch = BatchUpdate(edge_id="direct", events=[event])
-                cloud.receive_batch(batch, raw)
-            return cb
-        else:
-            def cb(event: ParkingEvent, raw: bytes) -> None:
-                edge.receive(event, raw)
-            return cb
-
     def _collect_metrics_simulated(self, cfg, sensors, link, edge, cloud, protocol_bytes: int = 0, retransmits: int = 0, dup_deliveries: int = 0) -> ExperimentMetrics:
         post_samples = cloud.get_all_latency_samples()
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
@@ -143,7 +161,7 @@ class ExperimentRunner:
         sensor_events = sensors.total_generated
         cloud_events = cloud.received_events
         ls = link.stats
-        es = edge.summary()
+        es = self._edge_summary if self._edge_summary else edge.summary()
         cs = cloud.get_metrics_snapshot()
         arch = cfg.architecture
 
@@ -163,7 +181,15 @@ class ExperimentRunner:
         cloud_msgs = e2c_msgs if arch != "cloud_only" else cloud_events
         agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
         transport_total = s2e_msgs + retransmits
+        e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
 
+        tx_per_sensor = s2e_msgs / max(cfg.num_spots, 1)
+        energy_per_sensor_mj = tx_per_sensor * _SF7_TX_J * 1000.0  
+        tx_rate_hz = tx_per_sensor / max(cfg.sim_duration_s, 1.0)  
+        max_tx = _AA_BATTERY_J / _SF7_TX_J 
+        battery_life_days = max_tx / max(tx_rate_hz * 86_400.0, 1e-12)
+
+        fi = self._fault_injector
         return ExperimentMetrics(
             scenario_name=cfg.name,
             group=cfg.group,
@@ -199,6 +225,7 @@ class ExperimentRunner:
             filtered_events=es.get("filtered", 0),
             anomalies_detected=es.get("anomalies", 0),
             adaptive_mode_switches=es.get("mode_switches", 0),
+            edge_to_cloud_dropped=e2c_dropped,
 
             edge_cpu_pct=es.get("cpu_pct", 0.0),
             edge_mem_mb=es.get("mem_mb", 0.0),
@@ -206,9 +233,16 @@ class ExperimentRunner:
             cloud_mem_mb=cs.get("mem_mb", 0.0),
 
             broker_overhead_score=cloud.compute_broker_overhead_score(),
-            latency_samples=post_samples[-50_000:],
-        )
+            energy_per_sensor_mj=round(energy_per_sensor_mj, 3),
+            battery_life_days=round(battery_life_days, 1),
+            warmup_excluded_samples=cloud.warmup_excluded,
 
+            fault_injected_count=fi.injected_count if fi is not None else 0,
+            quarantined_spots_peak=es.get("quarantined_count", 0),
+            anomaly_detected_spots=es.get("detected_spots", 0),
+
+            latency_samples=post_samples[-50_000:]
+        )
 
     async def _run_real(self) -> ExperimentMetrics:
         cfg = self.config
@@ -245,7 +279,8 @@ class ExperimentRunner:
         for i in range(cfg.num_spots):
             self._spot_states[i] = "free"
 
-        link = LinkEmulator(cfg.link, clock, forward_cb=link_cb, rng=random.Random(cfg.random_seed + 1))
+        _sensor_rng = random.Random(cfg.random_seed + 1 + abs(hash(cfg.protocol)) % 10000)
+        link = LinkEmulator(cfg.link, clock, forward_cb=link_cb, rng=_sensor_rng, wall_clock=True)
 
         def sensor_cb(event: ParkingEvent) -> None:
             if not self._cancelled:
@@ -287,7 +322,7 @@ class ExperimentRunner:
             }
             self.progress_cb(snap)
 
-        await clock.run_until_async(cfg.sim_duration_s, progress_cb=des_progress, cancelled_cb=lambda: self._cancelled)
+        await clock.run_until_async(cfg.sim_duration_s, progress_cb=des_progress, cancelled_cb=lambda: self._cancelled, real_mode=True, time_scale=cfg.traffic.time_scale)
 
         edge_proc.flush_final()
         edge_proc.request_snapshot()
@@ -338,6 +373,7 @@ class ExperimentRunner:
         e2e_dr = (cloud_events / sensor_events) if sensor_events > 0 else 1.0
         cloud_msgs = e2c_msgs if arch != "cloud_only" else cloud_events
         agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
+        e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
 
         return ExperimentMetrics(
             scenario_name=cfg.name,
@@ -374,6 +410,7 @@ class ExperimentRunner:
             filtered_events=es.get("filtered", 0),
             anomalies_detected=es.get("anomalies", 0),
             adaptive_mode_switches=es.get("mode_switches", 0),
+            edge_to_cloud_dropped=e2c_dropped,
 
             edge_cpu_pct=edge_proc.cpu_pct,
             edge_mem_mb=edge_proc.mem_mb,
@@ -381,7 +418,7 @@ class ExperimentRunner:
             cloud_mem_mb=cloud_snapshot.get("mem_mb", 0.0),
 
             broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
-            latency_samples=post_samples[-50_000:],
+            latency_samples=post_samples[-50_000:]
         )
 
     def _log_done(self, cfg, metrics, cloud=None, cloud_events: int = 0) -> None:
@@ -395,7 +432,8 @@ class ExperimentRunner:
             f"lat={metrics.latency_mean_ms:.1f}ms  "
             f"p99={metrics.latency_p99_ms:.1f}ms  "
             f"e2e_dr={metrics.end_to_end_delivery_ratio:.1%}  "
-            f"filtered={metrics.filtered_events}"
+            f"filtered={metrics.filtered_events}  "
+            f"e2c_dropped={metrics.edge_to_cloud_dropped}"
         )
 
 

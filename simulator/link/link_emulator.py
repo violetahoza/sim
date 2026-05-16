@@ -1,19 +1,21 @@
 from __future__ import annotations
 import json
 import random
-from typing import Callable
+import threading
+from typing import Callable, Optional
 
-from ..models import ParkingEvent, LinkStats
+from ..models import ParkingEvent, BatchUpdate, LinkStats
 from ..config import LinkConfig
 from ..des.engine import SimClock
 
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
+ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
 
 
 class TokenBucket:
-   
+
     def __init__(self, rate: float) -> None:
-        self.rate = rate      
+        self.rate = rate
         self.tokens: float = 1.0
         self._last_virtual: float = 0.0
         self._next_free: float = 0.0
@@ -43,6 +45,7 @@ class GilbertElliotModel:
         if not burst_enabled or base_loss_rate <= 0.0:
             self._bernoulli_rate = base_loss_rate
             self._in_bad = False
+            self.burst_enabled = False
             return
 
         p_loss_good = max(0.001, base_loss_rate / 5.0)
@@ -59,7 +62,7 @@ class GilbertElliotModel:
         self._p_loss_good = p_loss_good
         self._p_loss_bad = p_loss_bad
         self._in_bad = self.rng.random() < pi_bad
-        self._bernoulli_rate = 0.0   
+        self._bernoulli_rate = 0.0
 
     @property
     def in_burst(self) -> bool:
@@ -80,8 +83,24 @@ class GilbertElliotModel:
         return self.rng.random() < threshold
 
 
+class DutyCycleEnforcer:
+
+    DUTY_CYCLE: float = 0.01 
+
+    def __init__(self, airtime_ms: float = 41.0) -> None:
+        self._airtime_s = airtime_ms / 1000.0
+        self._period_s = self._airtime_s / self.DUTY_CYCLE
+        self._next_free: dict[int, float] = {}
+
+    def consume(self, clock: SimClock, spot_id: int) -> float:
+        now = clock.now
+        nf = self._next_free.get(spot_id, 0.0)
+        wait_s = max(0.0, nf - now)
+        self._next_free[spot_id] = max(now, nf) + self._period_s
+        return wait_s
+
 class QueueOverflowModel:
-    
+
     def __init__(self, capacity: int = 500) -> None:
         self._capacity = capacity
         self._depth: int = 0
@@ -109,11 +128,15 @@ class LinkEmulator:
 
     DEFAULT_QUEUE_CAPACITY: int = 500
 
-    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: ForwardCallback, rng: random.Random | None = None, queue_capacity: int | None = None) -> None:
+    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: Optional[ForwardCallback] = None, rng: random.Random | None = None, queue_capacity: int | None = None,
+                wall_clock: bool = False) -> None:
         self.config = config
         self.clock  = clock
         self._callback = forward_cb
+        self._batch_cb: Optional[ForwardBatchCallback] = None
+        self.on_drop: Optional[Callable[[], None]] = None
         self.rng = rng or random.Random(hash(config.packet_loss_rate))
+        self._wall_clock = wall_clock
 
         _chan_rng = random.Random(self.rng.randint(0, 2**32))
         self._channel = GilbertElliotModel(base_loss_rate=config.packet_loss_rate, burst_enabled=True, rng=_chan_rng)
@@ -122,8 +145,15 @@ class LinkEmulator:
         self._queue = QueueOverflowModel(capacity=cap)
 
         self.stats = LinkStats(name="sensor_to_edge")
-        self._bucket = TokenBucket(config.rate_limit_msgs_per_sec)
+        if config.lorawan_duty_cycle:
+            self._duty_cycle: DutyCycleEnforcer | None = DutyCycleEnforcer(config.sf_airtime_ms)
+            self._bucket: TokenBucket | None = None
+        else:
+            self._duty_cycle = None
+            self._bucket = TokenBucket(config.rate_limit_msgs_per_sec)
 
+    def set_batch_callback(self, cb: ForwardBatchCallback) -> None:
+        self._batch_cb = cb
 
     def _serialize(self, event: ParkingEvent) -> bytes:
         return json.dumps(event.to_dict()).encode()
@@ -131,12 +161,11 @@ class LinkEmulator:
     def _compute_delay(self) -> float:
         if self.config.jitter_ms <= 0:
             return self.config.base_delay_ms / 1000.0
-        jitter = self.rng.expovariate(1.0 / self.config.jitter_ms)  
+        jitter = max(0.0, self.rng.gauss(0, self.config.jitter_ms))
         return (self.config.base_delay_ms + jitter) / 1000.0
 
-
     def transmit(self, event: ParkingEvent) -> None:
-        payload   = self._serialize(event)
+        payload = self._serialize(event)
         wire_bytes = max(1, int(len(payload) * self.config.payload_encoding_ratio))
 
         self.stats.sent += 1
@@ -144,18 +173,27 @@ class LinkEmulator:
 
         if wire_bytes > self.config.max_payload_bytes:
             self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
             return
 
         if self._channel.should_drop():
             self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
             return
 
         if not self._queue.try_enqueue():
             self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
             return
 
-        token_delay = self._bucket.consume(self.clock)
-
+        if self._duty_cycle is not None:
+            token_delay = self._duty_cycle.consume(self.clock, event.spot_id)
+        else:
+            token_delay = self._bucket.consume(self.clock)  
+            
         prop_delay  = self._compute_delay()
         total_delay = token_delay + prop_delay
 
@@ -163,7 +201,47 @@ class LinkEmulator:
             self._queue.dequeue()
             self.stats.received += 1
             self.stats.total_bytes_received += wire_bytes
-            self._callback(event, payload)
+            if self._callback:
+                self._callback(event, payload)
+
+        if self._wall_clock:
+            threading.Timer(total_delay, deliver).start()
+        else:
+            self.clock.schedule(total_delay, deliver)
+
+    def transmit_batch(self, batch: BatchUpdate, payload: bytes) -> None:
+        wire_bytes = max(1, int(len(payload) * self.config.payload_encoding_ratio))
+        self.stats.sent += 1
+        self.stats.total_bytes_sent += wire_bytes
+
+        if wire_bytes > self.config.max_payload_bytes:
+            self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
+            return
+
+        if self._channel.should_drop():
+            self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
+            return
+
+        if not self._queue.try_enqueue():
+            self.stats.dropped += 1
+            if self.on_drop:
+                self.on_drop()
+            return
+
+        token_delay = self._bucket.consume(self.clock) if self._bucket is not None else 0.0
+        prop_delay  = self._compute_delay()
+        total_delay = token_delay + prop_delay
+
+        def deliver() -> None:
+            self._queue.dequeue()
+            self.stats.received += 1
+            self.stats.total_bytes_received += wire_bytes
+            if self._batch_cb:
+                self._batch_cb(batch, payload)
 
         self.clock.schedule(total_delay, deliver)
 
@@ -174,3 +252,5 @@ class LinkEmulator:
     @property
     def overflow_drops(self) -> int:
         return self._queue.overflow_drops
+
+

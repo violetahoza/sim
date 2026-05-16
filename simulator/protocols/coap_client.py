@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import random
+from typing import Callable, Optional
 import aiocoap
 import aiocoap.resource as resource
 
@@ -15,17 +16,17 @@ from simulator.protocols.mqtt_client import _batch_from_dict
 
 logger = logging.getLogger(__name__)
 
-COAP_ACK_TIMEOUT_S = 2.0   
-COAP_ACK_RANDOM_FACTOR = 1.5    
-COAP_MAX_RETRANSMIT = 4       
-COAP_NSTART = 1       
+COAP_ACK_TIMEOUT_S = 2.0
+COAP_ACK_RANDOM_FACTOR = 1.5
+COAP_MAX_RETRANSMIT = 4
+COAP_NSTART = 1
 COAP_HEADER_BYTES = 4
 COAP_TOKEN_BYTES = 4
 CBOR_RATIO = 0.65
 
 
 class SimulatedCoAPBackend(ProtocolBackend):
-    
+
     _OVERHEAD_S = {"CON": 0.008, "NON": 0.001}
 
     def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0) -> None:
@@ -38,8 +39,9 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self.retransmissions = 0
         self.duplicates_suppressed = 0
         self._delivered_ids: dict[int, bool] = {}
+        self._non_delivered_ids: set[int] = set()
         self._msg_seq = 0
-
+        self.on_drop: Optional[Callable[[], None]] = None
 
     def _next_msg_id(self) -> int:
         self._msg_seq += 1
@@ -48,25 +50,30 @@ class SimulatedCoAPBackend(ProtocolBackend):
     def _initial_timeout(self) -> float:
         return self._rng.uniform(COAP_ACK_TIMEOUT_S, COAP_ACK_TIMEOUT_S * COAP_ACK_RANDOM_FACTOR)
 
-
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         coap_bytes = int(len(payload) * CBOR_RATIO)
         self.bytes_sent += coap_bytes + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
         msg_id = self._next_msg_id()
         if self.config.mode == "NON":
-            self._send_non(batch, payload)
+            self._send_non(batch, payload, msg_id)
         else:
             self._send_con(batch, payload, msg_id, attempt=0, timeout=self._initial_timeout())
 
-
-    def _send_non(self, batch: BatchUpdate, payload: bytes) -> None:
+    def _send_non(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
         overhead = self._OVERHEAD_S["NON"]
+
         def deliver() -> None:
             if self._rng.random() < self.loss_rate:
-                return  
+                if self.on_drop:
+                    self.on_drop()
+                return
+            if msg_id in self._non_delivered_ids:
+                self.duplicates_suppressed += 1
+                return
+            self._non_delivered_ids.add(msg_id)
             self._subscriber(batch, payload)
-        self.clock.schedule(overhead, deliver)
 
+        self.clock.schedule(overhead, deliver)
 
     def _send_con(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
         overhead = self._OVERHEAD_S["CON"]
@@ -75,8 +82,11 @@ class SimulatedCoAPBackend(ProtocolBackend):
             if self._rng.random() < self.loss_rate:
                 if attempt < COAP_MAX_RETRANSMIT:
                     self.retransmissions += 1
-                    next_timeout = timeout * 2.0       
+                    next_timeout = timeout * 2.0
                     self.clock.schedule(timeout, lambda a=attempt + 1, t=next_timeout: self._send_con(batch, payload, msg_id, a, t))
+                else:
+                    if self.on_drop:
+                        self.on_drop()
                 return
 
             if self._delivered_ids.get(msg_id):
@@ -148,7 +158,7 @@ class _ParkingUpdateResource:
     async def render_post(self, request):
         raw: bytes = request.payload
         try:
-            data  = json.loads(raw)
+            data = json.loads(raw)
             batch = _batch_from_dict(data)
             self._cb(batch, raw)
         except Exception:

@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import random
+from typing import Callable, Optional
 import aio_pika
 
 from simulator.models import BatchUpdate
@@ -14,20 +15,20 @@ from simulator.protocols.mqtt_client import _batch_from_dict
 
 logger = logging.getLogger(__name__)
 
-AMQP_FRAME_OVERHEAD = 37   
-AMQP_EXCHANGE_OVERHEAD  = 16   
+AMQP_FRAME_OVERHEAD = 37
+AMQP_EXCHANGE_OVERHEAD = 16
 
-_EXCHANGE_OVERHEAD_S: dict[str, float] = {"direct": 0.002, "fanout": 0.003, "topic":  0.005}
+_EXCHANGE_OVERHEAD_S: dict[str, float] = {"direct": 0.002, "fanout": 0.003, "topic": 0.005}
 _ACK_OVERHEAD_S: dict[str, float] = {"auto": 0.0, "manual": 0.006}
 
 _DURABLE_OVERHEAD_S = 0.004
 _CONFIRM_OVERHEAD_S = 0.003
-_MAX_RETRIES  = 3
+_MAX_RETRIES = 3
 _RETRY_BASE_S = 1.0
 
 
 class SimulatedAMQPBackend(ProtocolBackend):
-   
+
     def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
@@ -37,15 +38,21 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.bytes_sent = 0
         self.nacked = 0
         self.retransmitted = 0
+        self._msg_seq = 0
+        self._delivered_ids: set[int] = set()
+        self.on_drop: Optional[Callable[[], None]] = None
+
+    def _next_id(self) -> int:
+        self._msg_seq += 1
+        return self._msg_seq
 
     def _overhead_s(self) -> float:
-        total = (
+        return (
             _EXCHANGE_OVERHEAD_S.get(self.config.exchange_type, 0.002)
             + _ACK_OVERHEAD_S.get(self.config.ack_mode, 0.0)
             + (_DURABLE_OVERHEAD_S if self.config.durable else 0.0)
             + _CONFIRM_OVERHEAD_S
         )
-        return total
 
     def _routing_key(self, batch: BatchUpdate) -> str:
         if self.config.exchange_type == "fanout":
@@ -58,9 +65,10 @@ class SimulatedAMQPBackend(ProtocolBackend):
         rk = self._routing_key(batch)
         total_bytes = (len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode()))
         self.bytes_sent += total_bytes
-        self._attempt(batch, payload, attempt=0)
+        msg_id = self._next_id()
+        self._attempt(batch, payload, msg_id, attempt=0)
 
-    def _attempt(self, batch: BatchUpdate, payload: bytes, attempt: int) -> None:
+    def _attempt(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
         overhead = self._overhead_s()
 
         def on_overhead() -> None:
@@ -69,8 +77,15 @@ class SimulatedAMQPBackend(ProtocolBackend):
                 if self.config.ack_mode == "manual" and attempt < _MAX_RETRIES - 1:
                     backoff = _RETRY_BASE_S * (2 ** attempt)
                     self.retransmitted += 1
-                    self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, a))
+                    self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, msg_id, a))
+                else:
+                    if self.on_drop:
+                        self.on_drop()
                 return
+
+            if msg_id in self._delivered_ids:
+                return
+            self._delivered_ids.add(msg_id)
             self._subscriber(batch, payload)
 
         self.clock.schedule(overhead, on_overhead)
@@ -98,7 +113,7 @@ class RealAMQPBackend(ProtocolBackend):
         self._loop = asyncio.get_running_loop()
         self._pub_connection = await aio_pika.connect_robust(self.broker.url)
         self._pub_channel = await self._pub_connection.channel()
-        etype_map = {"direct": aio_pika.ExchangeType.DIRECT, "fanout": aio_pika.ExchangeType.FANOUT, "topic":  aio_pika.ExchangeType.TOPIC}
+        etype_map = {"direct": aio_pika.ExchangeType.DIRECT, "fanout": aio_pika.ExchangeType.FANOUT, "topic": aio_pika.ExchangeType.TOPIC}
         etype = etype_map.get(self.config.exchange_type, aio_pika.ExchangeType.DIRECT)
         self._pub_exchange = await self._pub_channel.declare_exchange(self.config.exchange, etype, durable=self.config.durable)
         logger.info(

@@ -45,7 +45,29 @@ class LinkConfig:
     max_payload_bytes: int = 51
     rate_limit_msgs_per_sec: float = 5.0
     payload_encoding_ratio: float = 0.15
+    lorawan_duty_cycle: bool = False
+    sf_airtime_ms: float = 41.0
 
+@dataclass
+class BackhaulLinkConfig:
+
+    base_delay_ms: float = 30.0
+    jitter_ms: float = 10.0
+    packet_loss_rate: float = 0.001
+    max_payload_bytes: int = 65535
+    rate_limit_msgs_per_sec: float = 1000.0
+    payload_encoding_ratio: float = 1.0
+
+    def to_link_config(self) -> "LinkConfig":
+        return LinkConfig(
+            base_delay_ms=self.base_delay_ms,
+            jitter_ms=self.jitter_ms,
+            packet_loss_rate=self.packet_loss_rate,
+            max_payload_bytes=self.max_payload_bytes,
+            rate_limit_msgs_per_sec=self.rate_limit_msgs_per_sec,
+            payload_encoding_ratio=self.payload_encoding_ratio,
+            lorawan_duty_cycle=False
+        )
 
 @dataclass
 class EdgeConfig:
@@ -54,6 +76,8 @@ class EdgeConfig:
     filter_no_change: bool = True
     anomaly_detection: bool = True
     adaptive_edge: bool = False
+    stuck_threshold: int = 10
+    silent_threshold_s: float = 3600.0
 
 
 @dataclass
@@ -104,6 +128,7 @@ class TrafficConfig:
     use_time_of_day: bool = False
     start_hour: float = 8.0
     tod_factors: list[float] = field(default_factory=lambda: list(DEFAULT_TOD_FACTORS))
+    use_dwell_mixture: bool = True
 
 
 @dataclass
@@ -117,6 +142,7 @@ class ScenarioConfig:
     arrival_rate: float
     sim_duration_s: float = 10800.0
     link: LinkConfig = field(default_factory=LinkConfig)
+    backhaul_link: BackhaulLinkConfig = field(default_factory=BackhaulLinkConfig)
     edge: EdgeConfig = field(default_factory=EdgeConfig)
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     amqp: AMQPConfig = field(default_factory=AMQPConfig)
@@ -130,6 +156,7 @@ class ScenarioConfig:
     def to_save_dict(self) -> dict:
         d = asdict(self)
         link = d["link"]
+        bh = d["backhaul_link"]
         edge = d["edge"]
         mqtt = d["mqtt"]
         amqp = d["amqp"]
@@ -153,9 +180,16 @@ class ScenarioConfig:
             "payload_encoding_ratio": link["payload_encoding_ratio"],
             "loss_rate": link["packet_loss_rate"],
             "rate_limit": link["rate_limit_msgs_per_sec"],
+            "lorawan_duty_cycle": link["lorawan_duty_cycle"],
+            "sf_airtime_ms": link["sf_airtime_ms"],
+            "backhaul_base_delay_ms": bh["base_delay_ms"],
+            "backhaul_jitter_ms": bh["jitter_ms"],
+            "backhaul_loss_rate": bh["packet_loss_rate"],
             "aggregation_interval": edge["aggregation_interval_s"],
             "anomaly_detection": edge["anomaly_detection"],
             "adaptive_edge": edge["adaptive_edge"],
+            "stuck_threshold": edge["stuck_threshold"],
+            "silent_threshold_s": edge["silent_threshold_s"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
             "amqp_exchange": amqp["exchange_type"],
@@ -166,7 +200,8 @@ class ScenarioConfig:
             "use_time_of_day": traffic["use_time_of_day"],
             "start_hour": traffic["start_hour"],
             "initial_occupancy": traffic["initial_occupancy"],
-            "tod_factors": traffic["tod_factors"]
+            "tod_factors": traffic["tod_factors"],
+            "use_dwell_mixture": traffic["use_dwell_mixture"]
         }
 
     @classmethod
@@ -182,6 +217,8 @@ class ScenarioConfig:
             aggregation_interval=d.get("aggregation_interval", DEFAULT_AGG_INTERVAL_S),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
+            stuck_threshold=d.get("stuck_threshold", 10),
+            silent_threshold_s=d.get("silent_threshold_s", 3600.0),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
             amqp_exchange=d.get("amqp_exchange", "direct"),
@@ -198,11 +235,17 @@ class ScenarioConfig:
             jitter_ms=d.get("jitter_ms", 30.0),
             max_payload_bytes=d.get("max_payload_bytes", 51),
             payload_encoding_ratio=d.get("payload_encoding_ratio", 0.15),
+            lorawan_duty_cycle=d.get("lorawan_duty_cycle", True),
+            sf_airtime_ms=d.get("sf_airtime_ms", 41.0),
+            backhaul_base_delay_ms=d.get("backhaul_base_delay_ms", 30.0),
+            backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
+            backhaul_loss_rate=d.get("backhaul_loss_rate", 0.001),
             parking_duration_cv=d.get("parking_duration_cv", 1.5),
             use_time_of_day=d.get("use_time_of_day", False),
             start_hour=d.get("start_hour", 8.0),
             initial_occupancy=d.get("initial_occupancy"),
-            tod_factors=d.get("tod_factors")
+            tod_factors=d.get("tod_factors"),
+            use_dwell_mixture=d.get("use_dwell_mixture", True)
         )
     
 
@@ -217,6 +260,8 @@ def make_scenario(
     aggregation_interval: float = DEFAULT_AGG_INTERVAL_S,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
+    stuck_threshold: int = 10,
+    silent_threshold_s: float = 3600.0,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
     amqp_exchange: AMQPExchange = "direct",
@@ -233,11 +278,18 @@ def make_scenario(
     jitter_ms: float = 30.0,
     max_payload_bytes: int = 51,
     payload_encoding_ratio: float = 0.15,
+    lorawan_duty_cycle: bool = True,
+    sf_airtime_ms: float = 41.0,
+    backhaul_base_delay_ms: float = 30.0,
+    backhaul_jitter_ms: float = 10.0,
+    backhaul_loss_rate: float = 0.001,
+    mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
     use_time_of_day: bool = False,
     start_hour: float = 8.0,
     initial_occupancy: Optional[float] = None,
-    tod_factors: Optional[list[float]] = None
+    tod_factors: Optional[list[float]] = None,
+    use_dwell_mixture: bool = True
 ) -> ScenarioConfig:
     arrival = ARRIVAL_RATES[traffic_level] * (num_spots / 50)
 
@@ -259,14 +311,16 @@ def make_scenario(
         architecture=architecture,
         aggregation_interval_s=aggregation_interval,
         anomaly_detection=anomaly_detection,
-        adaptive_edge=adaptive_edge
+        adaptive_edge=adaptive_edge,
+        stuck_threshold=stuck_threshold,
+        silent_threshold_s=silent_threshold_s
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
         arrival_rate_low=ARRIVAL_RATES["low"] * (num_spots / 50),
         arrival_rate_medium=ARRIVAL_RATES["medium"] * (num_spots / 50),
         arrival_rate_peak=ARRIVAL_RATES["peak"] * (num_spots / 50),
-        mean_parking_duration_s=1800.0,
+        mean_parking_duration_s=mean_parking_duration_s,
         parking_duration_cv=parking_duration_cv,
         sim_duration_s=sim_duration_s,
         random_seed=seed,

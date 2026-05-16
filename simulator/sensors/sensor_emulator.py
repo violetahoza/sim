@@ -17,6 +17,10 @@ class SensorEmulator:
         self._sensor_states: dict[int, SensorState] = {i: SensorState(spot_id=i) for i in range(self.num_spots)}
         self._callbacks: list[SensorCallback] = []
         self._total_generated = 0
+        self._fault_injector = None
+
+    def set_fault_injector(self, fi) -> None:
+        self._fault_injector = fi
 
     def add_callback(self, cb: SensorCallback) -> None:
         self._callbacks.append(cb)
@@ -32,8 +36,11 @@ class SensorEmulator:
         state.last_updated = event.timestamp
         state.total_events += 1
         self._total_generated += 1
-        for cb in self._callbacks:
-            cb(event)
+        
+        tx_events = (self._fault_injector.apply(event) if self._fault_injector is not None else [event])
+        for e in tx_events:
+            for cb in self._callbacks:
+                cb(e)
 
     def schedule_run(self, clock: SimClock, duration_s: float, epoch: float) -> None:
         traffic = TrafficModel(self.config, self.arrival_rate, clock, self._on_event, epoch, wall_clock=self._wall_clock)

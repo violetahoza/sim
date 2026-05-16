@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 import random
+import time as _time_module
 from typing import Callable, Optional
 
 from ..models import ParkingEvent, SpotState
@@ -27,7 +28,6 @@ class TrafficModel:
         self._wall_clock = wall_clock
         self._time_scale = config.time_scale
 
-        # True occupancy map: spot_id → is_occupied
         self.occupied: dict[int, bool] = {
             i: self.rng.random() < config.initial_occupancy
             for i in range(self.num_spots)
@@ -47,6 +47,9 @@ class TrafficModel:
         return [i for i, occ in self.occupied.items() if occ]
 
     def _sample_dwell(self) -> float:
+        if self.config.use_dwell_mixture:
+            return self._sample_dwell_mixture()
+        
         cv = self.config.parking_duration_cv
         mu = self.mean_duration
 
@@ -61,6 +64,19 @@ class TrafficModel:
             mu_log = math.log(mu) - 0.5 * sigma_sq
             raw = math.exp(mu_log + sigma * self.rng.gauss(0.0, 1.0))
 
+        return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
+    
+    def _sample_dwell_mixture(self) -> float:
+        P_SHORT = 0.65
+        if self.rng.random() < P_SHORT:
+            mu, cv = 1800.0, 1.0    
+        else:
+            mu, cv = 28800.0, 0.5  
+
+        sigma_sq = math.log(1.0 + cv * cv)
+        sigma = math.sqrt(sigma_sq)
+        mu_log = math.log(mu) - 0.5 * sigma_sq
+        raw = math.exp(mu_log + sigma * self.rng.gauss(0.0, 1.0))
         return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
 
     def _tod_factor(self, virtual_s: float) -> float:
@@ -126,5 +142,5 @@ class TrafficModel:
 
     def _make_timestamp(self, virtual_time: float) -> float:
         if self._wall_clock:
-            return self.epoch + virtual_time / self._time_scale
+            return _time_module.time()
         return self.epoch + virtual_time

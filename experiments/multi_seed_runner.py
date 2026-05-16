@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 import numpy as np
+import math
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -17,6 +18,34 @@ from simulator.models import ExperimentMetrics
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path("results")
+
+
+_T_CRIT: dict[int, float] = {
+    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
+    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+    15: 2.131, 20: 2.086, 30: 2.042, 60: 2.000, 120: 1.980,
+}
+
+def _t_critical(df: int) -> float:
+    if df in _T_CRIT:
+        return _T_CRIT[df]
+    if df > 120:
+        return 1.96
+    keys = sorted(_T_CRIT)
+    for i, k in enumerate(keys):
+        if k > df:
+            lo, hi = keys[i - 1], k
+            frac = (df - lo) / (hi - lo)
+            return _T_CRIT[lo] + frac * (_T_CRIT[hi] - _T_CRIT[lo])
+    return 1.96
+
+
+def _ci95(arr: np.ndarray) -> float:
+    n = len(arr)
+    if n < 2:
+        return 0.0
+    se = float(np.std(arr, ddof=1)) / math.sqrt(n)
+    return se * _t_critical(n - 1)
 
 
 @dataclasses.dataclass
@@ -46,6 +75,13 @@ class MultiSeedResult:
     filtered_mean: float = 0.0
     retransmissions_mean: float = 0.0
 
+    latency_mean_ci95_ms: float = 0.0   
+    latency_p99_ci95_ms: float = 0.0
+    delivery_ratio_ci95: float = 0.0
+
+    energy_mj_mean: float = 0.0
+    battery_life_days_mean: float = 0.0
+
     conservation_ok: bool = True
     conservation_violations: int = 0
 
@@ -64,6 +100,8 @@ class MultiSeedResult:
         dr = _arr("end_to_end_delivery_ratio")
         agg = _arr("aggregation_ratio")
         filt = _arr("filtered_events")
+        energy = _arr("energy_per_sensor_mj")
+        battery = _arr("battery_life_days")
 
         self.latency_mean_mean = float(np.mean(lat_means))
         self.latency_mean_std = float(np.std(lat_means))
@@ -76,6 +114,8 @@ class MultiSeedResult:
         self.delivery_ratio_min = float(np.min(dr))
         self.aggregation_ratio_mean = float(np.mean(agg))
         self.filtered_mean = float(np.mean(filt))
+        self.energy_mj_mean = float(np.mean(energy))
+        self.battery_life_days_mean = float(np.mean(battery))
 
     def summary_dict(self) -> dict:
         return {
@@ -88,15 +128,20 @@ class MultiSeedResult:
             "seeds": self.seeds,
             "latency_mean_ms_mean": round(self.latency_mean_mean, 2),
             "latency_mean_ms_std": round(self.latency_mean_std, 2),
+            "latency_mean_ms_ci95": round(self.latency_mean_ci95_ms, 2),
             "latency_p50_ms_mean": round(self.latency_p50_mean, 2),
             "latency_p95_ms_mean": round(self.latency_p95_mean, 2),
             "latency_p99_ms_mean": round(self.latency_p99_mean, 2),
             "latency_p99_ms_std": round(self.latency_p99_std, 2),
+            "latency_p99_ms_ci95": round(self.latency_p99_ci95_ms, 2),
             "delivery_ratio_mean": round(self.delivery_ratio_mean, 4),
             "delivery_ratio_std": round(self.delivery_ratio_std, 4),
+            "delivery_ratio_ci95": round(self.delivery_ratio_ci95, 4),
             "delivery_ratio_min": round(self.delivery_ratio_min, 4),
             "aggregation_ratio_mean": round(self.aggregation_ratio_mean, 4),
             "filtered_mean": round(self.filtered_mean, 1),
+            "energy_mj_mean": round(self.energy_mj_mean, 3),
+            "battery_life_days_mean": round(self.battery_life_days_mean, 1),
             "conservation_ok": self.conservation_ok,
             "conservation_violations": self.conservation_violations,
         }

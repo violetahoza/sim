@@ -14,11 +14,18 @@ from ..des.engine import SimClock
 
 logger = logging.getLogger(__name__)
 
-_BROKER_WEIGHT: dict[str, float] = {
-    "mqtt_qos0": 1.0, "mqtt_qos1": 1.8, "mqtt_qos2": 3.2,
-    "amqp_direct/auto": 2.0, "amqp_direct/manual": 2.8, "amqp_topic/manual": 3.5,
-    "coap_NON": 1.1, "coap_CON": 1.9,
+_BROKER_SERVICE_RATE: dict[str, float] = {
+    "mqtt_qos0": 50_000.0, 
+    "mqtt_qos1": 20_000.0, 
+    "mqtt_qos2": 8_000.0, 
+    "amqp_direct/auto": 25_000.0, 
+    "amqp_direct/manual": 10_000.0, 
+    "amqp_topic/manual": 8_000.0, 
+    "coap_NON": 45_000.0,  
+    "coap_CON": 18_000.0
 }
+
+_WARMUP_S: float = 300.0
 
 
 class CloudBackend:
@@ -38,6 +45,8 @@ class CloudBackend:
         self.received_events = 0
 
         self._latency_ms: list[float] = []
+        self._post_warmup_ms: list[float] = []   
+        self.warmup_excluded: int = 0
         self._event_rows: list[tuple] = []
 
         self._total_bytes_received = 0
@@ -52,11 +61,10 @@ class CloudBackend:
         self._snapshot_cache_len: int = -1
         self._last_cpu_time: float = time.monotonic()
 
-        from simulator.protocols.broker_config import use_real_brokers
-        self._real_mode: bool = use_real_brokers()
 
     def receive_batch(self, batch: BatchUpdate, raw_bytes: bytes) -> None:
-        if self._real_mode:
+        from simulator.protocols.broker_config import use_real_brokers
+        if use_real_brokers():
             arrival = time.time()
         else:
             arrival = self.epoch + self.clock.now
@@ -86,13 +94,14 @@ class CloudBackend:
         latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
         self._latency_ms.append(latency_ms)
 
+        virtual_time = event.timestamp - self.epoch
+        if virtual_time >= _WARMUP_S:
+            self._post_warmup_ms.append(latency_ms)
+        else:
+            self.warmup_excluded += 1
+
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
-        self._event_buffer.append({
-            "spot_id": event.spot_id,
-            "state": state_val,
-            "latency_ms": round(latency_ms, 2),
-            "timestamp": arrival,
-        })
+        self._event_buffer.append({"spot_id": event.spot_id, "state": state_val, "latency_ms": round(latency_ms, 2), "timestamp": arrival})
         self._snapshot_cache = None
 
     def open_run(self, engine, config_json: str = "") -> None:
@@ -236,7 +245,7 @@ class CloudBackend:
         return snapshot
 
     def get_all_latency_samples(self) -> list[float]:
-        return self._latency_ms
+        return self._post_warmup_ms if self._post_warmup_ms else self._latency_ms
 
     def compute_broker_overhead_score(self) -> float:
         cfg = self.config
@@ -249,5 +258,8 @@ class CloudBackend:
             key = f"coap_{cfg.coap.mode}"
         else:
             key = ""
-        weight = _BROKER_WEIGHT.get(key, 1.5)
-        return round(weight * max(self.received_events, 1) / 1000, 4)
+        mu = _BROKER_SERVICE_RATE.get(key, 20_000.0)
+        lam = self.received_events / max(cfg.sim_duration_s, 1.0)
+        rho = min(lam / mu, 0.999)
+        e_w_ms = 1000.0 / (mu * (1.0 - rho))
+        return round(e_w_ms, 6)

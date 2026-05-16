@@ -177,7 +177,7 @@ class CloudWorkerProcess:
 
     def compute_broker_overhead_score(self) -> float:
         cfg = self._config
-        from simulator.cloud.cloud_backend import _BROKER_WEIGHT
+        from simulator.cloud.cloud_backend import _BROKER_SERVICE_RATE
         proto = cfg.protocol
         if proto == "mqtt":
             key = f"mqtt_qos{cfg.mqtt.qos}"
@@ -187,8 +187,12 @@ class CloudWorkerProcess:
             key = f"coap_{cfg.coap.mode}"
         else:
             key = ""
-        weight = _BROKER_WEIGHT.get(key, 1.5)
-        return round(weight * max(self.received_events, 1) / 1000, 4)
+            
+        mu = _BROKER_SERVICE_RATE.get(key, 20_000.0)
+        lam = self.received_events / max(cfg.sim_duration_s, 1.0)
+        rho = min(lam / mu, 0.999)
+        e_w_ms = 1000.0 / (mu * (1.0 - rho))
+        return round(e_w_ms, 6)
 
     def _drain_metrics(self, block: bool = False, timeout: float = 0.0) -> None:
         import queue as _q

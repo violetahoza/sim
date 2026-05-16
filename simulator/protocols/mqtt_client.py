@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import random
+from typing import Callable, Optional
 import paho.mqtt.client as mqtt
 
 from simulator.models import BatchUpdate, ParkingEvent, SpotState
@@ -17,18 +18,18 @@ logger = logging.getLogger(__name__)
 
 _TOPIC_TMPL = "{prefix}/{edge_id}/update"
 
-MQTT_FIXED_HEADER = 2  
-MQTT_PUBACK_BYTES = 4   
-MQTT_PUBREL_BYTES = 4    
+MQTT_FIXED_HEADER = 2
+MQTT_PUBACK_BYTES = 4
+MQTT_PUBREL_BYTES = 4
 MQTT_CONNACK_BYTES = 4
 
 _QOS_OVERHEAD_S = {0: 0.002, 1: 0.012, 2: 0.025}
 _MAX_RETRIES = {0: 0, 1: 3, 2: 5}
-_RETRY_BASE_S = 1.0  
+_RETRY_BASE_S = 1.0
 
 
 class SimulatedMQTTBackend(ProtocolBackend):
-    
+
     def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.0, seed: int = 0) -> None:
         self.config = config
         self.clock = clock
@@ -39,7 +40,9 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self.retransmitted = 0
         self.duplicates_delivered = 0
         self._qos2_delivered: dict[int, bool] = {}
+        self._qos1_delivered: set[int] = set()
         self._msg_seq = 0
+        self.on_drop: Optional[Callable[[], None]] = None
 
     def _next_id(self) -> int:
         self._msg_seq += 1
@@ -64,12 +67,17 @@ class SimulatedMQTTBackend(ProtocolBackend):
         def on_overhead_elapsed() -> None:
             if self._rng.random() < self.loss_rate:
                 if qos == 0:
+                    if self.on_drop:
+                        self.on_drop()
                     return
                 max_r = _MAX_RETRIES[qos]
                 if attempt < max_r:
                     backoff = _RETRY_BASE_S * (2 ** attempt)
                     self.retransmitted += 1
                     self.clock.schedule(backoff, lambda a=attempt + 1: self._attempt(batch, payload, msg_id, a))
+                else:
+                    if self.on_drop:
+                        self.on_drop()
                 return
 
             if qos == 2:
@@ -77,8 +85,11 @@ class SimulatedMQTTBackend(ProtocolBackend):
                     self.duplicates_delivered += 1
                     return
                 self._qos2_delivered[msg_id] = True
-            elif qos == 1 and attempt > 0:
-                self.duplicates_delivered += 1
+            elif qos == 1:
+                if msg_id in self._qos1_delivered:
+                    self.duplicates_delivered += 1
+                    return
+                self._qos1_delivered.add(msg_id)
 
             self._subscriber(batch, payload)
 
@@ -198,13 +209,5 @@ def _batch_from_dict(data: dict) -> BatchUpdate:
             state = SpotState(state_raw)
         except ValueError:
             state = SpotState.FREE
-        events.append(
-            ParkingEvent(
-                sensor_id=e.get("sensor_id", ""),
-                spot_id=int(e.get("spot_id", 0)),
-                state=state,
-                timestamp=float(e.get("timestamp", 0.0)),
-                sequence=int(e.get("sequence", 0))
-            )
-        )
+        events.append(ParkingEvent(sensor_id=e.get("sensor_id", ""), spot_id=int(e.get("spot_id", 0)), state=state, timestamp=float(e.get("timestamp", 0.0)), sequence=int(e.get("sequence", 0))))
     return BatchUpdate(edge_id=data.get("edge_id", "edge_01"), events=events)

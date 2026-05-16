@@ -120,6 +120,7 @@ class ExperimentMetrics:
     filtered_events: int = 0
     anomalies_detected: int = 0
     adaptive_mode_switches: int = 0
+    edge_to_cloud_dropped: int = 0
 
     edge_cpu_pct: float = 0.0
     edge_mem_mb: float = 0.0
@@ -127,6 +128,15 @@ class ExperimentMetrics:
     cloud_mem_mb: float = 0.0
 
     broker_overhead_score: float = 0.0
+
+    energy_per_sensor_mj: float = 0.0   
+    battery_life_days: float = 0.0    
+
+    warmup_excluded_samples: int = 0  
+
+    fault_injected_count: int = 0  
+    quarantined_spots_peak: int = 0 
+    anomaly_detected_spots: int = 0 
 
     latency_samples: list[float] = field(default_factory=list)
 
