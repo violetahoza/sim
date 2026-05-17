@@ -49,14 +49,13 @@ scenarios:
     is_builtin: true
 
   - name: arch_edge_aggregated
-    # Expected: aggregation_ratio > 1.0 at 50 spots (batches outnumber events
-    # at low density); ratio < 1.0 once density crosses ~60 spots; added latency
-    # up to half the aggregation window (≤15 s).
+    # Expected: fewer edge→cloud messages than edge_filtered, with bounded added
+    # latency because the gateway flushes by interval, max event age, or batch size.
     description: >
       Edge Aggregated |
-      Events are buffered at the gateway for 30 s then flushed as a single batch.
-      Reduces cloud connections at the cost of added batching latency; bandwidth
-      savings increase with sensor density.
+      Events are buffered briefly at the gateway and flushed by interval, maximum
+      event age, or maximum batch size. Reduces cloud connections while keeping
+      live availability latency bounded.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: medium
@@ -65,6 +64,9 @@ scenarios:
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
+    aggregation_interval: 1.0
+    max_event_age_s: 2.0
+    max_batch_size: 50
     group: "A - Architecture Comparison"
     group_order: 3
     is_builtin: true
@@ -72,8 +74,8 @@ scenarios:
 
   # ════════════════════════════════════════════════════════════════════════════
   # B – Protocol Comparison
-  # Fixed: edge_aggregated, 50 spots, medium traffic, 24 h, NHTS tod.
-  # Varies only protocol and QoS/mode.
+  # Fixed: edge_filtered, 50 spots, medium traffic, 24 h, NHTS tod.
+  # Varies only protocol and QoS/mode, without aggregation delay hiding protocol effects.
   # ════════════════════════════════════════════════════════════════════════════
 
   - name: proto_mqtt_qos0
@@ -84,7 +86,7 @@ scenarios:
       Fire-and-forget — no ACK, no retransmit. Minimal overhead but lost packets
       are never recovered; acceptable only where occasional data gaps are tolerable.
     protocol: mqtt
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -104,7 +106,7 @@ scenarios:
       At-least-once delivery with broker ACK and exponential-backoff retransmit.
       Recovers most packet losses at the cost of ~5 ms added overhead per message.
     protocol: mqtt
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -125,7 +127,7 @@ scenarios:
       cost of ~15 ms added overhead — justified for billing or access-control
       systems where double-counting causes errors.
     protocol: mqtt
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -146,7 +148,7 @@ scenarios:
       Confirmable UDP with ACK and RFC 7252 retransmit. CBOR encoding trims
       payload by ~35% versus JSON; suited for constrained NB-IoT or LoRa sensors.
     protocol: coap
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -167,7 +169,7 @@ scenarios:
       delivery degrades linearly with link loss. Suitable only where sporadic
       gaps in occupancy state are acceptable.
     protocol: coap
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -188,7 +190,7 @@ scenarios:
       deployment; broker persistence adds ~8 ms overhead but guarantees at-least-
       once delivery and survives broker restarts.
     protocol: amqp
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42
@@ -211,7 +213,7 @@ scenarios:
       floor or parking section) without duplicating the sensor pipeline. Slightly
       higher overhead than direct exchange due to routing evaluation.
     protocol: amqp
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: medium
     num_spots: 50
     seed: 42

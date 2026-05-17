@@ -71,6 +71,11 @@ class MultiSeedResult:
     delivery_ratio_std: float = 0.0
     delivery_ratio_min: float = 0.0
 
+    physical_delivery_ratio_mean: float = 0.0
+    cloud_reflection_ratio_mean: float = 0.0
+    message_reduction_ratio_mean: float = 0.0
+    events_per_cloud_message_mean: float = 0.0
+
     aggregation_ratio_mean: float = 0.0
     filtered_mean: float = 0.0
     retransmissions_mean: float = 0.0
@@ -97,7 +102,10 @@ class MultiSeedResult:
         lat_p50 = _arr("latency_p50_ms")
         lat_p95 = _arr("latency_p95_ms")
         lat_p99 = _arr("latency_p99_ms")
-        dr = _arr("end_to_end_delivery_ratio")
+        dr = _arr("cloud_reflection_ratio")
+        physical_dr = _arr("physical_delivery_ratio")
+        reduction = _arr("message_reduction_ratio")
+        events_per_msg = _arr("events_per_cloud_message")
         agg = _arr("aggregation_ratio")
         filt = _arr("filtered_events")
         energy = _arr("energy_per_sensor_mj")
@@ -112,6 +120,10 @@ class MultiSeedResult:
         self.delivery_ratio_mean = float(np.mean(dr))
         self.delivery_ratio_std = float(np.std(dr))
         self.delivery_ratio_min = float(np.min(dr))
+        self.physical_delivery_ratio_mean = float(np.mean(physical_dr))
+        self.cloud_reflection_ratio_mean = float(np.mean(dr))
+        self.message_reduction_ratio_mean = float(np.mean(reduction))
+        self.events_per_cloud_message_mean = float(np.mean(events_per_msg))
         self.aggregation_ratio_mean = float(np.mean(agg))
         self.filtered_mean = float(np.mean(filt))
         self.energy_mj_mean = float(np.mean(energy))
@@ -138,6 +150,10 @@ class MultiSeedResult:
             "delivery_ratio_std": round(self.delivery_ratio_std, 4),
             "delivery_ratio_ci95": round(self.delivery_ratio_ci95, 4),
             "delivery_ratio_min": round(self.delivery_ratio_min, 4),
+            "physical_delivery_ratio_mean": round(self.physical_delivery_ratio_mean, 4),
+            "cloud_reflection_ratio_mean": round(self.cloud_reflection_ratio_mean, 4),
+            "message_reduction_ratio_mean": round(self.message_reduction_ratio_mean, 4),
+            "events_per_cloud_message_mean": round(self.events_per_cloud_message_mean, 2),
             "aggregation_ratio_mean": round(self.aggregation_ratio_mean, 4),
             "filtered_mean": round(self.filtered_mean, 1),
             "energy_mj_mean": round(self.energy_mj_mean, 3),
@@ -152,17 +168,19 @@ def check_conservation(metrics: ExperimentMetrics, tolerance: float = 0.02) -> t
     if generated == 0:
         return True, "no events generated"
 
-    delivered = metrics.edge_to_cloud_msgs or metrics.cloud_only_msgs
-    dropped_link = generated - int(generated * metrics.sensor_to_edge_delivery_ratio)
+    valid = metrics.valid_state_changes or max(generated - metrics.filtered_events, 0)
+    reflected = metrics.events_reflected_in_cloud or metrics.cloud_only_msgs
+    physical_drop_est = int(round(generated * (1.0 - metrics.physical_delivery_ratio)))
 
-    accounted = delivered + dropped_link
+    accounted = reflected + metrics.filtered_events + physical_drop_est
     ratio = accounted / generated if generated > 0 else 1.0
 
     if ratio > (1.0 + tolerance) or ratio < (1.0 - tolerance):
         return False, (
-            f"conservation violation: generated={generated} "
-            f"delivered={delivered} dropped_est={dropped_link} "
-            f"ratio={ratio:.3f} (tolerance ±{tolerance:.0%})"
+            f"accounting warning: generated={generated} valid={valid} "
+            f"reflected={reflected} filtered={metrics.filtered_events} "
+            f"physical_drop_est={physical_drop_est} ratio={ratio:.3f} "
+            f"(tolerance ±{tolerance:.0%})"
         )
     return True, f"ok (ratio={ratio:.3f})"
 
@@ -217,7 +235,8 @@ class MultiSeedRunner:
                 f"[MultiSeed] Rep {i+1} done: "
                 f"lat={metrics.latency_mean_ms:.1f}ms "
                 f"p99={metrics.latency_p99_ms:.1f}ms "
-                f"e2e_dr={metrics.end_to_end_delivery_ratio:.1%} "
+                f"cloud_reflection={metrics.cloud_reflection_ratio:.1%} "
+                f"msg_reduction={metrics.message_reduction_ratio:.1%} "
                 f"conservation={explanation}"
             )
 
@@ -252,7 +271,8 @@ async def main(scenario_names: list[str] | None = None, n_reps: int = 5) -> None
         logger.info(
             f"  lat_mean={summary['latency_mean_ms_mean']:.1f} ± {summary['latency_mean_ms_std']:.1f} ms"
             f"  p99={summary['latency_p99_ms_mean']:.1f} ± {summary['latency_p99_ms_std']:.1f} ms"
-            f"  dr={summary['delivery_ratio_mean']:.1%} ± {summary['delivery_ratio_std']:.1%}"
+            f"  cloud_reflection={summary['cloud_reflection_ratio_mean']:.1%} ± {summary['delivery_ratio_std']:.1%}"
+            f"  msg_reduction={summary['message_reduction_ratio_mean']:.1%}"
             f"  conservation={'✓' if summary['conservation_ok'] else '✗'}"
         )
 

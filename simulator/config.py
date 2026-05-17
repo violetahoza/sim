@@ -28,7 +28,7 @@ ARRIVAL_RATES: dict[str, float] = {
 }
 
 SIM_DURATION_S = 10_800.0
-DEFAULT_AGG_INTERVAL_S = 30.0
+DEFAULT_AGG_INTERVAL_S = 1.0
 DEFAULT_TIME_SCALE = 60.0
 
 _SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
@@ -72,12 +72,20 @@ class BackhaulLinkConfig:
 @dataclass
 class EdgeConfig:
     architecture: Architecture = "edge_aggregated"
-    aggregation_interval_s: float = 30.0
+    aggregation_interval_s: float = 1.0
+    max_event_age_s: float = 2.0
+    max_batch_size: int = 50
+
     filter_no_change: bool = True
+    duplicate_window_s: float = 5.0
+    heartbeat_forward_interval_s: float = 300.0
+
     anomaly_detection: bool = True
     adaptive_edge: bool = False
     stuck_threshold: int = 10
     silent_threshold_s: float = 3600.0
+    quarantine_threshold: int = 3
+    quarantine_recovery_events: int = 3
 
 
 @dataclass
@@ -186,10 +194,16 @@ class ScenarioConfig:
             "backhaul_jitter_ms": bh["jitter_ms"],
             "backhaul_loss_rate": bh["packet_loss_rate"],
             "aggregation_interval": edge["aggregation_interval_s"],
+            "max_event_age_s": edge["max_event_age_s"],
+            "max_batch_size": edge["max_batch_size"],
+            "duplicate_window_s": edge["duplicate_window_s"],
+            "heartbeat_forward_interval_s": edge["heartbeat_forward_interval_s"],
             "anomaly_detection": edge["anomaly_detection"],
             "adaptive_edge": edge["adaptive_edge"],
             "stuck_threshold": edge["stuck_threshold"],
             "silent_threshold_s": edge["silent_threshold_s"],
+            "quarantine_threshold": edge["quarantine_threshold"],
+            "quarantine_recovery_events": edge["quarantine_recovery_events"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
             "amqp_exchange": amqp["exchange_type"],
@@ -215,10 +229,16 @@ class ScenarioConfig:
             num_spots=d.get("num_spots", 50),
             loss_rate=d.get("loss_rate", 0.05),
             aggregation_interval=d.get("aggregation_interval", DEFAULT_AGG_INTERVAL_S),
+            max_event_age_s=d.get("max_event_age_s", 2.0),
+            max_batch_size=d.get("max_batch_size", 50),
+            duplicate_window_s=d.get("duplicate_window_s", 5.0),
+            heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 300.0),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
             stuck_threshold=d.get("stuck_threshold", 10),
             silent_threshold_s=d.get("silent_threshold_s", 3600.0),
+            quarantine_threshold=d.get("quarantine_threshold", 3),
+            quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
             amqp_exchange=d.get("amqp_exchange", "direct"),
@@ -258,10 +278,16 @@ def make_scenario(
     num_spots: int = 50,
     loss_rate: float = 0.05,
     aggregation_interval: float = DEFAULT_AGG_INTERVAL_S,
+    max_event_age_s: float = 2.0,
+    max_batch_size: int = 50,
+    duplicate_window_s: float = 5.0,
+    heartbeat_forward_interval_s: float = 300.0,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
     stuck_threshold: int = 10,
     silent_threshold_s: float = 3600.0,
+    quarantine_threshold: int = 3,
+    quarantine_recovery_events: int = 3,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
     amqp_exchange: AMQPExchange = "direct",
@@ -310,10 +336,16 @@ def make_scenario(
     edge = EdgeConfig(
         architecture=architecture,
         aggregation_interval_s=aggregation_interval,
+        max_event_age_s=max_event_age_s,
+        max_batch_size=max_batch_size,
+        duplicate_window_s=duplicate_window_s,
+        heartbeat_forward_interval_s=heartbeat_forward_interval_s,
         anomaly_detection=anomaly_detection,
         adaptive_edge=adaptive_edge,
         stuck_threshold=stuck_threshold,
-        silent_threshold_s=silent_threshold_s
+        silent_threshold_s=silent_threshold_s,
+        quarantine_threshold=quarantine_threshold,
+        quarantine_recovery_events=quarantine_recovery_events
     )
     traffic = TrafficConfig(
         num_spots=num_spots,

@@ -226,12 +226,12 @@ function _buildCmpKpis(sel) {
   const bestLat = sel.reduce((a, b) => (a.latency_mean_ms < b.latency_mean_ms ? a : b));
   const bestDel = sel.reduce((a, b) => ((a.sensor_to_edge_delivery_ratio ?? 1) > (b.sensor_to_edge_delivery_ratio ?? 1) ? a : b));
   const aggCands = sel.filter(r => r.aggregation_ratio > 0);
-  const bestAgg  = aggCands.length ? aggCands.reduce((a, b) => (a.aggregation_ratio < b.aggregation_ratio ? a : b)) : null;
-  const bwCands  = sel.filter(r => (r.edge_to_cloud_bytes ?? 0) > 0);
-  const bestBw   = bwCands.length  ? bwCands.reduce((a, b)  => (a.edge_to_cloud_bytes  < b.edge_to_cloud_bytes  ? a : b)) : null;
+  const bestAgg = aggCands.length ? aggCands.reduce((a, b) => (a.aggregation_ratio < b.aggregation_ratio ? a : b)) : null;
+  const bwCands = sel.filter(r => (r.edge_to_cloud_bytes ?? 0) > 0);
+  const bestBw = bwCands.length  ? bwCands.reduce((a, b)  => (a.edge_to_cloud_bytes  < b.edge_to_cloud_bytes  ? a : b)) : null;
 
   const kpis = [
-    { label:'FASTEST',        icon:'⚡', name:bestLat.scenario_name, val:`${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color:'var(--cyan)' },
+    { label:'FASTEST', icon:'⚡', name:bestLat.scenario_name, val:`${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color:'var(--cyan)' },
     { label:'MOST RELIABLE',  icon:'📦', name:bestDel.scenario_name, val:`${((bestDel.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)}% delivery`, color:'var(--green)' },
     bestAgg ? { label:'BEST COMPRESSION', icon:'💾', name:bestAgg.scenario_name, val:`${((1-bestAgg.aggregation_ratio)*100).toFixed(1)}% fewer msgs`, color:'var(--blue)' } : null,
     bestBw  ? { label:'LOWEST CLOUD BW',  icon:'📡', name:bestBw.scenario_name,  val:`${(bestBw.edge_to_cloud_bytes/1024).toFixed(1)} KB`, color:'var(--purple)' } : null,
@@ -265,8 +265,8 @@ function _buildCmpCharts(sel) {
     labels,
     datasets: [
       { label:'Mean', data:sel.map(r=>r.latency_mean_ms??0), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
-      { label:'P95',  data:sel.map(r=>r.latency_p95_ms??0),  backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
-      { label:'P99',  data:sel.map(r=>r.latency_p99_ms??0),  backgroundColor:pal[2]+'bb', borderColor:pal[2], borderWidth:1, borderRadius:4 },
+      { label:'P95', data:sel.map(r=>r.latency_p95_ms??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
+      { label:'P99', data:sel.map(r=>r.latency_p99_ms??0), backgroundColor:pal[2]+'bb', borderColor:pal[2], borderWidth:1, borderRadius:4 },
     ],
   }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
     scales:{ y:{ beginAtZero:true, title:{ display:true, text:'ms', color:'#555a72', font:{size:9} } } } });
@@ -277,7 +277,7 @@ function _buildCmpCharts(sel) {
       label:'Delivery %',
       data: sel.map(r=>+((r.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)),
       backgroundColor: sel.map(r=>{ const v=(r.sensor_to_edge_delivery_ratio??1)*100; return v>=98?'#39e887bb':v>=90?'#ffc246bb':'#ff5252bb'; }),
-      borderColor:     sel.map(r=>{ const v=(r.sensor_to_edge_delivery_ratio??1)*100; return v>=98?'#39e887':v>=90?'#ffc246':'#ff5252'; }),
+      borderColor: sel.map(r=>{ const v=(r.sensor_to_edge_delivery_ratio??1)*100; return v>=98?'#39e887':v>=90?'#ffc246':'#ff5252'; }),
       borderWidth:1, borderRadius:4,
     }],
   }, { ...base, plugins:{ legend:{ display:false } },
@@ -286,9 +286,9 @@ function _buildCmpCharts(sel) {
   _makeChart('cmpMsgChart', 'bar', {
     labels,
     datasets: [
-      { label:'S→E',      data:sel.map(r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
-      { label:'E→Cloud',  data:sel.map(r=>r.edge_to_cloud_msgs??0),                    backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
-      { label:'Filtered', data:sel.map(r=>r.filtered_events??0),                       backgroundColor:pal[2]+'88', borderColor:pal[2], borderWidth:1, borderRadius:4 },
+      { label:'S→E', data:sel.map(r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
+      { label:'E→Cloud', data:sel.map(r=>r.edge_to_cloud_msgs??0), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
+      { label:'Filtered', data:sel.map(r=>r.filtered_events??0), backgroundColor:pal[2]+'88', borderColor:pal[2], borderWidth:1, borderRadius:4 },
     ],
   }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
     scales:{ y:{ beginAtZero:true } } });
@@ -296,7 +296,7 @@ function _buildCmpCharts(sel) {
   _makeChart('cmpBwChart', 'bar', {
     labels,
     datasets: [
-      { label:'S→E (KB)',     data:sel.map(r=>+((r.sensor_to_edge_bytes??0)/1024).toFixed(2)), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
+      { label:'S→E (KB)', data:sel.map(r=>+((r.sensor_to_edge_bytes??0)/1024).toFixed(2)), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
       { label:'E→Cloud (KB)', data:sel.map(r=>+((r.edge_to_cloud_bytes??0)/1024).toFixed(2)), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
     ],
   }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
@@ -307,32 +307,26 @@ function _buildCmpTable(sel) {
   const wrap = document.getElementById('cmpTable');
   if (!wrap) return;
   const metrics = [
-    { label:'Protocol',    key:r=>(r.protocol||'').toUpperCase() },
+    { label:'Protocol', key:r=>(r.protocol||'').toUpperCase() },
     { label:'Architecture',key:r=>r.architecture||'—' },
-    { label:'Traffic',     key:r=>r.traffic_level||'—' },
-    { label:'Spots',       key:r=>r.num_spots??'—' },
-    { label:'Duration',    key:r=>r.sim_duration_s, fmt:v=>v!=null?`${(v/3600).toFixed(1)} h`:'—' },
-    { label:'Mean Lat',    key:r=>r.latency_mean_ms,      fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P50',         key:r=>r.latency_p50_ms,       fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P95',         key:r=>r.latency_p95_ms,       fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P99',         key:r=>r.latency_p99_ms,       fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'Delivery',    key:r=>(r.sensor_to_edge_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-    { label:'Agg Ratio',   key:r=>r.aggregation_ratio,    fmt:v=>v?.toFixed(4), cmpLow:true },
-    { label:'Filtered',    key:r=>r.filtered_events??0,   fmt:v=>v, cmpHigh:true },
-    { label:'S→E Msgs',    key:r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0, fmt:v=>v },
-    { label:'E→C Msgs',    key:r=>r.edge_to_cloud_msgs??0, fmt:v=>v, cmpLow:true },
-    { label:'S→E KB',      key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'E→C KB',      key:r=>(r.edge_to_cloud_bytes??0)/1024,  fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Traffic', key:r=>r.traffic_level||'—' },
+    { label:'Spots', key:r=>r.num_spots??'—' },
+    { label:'Duration', key:r=>r.sim_duration_s, fmt:v=>v!=null?`${(v/3600).toFixed(1)} h`:'—' },
+    { label:'Mean Lat', key:r=>r.latency_mean_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'P50', key:r=>r.latency_p50_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'P95', key:r=>r.latency_p95_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'P99', key:r=>r.latency_p99_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'Delivery', key:r=>(r.sensor_to_edge_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
+    { label:'Agg Ratio', key:r=>r.aggregation_ratio, fmt:v=>v?.toFixed(4), cmpLow:true },
+    { label:'Filtered', key:r=>r.filtered_events??0, fmt:v=>v, cmpHigh:true },
+    { label:'S→E Msgs', key:r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0, fmt:v=>v },
+    { label:'E→C Msgs', key:r=>r.edge_to_cloud_msgs??0, fmt:v=>v, cmpLow:true },
+    { label:'S→E KB', key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'E→C KB', key:r=>(r.edge_to_cloud_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Dropped E→C', key:r=>r.edge_to_cloud_dropped??0, fmt:v=>v, cmpLow:true },
+    { label:'Retransmissions', key:r=>r.retransmissions_total??0, fmt:v=>v },
+    { label:'Duplicates', key:r=>r.duplicate_deliveries??0, fmt:v=>v, cmpLow:true },
     { label:'Anomalies Detected', key:r=>r.anomalies_detected??0, fmt:v=>v, cmpLow:true },
-    { label:'Anomalies Resolved', key:r=>r.anomalies_resolved??0, fmt:v=>v },
-    { label:'Active Anomalies',   key:r=>r.active_anomalies??0,   fmt:v=>v, cmpLow:true },
-    { label:'Anomaly Spots',      key:r=>r.anomaly_detected_spots??0, fmt:v=>v, cmpLow:true },
-    { label:'Dropped E→C',        key:r=>r.edge_to_cloud_dropped??0, fmt:v=>v, cmpLow:true },
-    { label:'Retransmissions',    key:r=>r.retransmissions_total??0, fmt:v=>v },
-    { label:'Duplicates',         key:r=>r.duplicate_deliveries??0, fmt:v=>v, cmpLow:true },
-    { label:'Valid State Changes', key:r=>r.valid_state_changes??0, fmt:v=>v },
-    { label:'Reflected Events',    key:r=>r.events_reflected_in_cloud??0, fmt:v=>v },
-    { label:'Mode Switches',      key:r=>r.adaptive_mode_switches??0, fmt:v=>v },
   ];
 
   let html = '<div class="cmp-table">';

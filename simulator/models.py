@@ -45,6 +45,7 @@ class SensorState:
     state: SpotState = SpotState.FREE
     last_event_seq: int = 0
     last_updated: float = 0.0
+    last_forwarded_timestamp: float = 0.0
     total_events: int = 0
     consecutive_same: int = 0
 
@@ -79,7 +80,7 @@ class LinkStats:
             "delivery_ratio": self.delivery_ratio,
             "drop_rate": self.drop_rate,
             "retransmissions": self.retransmissions,
-            "duplicate_deliveries": self.duplicate_deliveries,
+            "duplicate_deliveries": self.duplicate_deliveries
         }
 
 
@@ -116,15 +117,25 @@ class ExperimentMetrics:
     edge_to_cloud_delivery_ratio: float = 0.0
     end_to_end_delivery_ratio: float = 0.0
 
+    physical_delivery_ratio: float = 0.0
+    cloud_reflection_ratio: float = 0.0
+    message_reduction_ratio: float = 0.0
+    events_per_cloud_message: float = 0.0
+    valid_state_changes: int = 0
+    events_reflected_in_cloud: int = 0
+
     aggregation_ratio: float = 0.0
     filtered_events: int = 0
     anomalies_detected: int = 0
+    anomalies_resolved: int = 0
+    active_anomalies: int = 0
     adaptive_mode_switches: int = 0
     edge_to_cloud_dropped: int = 0
 
-    edge_cpu_pct: float = 0.0
+    measurement_mode: str = "simulated"
+    edge_cpu_pct: float = -1.0
     edge_mem_mb: float = 0.0
-    cloud_cpu_pct: float = 0.0
+    cloud_cpu_pct: float = -1.0
     cloud_mem_mb: float = 0.0
 
     broker_overhead_score: float = 0.0

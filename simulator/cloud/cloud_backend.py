@@ -193,15 +193,12 @@ class CloudBackend:
     def get_occupancy(self) -> dict:
         total = len(self._spots)
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
-        return {
-            "total": total, "occupied": occupied, "free": total - occupied,
-            "occupancy_pct": round(occupied / total * 100, 1) if total else 0
-        }
+        return {"total": total, "occupied": occupied, "free": total - occupied, "occupancy_pct": round(occupied / total * 100, 1) if total else 0}
 
     def get_latest_events(self, limit: int = 50) -> list[dict]:
         return list(self._event_buffer)[-limit:]
 
-    def get_metrics_snapshot(self) -> dict:
+    def get_metrics_snapshot(self, include_cpu: bool = True) -> dict:
         samples = self._latency_ms
         current_len = len(samples)
 
@@ -219,10 +216,13 @@ class CloudBackend:
         else:
             mean = p50 = p95 = p99 = mn = mx = 0.0
 
-        now = time.monotonic()
-        elapsed = now - self._last_cpu_time
-        cpu = self._process.cpu_percent(interval=0.1 if elapsed < 0.5 else None)
-        self._last_cpu_time = time.monotonic()
+        if include_cpu:
+            now = time.monotonic()
+            elapsed = now - self._last_cpu_time
+            cpu = self._process.cpu_percent(interval=0.1 if elapsed < 0.5 else None)
+            self._last_cpu_time = time.monotonic()
+        else:
+            cpu = -1.0
         mem = self._process.memory_info().rss / (1024 * 1024)
 
         snapshot = {
