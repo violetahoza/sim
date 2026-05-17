@@ -178,8 +178,8 @@ function _renderCmpMain(results) {
   if (!main) return;
   const selected = _getSelectedResults(results);
 
-  if (selected.length < 2) {
-    main.innerHTML = `<div class="cmp-placeholder">← Select at least 2 runs to compare</div>`;
+  if (selected.length < 1) {
+    main.innerHTML = `<div class="cmp-placeholder">← Select at least 1 run to view metrics</div>`;
     return;
   }
 
@@ -323,6 +323,16 @@ function _buildCmpTable(sel) {
     { label:'E→C Msgs',    key:r=>r.edge_to_cloud_msgs??0, fmt:v=>v, cmpLow:true },
     { label:'S→E KB',      key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
     { label:'E→C KB',      key:r=>(r.edge_to_cloud_bytes??0)/1024,  fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Anomalies Detected', key:r=>r.anomalies_detected??0, fmt:v=>v, cmpLow:true },
+    { label:'Anomalies Resolved', key:r=>r.anomalies_resolved??0, fmt:v=>v },
+    { label:'Active Anomalies',   key:r=>r.active_anomalies??0,   fmt:v=>v, cmpLow:true },
+    { label:'Anomaly Spots',      key:r=>r.anomaly_detected_spots??0, fmt:v=>v, cmpLow:true },
+    { label:'Dropped E→C',        key:r=>r.edge_to_cloud_dropped??0, fmt:v=>v, cmpLow:true },
+    { label:'Retransmissions',    key:r=>r.retransmissions_total??0, fmt:v=>v },
+    { label:'Duplicates',         key:r=>r.duplicate_deliveries??0, fmt:v=>v, cmpLow:true },
+    { label:'Valid State Changes', key:r=>r.valid_state_changes??0, fmt:v=>v },
+    { label:'Reflected Events',    key:r=>r.events_reflected_in_cloud??0, fmt:v=>v },
+    { label:'Mode Switches',      key:r=>r.adaptive_mode_switches??0, fmt:v=>v },
   ];
 
   let html = '<div class="cmp-table">';
