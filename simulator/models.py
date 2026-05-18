@@ -46,6 +46,7 @@ class SensorState:
     last_event_seq: int = 0
     last_updated: float = 0.0
     last_forwarded_timestamp: float = 0.0
+    last_state_change_timestamp: float = 0.0
     total_events: int = 0
     consecutive_same: int = 0
 

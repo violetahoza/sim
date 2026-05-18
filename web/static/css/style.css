@@ -653,3 +653,69 @@ label {
 .cmp-empty-sub { font-size: .75rem; color: var(--text3); line-height: 1.6; max-width: 320px; }
 
 .modal.modal-wide { width: min(960px, 95vw); }
+
+.metrics-table-toggle {
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--cyan);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  user-select: none;
+  font-family: var(--mono);
+}
+.metrics-table-toggle:hover { color: var(--text); }
+
+.metrics-table-wrap {
+  display: none;
+  overflow-x: auto;
+  margin-top: 0.25rem;
+}
+.metrics-table-wrap.open { display: block; }
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.metrics-table td {
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  white-space: nowrap;
+}
+.metrics-table td:nth-child(2),
+.metrics-table td:nth-child(4) {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.metrics-table tr.metrics-group-header td {
+  color: var(--cyan);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.63rem;
+  letter-spacing: 0.12em;
+  padding-top: 0.75rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--border-hi);
+}
+.metrics-table tbody tr:not(.metrics-group-header):hover td {
+  background: var(--bg-hover);
+}
+
+.cmp-group-row {
+  background: rgba(0, 229, 200, .03);
+  border-bottom: 1px solid var(--border-hi);
+}
+.cmp-group-header {
+  flex: 1;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: .55rem .6rem .3rem;
+}

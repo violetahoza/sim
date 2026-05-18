@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 CloudForwardCallback = Callable[[BatchUpdate, bytes], None]
 
 _RAPID_ARRIVAL_S: float = 0.5
-_MIN_DWELL_S: float = 30.0
+_MIN_DWELL_S: float = 10.0
 _RELEASE_CLEAN_TICKS: int = 5
 
 
@@ -91,6 +91,10 @@ class EdgeNode:
 
         cached.state = event.state
         cached.last_updated = event.timestamp
+
+        if state_changed:
+            cached.last_state_change_timestamp = event.timestamp
+
         cached.last_event_seq = max(cached.last_event_seq, event.sequence)
         cached.consecutive_same = 0 if state_changed else cached.consecutive_same + 1
         cached.total_events += 1
@@ -165,9 +169,9 @@ class EdgeNode:
             self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
-        if cached.last_updated > 0.0 and cached.state != event.state:
-            last_virtual = cached.last_updated - self._epoch
-            if (now_virtual - last_virtual) < _MIN_DWELL_S:
+        if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
+            last_change_virtual = cached.last_state_change_timestamp - self._epoch
+            if (now_virtual - last_change_virtual) < _MIN_DWELL_S:
                 self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
                 return
         self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)

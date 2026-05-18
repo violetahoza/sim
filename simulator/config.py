@@ -84,7 +84,7 @@ class EdgeConfig:
     adaptive_edge: bool = False
     stuck_threshold: int = 10
     silent_threshold_s: float = 3600.0
-    quarantine_threshold: int = 3
+    quarantine_threshold: int = 5
     quarantine_recovery_events: int = 3
 
 
@@ -137,6 +137,8 @@ class TrafficConfig:
     start_hour: float = 8.0
     tod_factors: list[float] = field(default_factory=lambda: list(DEFAULT_TOD_FACTORS))
     use_dwell_mixture: bool = True
+    heartbeat_interval_s: float = 60.0
+    duplicate_send_prob: float = 0.05
 
 
 @dataclass
@@ -215,7 +217,10 @@ class ScenarioConfig:
             "start_hour": traffic["start_hour"],
             "initial_occupancy": traffic["initial_occupancy"],
             "tod_factors": traffic["tod_factors"],
-            "use_dwell_mixture": traffic["use_dwell_mixture"]
+            "use_dwell_mixture": traffic["use_dwell_mixture"],
+            "use_dwell_mixture": traffic["use_dwell_mixture"],
+            "heartbeat_interval_s": traffic["heartbeat_interval_s"],
+            "duplicate_send_prob": traffic["duplicate_send_prob"]
         }
 
     @classmethod
@@ -265,7 +270,8 @@ class ScenarioConfig:
             start_hour=d.get("start_hour", 8.0),
             initial_occupancy=d.get("initial_occupancy"),
             tod_factors=d.get("tod_factors"),
-            use_dwell_mixture=d.get("use_dwell_mixture", True)
+            use_dwell_mixture=d.get("use_dwell_mixture", True),
+            heartbeat_interval_s=d.get("heartbeat_interval_s", 60.0)
         )
     
 
@@ -315,7 +321,9 @@ def make_scenario(
     start_hour: float = 8.0,
     initial_occupancy: Optional[float] = None,
     tod_factors: Optional[list[float]] = None,
-    use_dwell_mixture: bool = True
+    use_dwell_mixture: bool = True,
+    heartbeat_interval_s: float = 60.0,
+    duplicate_send_prob: float = 0.05
 ) -> ScenarioConfig:
     arrival = ARRIVAL_RATES[traffic_level] * (num_spots / 50)
 
@@ -360,6 +368,8 @@ def make_scenario(
         time_scale=time_scale,
         use_time_of_day=use_time_of_day,
         start_hour=start_hour,
+        heartbeat_interval_s=heartbeat_interval_s,
+        duplicate_send_prob=duplicate_send_prob,
         **({"tod_factors": tod_factors} if tod_factors is not None else {})
     )
     return ScenarioConfig(

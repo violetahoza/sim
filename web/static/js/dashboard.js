@@ -275,6 +275,66 @@ function showResult(r, animate) {
   updateMsgCountChart(r);
   updateBandwidthChart(r);
   if (animate) buildLotGrid(r.num_spots);
+  const fmt = (v, unit = '', d = 1) => v != null ? `${(+v).toFixed(d)}${unit}` : '—';
+  const fmtPct = v => v != null ? `${(v * 100).toFixed(2)}%` : '—';
+  const fmtKB = v => v ? `${(v / 1024).toFixed(1)} KB` : '—';
+
+  setText('mt_events_generated', r.events_generated ?? '—');
+  setText('mt_s2e_msgs', r.sensor_to_edge_msgs ?? '—');
+  setText('mt_filtered', r.filtered_events ?? '—');
+  setText('mt_dup_deliveries', r.duplicate_deliveries ?? '—');
+  setText('mt_sensor_dropped', r.sensor_link_dropped ?? '—');
+  setText('mt_e2c_msgs', r.edge_to_cloud_msgs || r.cloud_only_msgs || '—');
+  setText('mt_e2c_dropped', r.edge_to_cloud_dropped ?? '—');
+  setText('mt_transport_total', r.transport_msgs_total ?? '—');
+  setText('mt_retransmissions', r.retransmissions_total ?? '—');
+  setText('mt_cloud_msgs', r.events_reflected_in_cloud ?? '—');
+
+  setText('mt_lat_mean', fmt(r.latency_mean_ms, ' ms'));
+  setText('mt_lat_min', fmt(r.latency_min_ms, ' ms'));
+  setText('mt_lat_p50', fmt(r.latency_p50_ms, ' ms'));
+  setText('mt_lat_p95', fmt(r.latency_p95_ms, ' ms'));
+  setText('mt_lat_p99', fmt(r.latency_p99_ms, ' ms'));
+  setText('mt_lat_max', fmt(r.latency_max_ms, ' ms'));
+  setText('mt_warmup', r.warmup_excluded_samples ?? '—');
+
+  setText('mt_s2e_dr', fmtPct(r.sensor_to_edge_delivery_ratio));
+  setText('mt_e2c_dr', fmtPct(r.edge_to_cloud_delivery_ratio));
+  setText('mt_e2e_dr', fmtPct(r.end_to_end_delivery_ratio));
+  setText('mt_phys_dr', fmtPct(r.physical_delivery_ratio));
+  setText('mt_cloud_reflect', fmtPct(r.cloud_reflection_ratio));
+
+  setText('mt_agg_ratio', fmt(r.aggregation_ratio, '', 4));
+  setText('mt_msg_reduction', fmtPct(r.message_reduction_ratio));
+  setText('mt_events_per_msg', fmt(r.events_per_cloud_message, '', 2));
+  setText('mt_valid_changes', r.valid_state_changes ?? '—');
+  setText('mt_events_reflected', r.events_reflected_in_cloud ?? '—');
+
+  setText('mt_anomalies', r.anomalies_detected ?? '—');
+  setText('mt_anom_resolved', r.anomalies_resolved ?? '—');
+  setText('mt_anom_active', r.active_anomalies ?? '—');
+  setText('mt_anom_spots', r.anomaly_detected_spots ?? '—');
+  setText('mt_quarantined', r.quarantined_spots_peak ?? '—');
+  setText('mt_mode_switches', r.adaptive_mode_switches ?? '—');
+  setText('mt_faults', r.fault_injected_count ?? '—');
+
+  setText('mt_bytes_se', fmtKB(r.sensor_to_edge_bytes));
+  setText('mt_bytes_ec', fmtKB(r.edge_to_cloud_bytes));
+  setText('mt_proto_bytes', fmtKB(r.protocol_bytes));
+  setText('mt_broker_score', fmt(r.broker_overhead_score, '', 3));
+
+  setText('mt_energy_mj', fmt(r.energy_per_sensor_mj, ' mJ', 2));
+  setText('mt_battery', fmt(r.battery_life_days, ' d', 1));
+
+  setText('mt_edge_mem', fmt(r.edge_mem_mb, ' MB', 1));
+  setText('mt_cloud_mem', fmt(r.cloud_mem_mb, ' MB', 1));
+}
+
+function toggleMetricsTable() {
+  const wrap = document.getElementById('metricsTableWrap');
+  const lbl = document.getElementById('metricsToggleLabel');
+  const open = wrap.classList.toggle('open');
+  lbl.textContent = open ? '▲ Full Metrics' : '▼ Full Metrics';
 }
 
 function addResultRow(r, scrollIntoView) {

@@ -266,6 +266,9 @@ class ExperimentRunner:
             fault_injected_count=fi.injected_count if fi is not None else 0,
             quarantined_spots_peak=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
+            
+            events_generated=sensor_events,
+            sensor_link_dropped=ls.dropped,
 
             latency_samples=post_samples[-50_000:]
         )
@@ -489,11 +492,11 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
 
     proto = cfg.protocol
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, cfg.link.packet_loss_rate, seed + 2)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, cfg.link.packet_loss_rate, seed + 2)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
     elif proto == "coap":
-        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, cfg.link.packet_loss_rate, seed + 2)
+        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
     raise ValueError(f"Unknown protocol: {proto}")
 
 

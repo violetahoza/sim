@@ -223,18 +223,25 @@ function _renderCmpMain(results) {
 function _buildCmpKpis(sel) {
   const strip = document.getElementById('cmpKpiStrip');
   if (!strip) return;
+
   const bestLat = sel.reduce((a, b) => (a.latency_mean_ms < b.latency_mean_ms ? a : b));
   const bestDel = sel.reduce((a, b) => ((a.sensor_to_edge_delivery_ratio ?? 1) > (b.sensor_to_edge_delivery_ratio ?? 1) ? a : b));
   const aggCands = sel.filter(r => r.aggregation_ratio > 0);
   const bestAgg = aggCands.length ? aggCands.reduce((a, b) => (a.aggregation_ratio < b.aggregation_ratio ? a : b)) : null;
   const bwCands = sel.filter(r => (r.edge_to_cloud_bytes ?? 0) > 0);
-  const bestBw = bwCands.length  ? bwCands.reduce((a, b)  => (a.edge_to_cloud_bytes  < b.edge_to_cloud_bytes  ? a : b)) : null;
+  const bestBw = bwCands.length ? bwCands.reduce((a, b) => (a.edge_to_cloud_bytes < b.edge_to_cloud_bytes ? a : b)) : null;
+  const batCands = sel.filter(r => (r.battery_life_days ?? 0) > 0);
+  const bestBat = batCands.length ? batCands.reduce((a, b) => (a.battery_life_days > b.battery_life_days ? a : b)) : null;
+  const retryCands = sel.filter(r => sel.some(s => (s.retransmissions_total ?? 0) > 0));
+  const bestRetry = retryCands.length > 1 ? retryCands.reduce((a, b) => ((a.retransmissions_total ?? 0) < (b.retransmissions_total ?? 0) ? a : b)) : null;
 
   const kpis = [
     { label:'FASTEST', icon:'⚡', name:bestLat.scenario_name, val:`${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color:'var(--cyan)' },
-    { label:'MOST RELIABLE',  icon:'📦', name:bestDel.scenario_name, val:`${((bestDel.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)}% delivery`, color:'var(--green)' },
+    { label:'MOST RELIABLE', icon:'📦', name:bestDel.scenario_name, val:`${((bestDel.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)}% delivery`, color:'var(--green)' },
     bestAgg ? { label:'BEST COMPRESSION', icon:'💾', name:bestAgg.scenario_name, val:`${((1-bestAgg.aggregation_ratio)*100).toFixed(1)}% fewer msgs`, color:'var(--blue)' } : null,
-    bestBw  ? { label:'LOWEST CLOUD BW',  icon:'📡', name:bestBw.scenario_name,  val:`${(bestBw.edge_to_cloud_bytes/1024).toFixed(1)} KB`, color:'var(--purple)' } : null,
+    bestBw  ? { label:'LOWEST CLOUD BW', icon:'📡', name:bestBw.scenario_name, val:`${(bestBw.edge_to_cloud_bytes/1024).toFixed(1)} KB`, color:'var(--purple)' } : null,
+    bestBat ? { label:'LONGEST BATTERY', icon:'🔋', name:bestBat.scenario_name, val:`${bestBat.battery_life_days?.toFixed(1)}d`, color:'var(--amber)' } : null,
+    bestRetry ? { label:'FEWEST RETRIES', icon:'🔁', name:bestRetry.scenario_name, val:`${bestRetry.retransmissions_total ?? 0} retransmissions`, color:'var(--green)' } : null,  
   ].filter(Boolean);
 
   strip.innerHTML = kpis.map(k => `
@@ -286,6 +293,7 @@ function _buildCmpCharts(sel) {
   _makeChart('cmpMsgChart', 'bar', {
     labels,
     datasets: [
+      { label:'Generated', data:sel.map(r=>r.events_generated??r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[3]+'66', borderColor:pal[3], borderWidth:1, borderRadius:4 },
       { label:'S→E', data:sel.map(r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
       { label:'E→Cloud', data:sel.map(r=>r.edge_to_cloud_msgs??0), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
       { label:'Filtered', data:sel.map(r=>r.filtered_events??0), backgroundColor:pal[2]+'88', borderColor:pal[2], borderWidth:1, borderRadius:4 },
@@ -306,27 +314,70 @@ function _buildCmpCharts(sel) {
 function _buildCmpTable(sel) {
   const wrap = document.getElementById('cmpTable');
   if (!wrap) return;
+  
+  const G = label => ({ group: label });
   const metrics = [
+    G('Configuration'),
     { label:'Protocol', key:r=>(r.protocol||'').toUpperCase() },
-    { label:'Architecture',key:r=>r.architecture||'—' },
+    { label:'Architecture', key:r=>r.architecture||'—' },
     { label:'Traffic', key:r=>r.traffic_level||'—' },
     { label:'Spots', key:r=>r.num_spots??'—' },
     { label:'Duration', key:r=>r.sim_duration_s, fmt:v=>v!=null?`${(v/3600).toFixed(1)} h`:'—' },
-    { label:'Mean Lat', key:r=>r.latency_mean_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+   
+    G('Message Flow'),
+    { label:'Generated', key:r=>r.events_generated??0 },
+    { label:'S→E Msgs', key:r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0 },
+    { label:'S→E Dropped', key:r=>r.sensor_link_dropped??0, cmpLow:true },
+    { label:'Filtered', key:r=>r.filtered_events??0, cmpHigh:true },
+    { label:'Duplicates', key:r=>r.duplicate_deliveries??0, cmpLow:true },
+    { label:'E→C Msgs', key:r=>r.edge_to_cloud_msgs??0, cmpLow:true },
+    { label:'E→C Dropped', key:r=>r.edge_to_cloud_dropped??0, cmpLow:true },
+    { label:'Transport Total', key:r=>r.transport_msgs_total??0 },
+    { label:'Retransmissions', key:r=>r.retransmissions_total??0, cmpLow:true },
+    { label:'Cloud Received', key:r=>r.events_reflected_in_cloud??0 },
+
+    G('Latency'),
+    { label:'Mean', key:r=>r.latency_mean_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
     { label:'P50', key:r=>r.latency_p50_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
     { label:'P95', key:r=>r.latency_p95_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
     { label:'P99', key:r=>r.latency_p99_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'Delivery', key:r=>(r.sensor_to_edge_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-    { label:'Agg Ratio', key:r=>r.aggregation_ratio, fmt:v=>v?.toFixed(4), cmpLow:true },
-    { label:'Filtered', key:r=>r.filtered_events??0, fmt:v=>v, cmpHigh:true },
-    { label:'S→E Msgs', key:r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0, fmt:v=>v },
-    { label:'E→C Msgs', key:r=>r.edge_to_cloud_msgs??0, fmt:v=>v, cmpLow:true },
-    { label:'S→E KB', key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'E→C KB', key:r=>(r.edge_to_cloud_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'Dropped E→C', key:r=>r.edge_to_cloud_dropped??0, fmt:v=>v, cmpLow:true },
-    { label:'Retransmissions', key:r=>r.retransmissions_total??0, fmt:v=>v },
-    { label:'Duplicates', key:r=>r.duplicate_deliveries??0, fmt:v=>v, cmpLow:true },
-    { label:'Anomalies Detected', key:r=>r.anomalies_detected??0, fmt:v=>v, cmpLow:true },
+    { label:'Min', key:r=>r.latency_min_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'Max', key:r=>r.latency_max_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
+    { label:'Warmup Excl.', key:r=>r.warmup_excluded_samples??0 },
+
+    G('Delivery Ratios'),
+    { label:'S→E DR', key:r=>(r.sensor_to_edge_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
+    { label:'E→C DR', key:r=>(r.edge_to_cloud_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
+    { label:'End-to-End DR', key:r=>(r.end_to_end_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
+    { label:'Physical DR', key:r=>(r.physical_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
+
+    G('Edge Processing'),
+    { label:'Msg Reduction', key:r=>(r.message_reduction_ratio??0)*100, fmt:v=>v?.toFixed(1)+'%', cmpHigh:true },
+    { label:'Events/Cloud Msg', key:r=>r.events_per_cloud_message??0, fmt:v=>v?.toFixed(2), cmpHigh:true },
+    { label:'Valid State Changes', key:r=>r.valid_state_changes??0 },
+
+    G('Anomaly Detection'),
+    { label:'Detected', key:r=>r.anomalies_detected??0, cmpLow:true },
+    { label:'Resolved', key:r=>r.anomalies_resolved??0 },
+    { label:'Active (end)', key:r=>r.active_anomalies??0, cmpLow:true },
+    { label:'Affected Spots', key:r=>r.anomaly_detected_spots??0, cmpLow:true },
+    { label:'Peak Quarantined', key:r=>r.quarantined_spots_peak??0, cmpLow:true },
+    { label:'Mode Switches', key:r=>r.adaptive_mode_switches??0 },
+    { label:'Faults Injected', key:r=>r.fault_injected_count??0 },
+
+    G('Bandwidth'),
+    { label:'S→E (KB)', key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'E→C (KB)', key:r=>(r.edge_to_cloud_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Protocol OH (KB)', key:r=>(r.protocol_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Broker Score', key:r=>r.broker_overhead_score??0, fmt:v=>v?.toFixed(3), cmpLow:true },
+
+    G('Energy'),
+    { label:'Per-Sensor (mJ)', key:r=>r.energy_per_sensor_mj, fmt:v=>v?.toFixed(2), cmpLow:true },
+    { label:'Battery Life (d)', key:r=>r.battery_life_days, fmt:v=>v?.toFixed(1), cmpHigh:true },
+
+    G('Resources'),
+    { label:'Edge Mem (MB)', key:r=>r.edge_mem_mb, fmt:v=>v?.toFixed(1), cmpLow:true },
+    { label:'Cloud Mem (MB)', key:r=>r.cloud_mem_mb, fmt:v=>v?.toFixed(1), cmpLow:true },
   ];
 
   let html = '<div class="cmp-table">';
@@ -338,6 +389,10 @@ function _buildCmpTable(sel) {
   html += '</div>';
 
   metrics.forEach(m => {
+    if (m.group) {
+      html += `<div class="cmp-table-row cmp-group-row"><div class="cmp-table-cell cmp-group-header">${m.group}</div></div>`;
+      return;
+    }
     const vals = sel.map(r => m.key(r));
     const numVals = vals.filter(v => typeof v === 'number' && !isNaN(v));
     let bestVal = null, worstVal = null;

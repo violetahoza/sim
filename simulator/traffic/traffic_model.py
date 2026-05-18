@@ -104,6 +104,11 @@ class TrafficModel:
                     self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
 
         self._schedule_next_arrival(0.0)
+        hb = self.config.heartbeat_interval_s
+        if hb > 0.0:
+            for spot_id in range(self.num_spots):
+                offset = self.rng.uniform(0.0, hb)
+                self.clock.schedule_at(offset, lambda s=spot_id, t=offset: self._heartbeat_spot(s, t))
 
 
     def _schedule_next_arrival(self, from_time: float) -> None:
@@ -124,6 +129,8 @@ class TrafficModel:
             event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq())
             self.event_cb(event)
 
+            self._maybe_schedule_duplicate(spot_id, SpotState.OCCUPIED, virtual_time)
+
             dwell = self._sample_dwell()
             dep_t = virtual_time + dwell
             self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
@@ -138,7 +145,32 @@ class TrafficModel:
         ts = self._make_timestamp(virtual_time)
         event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.FREE, timestamp=ts, sequence=self._next_seq())
         self.event_cb(event)
+        self._maybe_schedule_duplicate(spot_id, SpotState.FREE, virtual_time)
 
+    def _heartbeat_spot(self, spot_id: int, virtual_time: float) -> None:
+        if virtual_time >= self._end_time:
+            return
+        state = SpotState.OCCUPIED if self.occupied.get(spot_id, False) else SpotState.FREE
+        ts = self._make_timestamp(virtual_time)
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts, sequence=self._next_seq())
+        self.event_cb(event)
+        next_t = virtual_time + self.config.heartbeat_interval_s
+        if next_t < self._end_time:
+            self.clock.schedule_at(next_t, lambda s=spot_id, t=next_t: self._heartbeat_spot(s, t))
+
+    def _maybe_schedule_duplicate(self, spot_id: int, state: SpotState, virtual_time: float) -> None:
+        prob = self.config.duplicate_send_prob
+        if prob <= 0.0 or self.rng.random() >= prob:
+            return
+        delay = self.rng.uniform(0.5, 4.5)
+        dup_t = virtual_time + delay
+        if dup_t >= self._end_time:
+            return
+        ts = self._make_timestamp(virtual_time)
+        seq = self._next_seq()
+        self.clock.schedule_at(dup_t, lambda s=spot_id, st=state, t=ts, sq=seq: self.event_cb(
+            ParkingEvent(sensor_id=f"sensor_{s:04d}", spot_id=s, state=st, timestamp=t, sequence=sq)
+        ))
 
     def _make_timestamp(self, virtual_time: float) -> float:
         if self._wall_clock:
