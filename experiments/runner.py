@@ -22,9 +22,6 @@ from simulator.cloud.cloud_process import CloudWorkerProcess
 
 logger = logging.getLogger(__name__)
 
-_SF7_TX_J: float = 0.030      
-_AA_BATTERY_J: float = 12_960.0
-
 _PROTOCOL_SEED_OFFSET = {"mqtt": 1000, "coap": 2000, "amqp": 3000}
 
 
@@ -41,7 +38,9 @@ class ExperimentRunner:
         self._cancelled: bool = False
         self._spot_states: dict[int, str] = {}
         self._fault_injector = fault_injector
-        self._edge_summary: dict = {} 
+        self._edge_summary: dict = {}
+        # Bug 2 fix: keep a handle on the backhaul link so cloud_only can report its real bytes.
+        self._backhaul_link: LinkEmulator | None = None
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -82,6 +81,7 @@ class ExperimentRunner:
         backhaul_link = LinkEmulator(cfg.backhaul_link.to_link_config(), clock, rng=_backhaul_rng)
         backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
         backhaul_link.set_batch_callback(backend.publish)
+        self._backhaul_link = backhaul_link
 
         def edge_to_cloud(batch: BatchUpdate, raw: bytes) -> None:
             backhaul_link.transmit_batch(batch, raw)
@@ -166,45 +166,49 @@ class ExperimentRunner:
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
 
         sensor_events = sensors.total_generated
+        state_changes_generated = sensors.state_changes_generated
         cloud_events = cloud.received_events
+        cloud_transitions = cloud.transitions_received
         ls = link.stats
         es = self._edge_summary if self._edge_summary else edge.summary()
         cs = cloud.get_metrics_snapshot(include_cpu=False)
         arch = cfg.architecture
 
+        bh = self._backhaul_link.stats if self._backhaul_link is not None else None
+
+        s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
+        s2e_dr = ls.delivery_ratio
+
         if arch == "cloud_only":
-            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
-            e2c_msgs, e2c_bytes = 0, 0
-            s2e_dr, e2c_dr = ls.delivery_ratio, 1.0
+            # No edge node, but the backhaul link DID carry traffic; report it as e2c.
+            e2c_msgs = bh.sent if bh is not None else 0
+            e2c_bytes = bh.total_bytes_sent if bh is not None else 0
+            e2c_dr = bh.delivery_ratio if bh is not None else 1.0
         else:
-            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
-            s2e_dr = ls.delivery_ratio
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
 
         filtered_events = es.get("filtered", 0)
-        valid_state_changes = max(sensor_events - filtered_events, 0)
         events_reflected = cloud_events
 
-        physical_delivery_ratio = s2e_dr * e2c_dr
-        cloud_reflection_ratio = (events_reflected / valid_state_changes) if valid_state_changes > 0 else 1.0
-        cloud_reflection_ratio = min(cloud_reflection_ratio, 1.0)
+        valid_state_changes = state_changes_generated
 
-        cloud_msgs = e2c_msgs if arch != "cloud_only" else cloud_events
+        physical_delivery_ratio = s2e_dr * e2c_dr
+        if valid_state_changes > 0:
+            cloud_reflection_ratio = min(cloud_transitions / valid_state_changes, 1.0)
+        else:
+            cloud_reflection_ratio = 1.0
+
+        cloud_msgs = e2c_msgs
         agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
         message_reduction_ratio = (1.0 - agg_ratio) if sensor_events > 0 else 0.0
         events_per_cloud_message = (events_reflected / cloud_msgs) if cloud_msgs > 0 else 0.0
 
         transport_total = s2e_msgs + retransmits
-        e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
-
-        tx_per_sensor = s2e_msgs / max(cfg.num_spots, 1)
-        energy_per_sensor_mj = tx_per_sensor * _SF7_TX_J * 1000.0  
-        tx_rate_hz = tx_per_sensor / max(cfg.sim_duration_s, 1.0)  
-        max_tx = _AA_BATTERY_J / _SF7_TX_J 
-        battery_life_days = max_tx / max(tx_rate_hz * 86_400.0, 1e-12)
+        e2c_dropped = (bh.dropped if arch == "cloud_only" and bh is not None
+                       else es.get("link_stats", {}).get("dropped", 0))
 
         fi = self._fault_injector
         return ExperimentMetrics(
@@ -259,14 +263,12 @@ class ExperimentRunner:
             cloud_mem_mb=cs.get("mem_mb", 0.0),
 
             broker_overhead_score=cloud.compute_broker_overhead_score(),
-            energy_per_sensor_mj=round(energy_per_sensor_mj, 3),
-            battery_life_days=round(battery_life_days, 1),
             warmup_excluded_samples=cloud.warmup_excluded,
 
             fault_injected_count=fi.injected_count if fi is not None else 0,
             quarantined_spots_peak=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
-            
+
             events_generated=sensor_events,
             sensor_link_dropped=ls.dropped,
 
@@ -382,32 +384,39 @@ class ExperimentRunner:
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
 
         sensor_events = sensors.total_generated
+        state_changes_generated = sensors.state_changes_generated
         cloud_events = all_data.get("received_events", cloud_proc.received_events)
+        cloud_transitions = (cloud_snapshot.get("transitions_received")
+                             or all_data.get("transitions_received")
+                             or cloud_events)
         ls = link.stats
         es = edge_proc.summary()
         arch = cfg.architecture
 
+        s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
+        s2e_dr = ls.delivery_ratio
+
         if arch == "cloud_only":
-            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
-            e2c_msgs, e2c_bytes = 0, 0
-            s2e_dr, e2c_dr = ls.delivery_ratio, 1.0
+            e2c_msgs = s2e_msgs
+            e2c_bytes = s2e_bytes
+            e2c_dr = 1.0
         else:
-            s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
-            s2e_dr = ls.delivery_ratio
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
 
         filtered_events = es.get("filtered", 0)
-        valid_state_changes = max(sensor_events - filtered_events, 0)
+        valid_state_changes = state_changes_generated
         events_reflected = cloud_events
 
         physical_delivery_ratio = s2e_dr * e2c_dr
-        cloud_reflection_ratio = (events_reflected / valid_state_changes) if valid_state_changes > 0 else 1.0
-        cloud_reflection_ratio = min(cloud_reflection_ratio, 1.0)
+        if valid_state_changes > 0:
+            cloud_reflection_ratio = min(cloud_transitions / valid_state_changes, 1.0)
+        else:
+            cloud_reflection_ratio = 1.0
 
-        cloud_msgs = e2c_msgs if arch != "cloud_only" else cloud_events
+        cloud_msgs = e2c_msgs
         agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
         message_reduction_ratio = (1.0 - agg_ratio) if sensor_events > 0 else 0.0
         events_per_cloud_message = (events_reflected / cloud_msgs) if cloud_msgs > 0 else 0.0
@@ -465,6 +474,11 @@ class ExperimentRunner:
             cloud_mem_mb=cloud_snapshot.get("mem_mb", 0.0),
 
             broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
+
+            # Bug 4 & 5 fix: populate these in the real path too.
+            events_generated=sensor_events,
+            sensor_link_dropped=ls.dropped,
+
             latency_samples=post_samples[-50_000:]
         )
 

@@ -80,12 +80,9 @@ class MultiSeedResult:
     filtered_mean: float = 0.0
     retransmissions_mean: float = 0.0
 
-    latency_mean_ci95_ms: float = 0.0   
+    latency_mean_ci95_ms: float = 0.0
     latency_p99_ci95_ms: float = 0.0
     delivery_ratio_ci95: float = 0.0
-
-    energy_mj_mean: float = 0.0
-    battery_life_days_mean: float = 0.0
 
     conservation_ok: bool = True
     conservation_violations: int = 0
@@ -108,8 +105,6 @@ class MultiSeedResult:
         events_per_msg = _arr("events_per_cloud_message")
         agg = _arr("aggregation_ratio")
         filt = _arr("filtered_events")
-        energy = _arr("energy_per_sensor_mj")
-        battery = _arr("battery_life_days")
 
         self.latency_mean_mean = float(np.mean(lat_means))
         self.latency_mean_std = float(np.std(lat_means))
@@ -126,8 +121,10 @@ class MultiSeedResult:
         self.events_per_cloud_message_mean = float(np.mean(events_per_msg))
         self.aggregation_ratio_mean = float(np.mean(agg))
         self.filtered_mean = float(np.mean(filt))
-        self.energy_mj_mean = float(np.mean(energy))
-        self.battery_life_days_mean = float(np.mean(battery))
+
+        self.latency_mean_ci95_ms = _ci95(lat_means)
+        self.latency_p99_ci95_ms = _ci95(lat_p99)
+        self.delivery_ratio_ci95 = _ci95(dr)
 
     def summary_dict(self) -> dict:
         return {
@@ -156,8 +153,6 @@ class MultiSeedResult:
             "events_per_cloud_message_mean": round(self.events_per_cloud_message_mean, 2),
             "aggregation_ratio_mean": round(self.aggregation_ratio_mean, 4),
             "filtered_mean": round(self.filtered_mean, 1),
-            "energy_mj_mean": round(self.energy_mj_mean, 3),
-            "battery_life_days_mean": round(self.battery_life_days_mean, 1),
             "conservation_ok": self.conservation_ok,
             "conservation_violations": self.conservation_violations,
         }

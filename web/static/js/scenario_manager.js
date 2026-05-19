@@ -230,8 +230,6 @@ function _buildCmpKpis(sel) {
   const bestAgg = aggCands.length ? aggCands.reduce((a, b) => (a.aggregation_ratio < b.aggregation_ratio ? a : b)) : null;
   const bwCands = sel.filter(r => (r.edge_to_cloud_bytes ?? 0) > 0);
   const bestBw = bwCands.length ? bwCands.reduce((a, b) => (a.edge_to_cloud_bytes < b.edge_to_cloud_bytes ? a : b)) : null;
-  const batCands = sel.filter(r => (r.battery_life_days ?? 0) > 0);
-  const bestBat = batCands.length ? batCands.reduce((a, b) => (a.battery_life_days > b.battery_life_days ? a : b)) : null;
   const retryCands = sel.filter(r => sel.some(s => (s.retransmissions_total ?? 0) > 0));
   const bestRetry = retryCands.length > 1 ? retryCands.reduce((a, b) => ((a.retransmissions_total ?? 0) < (b.retransmissions_total ?? 0) ? a : b)) : null;
 
@@ -240,7 +238,6 @@ function _buildCmpKpis(sel) {
     { label:'MOST RELIABLE', icon:'📦', name:bestDel.scenario_name, val:`${((bestDel.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)}% delivery`, color:'var(--green)' },
     bestAgg ? { label:'BEST COMPRESSION', icon:'💾', name:bestAgg.scenario_name, val:`${((1-bestAgg.aggregation_ratio)*100).toFixed(1)}% fewer msgs`, color:'var(--blue)' } : null,
     bestBw  ? { label:'LOWEST CLOUD BW', icon:'📡', name:bestBw.scenario_name, val:`${(bestBw.edge_to_cloud_bytes/1024).toFixed(1)} KB`, color:'var(--purple)' } : null,
-    bestBat ? { label:'LONGEST BATTERY', icon:'🔋', name:bestBat.scenario_name, val:`${bestBat.battery_life_days?.toFixed(1)}d`, color:'var(--amber)' } : null,
     bestRetry ? { label:'FEWEST RETRIES', icon:'🔁', name:bestRetry.scenario_name, val:`${bestRetry.retransmissions_total ?? 0} retransmissions`, color:'var(--green)' } : null,  
   ].filter(Boolean);
 
@@ -370,10 +367,6 @@ function _buildCmpTable(sel) {
     { label:'E→C (KB)', key:r=>(r.edge_to_cloud_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
     { label:'Protocol OH (KB)', key:r=>(r.protocol_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
     { label:'Broker Score', key:r=>r.broker_overhead_score??0, fmt:v=>v?.toFixed(3), cmpLow:true },
-
-    G('Energy'),
-    { label:'Per-Sensor (mJ)', key:r=>r.energy_per_sensor_mj, fmt:v=>v?.toFixed(2), cmpLow:true },
-    { label:'Battery Life (d)', key:r=>r.battery_life_days, fmt:v=>v?.toFixed(1), cmpHigh:true },
 
     G('Resources'),
     { label:'Edge Mem (MB)', key:r=>r.edge_mem_mb, fmt:v=>v?.toFixed(1), cmpLow:true },

@@ -323,9 +323,6 @@ function showResult(r, animate) {
   setText('mt_proto_bytes', fmtKB(r.protocol_bytes));
   setText('mt_broker_score', fmt(r.broker_overhead_score, '', 3));
 
-  setText('mt_energy_mj', fmt(r.energy_per_sensor_mj, ' mJ', 2));
-  setText('mt_battery', fmt(r.battery_life_days, ' d', 1));
-
   setText('mt_edge_mem', fmt(r.edge_mem_mb, ' MB', 1));
   setText('mt_cloud_mem', fmt(r.cloud_mem_mb, ' MB', 1));
 }

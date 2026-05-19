@@ -15,13 +15,13 @@ from ..des.engine import SimClock
 logger = logging.getLogger(__name__)
 
 _BROKER_SERVICE_RATE: dict[str, float] = {
-    "mqtt_qos0": 50_000.0, 
-    "mqtt_qos1": 20_000.0, 
-    "mqtt_qos2": 8_000.0, 
-    "amqp_direct/auto": 25_000.0, 
-    "amqp_direct/manual": 10_000.0, 
-    "amqp_topic/manual": 8_000.0, 
-    "coap_NON": 45_000.0,  
+    "mqtt_qos0": 50_000.0,
+    "mqtt_qos1": 20_000.0,
+    "mqtt_qos2": 8_000.0,
+    "amqp_direct/auto": 25_000.0,
+    "amqp_direct/manual": 10_000.0,
+    "amqp_topic/manual": 8_000.0,
+    "coap_NON": 45_000.0,
     "coap_CON": 18_000.0
 }
 
@@ -43,9 +43,10 @@ class CloudBackend:
 
         self.received_batches = 0
         self.received_events = 0
+        self.transitions_received = 0
 
         self._latency_ms: list[float] = []
-        self._post_warmup_ms: list[float] = []   
+        self._post_warmup_ms: list[float] = []
         self.warmup_excluded: int = 0
         self._event_rows: list[tuple] = []
 
@@ -86,10 +87,17 @@ class CloudBackend:
         self.received_events += 1
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         spot = self._spots.get(event.spot_id)
+        is_transition = False
         if spot is not None:
+            if spot["state"] != state_val and spot["received_at"] > 0.0:
+                is_transition = True
+            elif spot["received_at"] == 0.0 and state_val != SpotState.FREE.value:
+                is_transition = False
             spot["state"] = state_val
             spot["last_updated"] = event.timestamp
             spot["received_at"] = arrival
+        if is_transition:
+            self.transitions_received += 1
 
         latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
         self._latency_ms.append(latency_ms)
@@ -228,6 +236,7 @@ class CloudBackend:
         snapshot = {
             "received_batches": self.received_batches,
             "received_events": self.received_events,
+            "transitions_received": self.transitions_received,
             "total_bytes_received": self._total_bytes_received,
             "latency_mean_ms": round(mean, 2),
             "latency_p50_ms": round(p50, 2),

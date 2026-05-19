@@ -17,6 +17,7 @@ class SensorEmulator:
         self._sensor_states: dict[int, SensorState] = {i: SensorState(spot_id=i) for i in range(self.num_spots)}
         self._callbacks: list[SensorCallback] = []
         self._total_generated = 0
+        self._state_changes_generated = 0
         self._fault_injector = None
 
     def set_fault_injector(self, fi) -> None:
@@ -27,6 +28,7 @@ class SensorEmulator:
 
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
+        is_transition = (not event.is_initial) and (state.state != event.state)
         if state.state == event.state:
             state.consecutive_same += 1
         else:
@@ -36,7 +38,9 @@ class SensorEmulator:
         state.last_updated = event.timestamp
         state.total_events += 1
         self._total_generated += 1
-        
+        if is_transition:
+            self._state_changes_generated += 1
+
         tx_events = (self._fault_injector.apply(event) if self._fault_injector is not None else [event])
         for e in tx_events:
             for cb in self._callbacks:
@@ -49,6 +53,11 @@ class SensorEmulator:
     @property
     def total_generated(self) -> int:
         return self._total_generated
+
+    @property
+    def state_changes_generated(self) -> int:
+        """Unique state transitions emitted by sensors. Independent of link/edge/protocol."""
+        return self._state_changes_generated
 
     def occupancy_snapshot(self) -> dict:
         total = self.num_spots

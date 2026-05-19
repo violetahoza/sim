@@ -141,14 +141,14 @@ class ExperimentMetrics:
 
     broker_overhead_score: float = 0.0
 
-    energy_per_sensor_mj: float = 0.0   
-    battery_life_days: float = 0.0    
+    warmup_excluded_samples: int = 0
 
-    warmup_excluded_samples: int = 0  
+    fault_injected_count: int = 0
+    quarantined_spots_peak: int = 0
+    anomaly_detected_spots: int = 0
 
-    fault_injected_count: int = 0  
-    quarantined_spots_peak: int = 0 
-    anomaly_detected_spots: int = 0 
+    events_generated: int = 0
+    sensor_link_dropped: int = 0
 
     latency_samples: list[float] = field(default_factory=list)
 
