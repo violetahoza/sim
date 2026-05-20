@@ -21,11 +21,7 @@ DEFAULT_TOD_FACTORS: list[float] = [
     2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  # 18–23
 ]
 
-ARRIVAL_RATES: dict[str, float] = {
-    "low": 0.0069,
-    "medium": 0.0153,
-    "peak": 0.0236,
-}
+ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
 
 SIM_DURATION_S = 10_800.0
 DEFAULT_AGG_INTERVAL_S = 1.0
@@ -48,9 +44,9 @@ class LinkConfig:
     lorawan_duty_cycle: bool = False
     sf_airtime_ms: float = 41.0
 
+
 @dataclass
 class BackhaulLinkConfig:
-
     base_delay_ms: float = 30.0
     jitter_ms: float = 10.0
     packet_loss_rate: float = 0.001
@@ -69,6 +65,7 @@ class BackhaulLinkConfig:
             lorawan_duty_cycle=False
         )
 
+
 @dataclass
 class EdgeConfig:
     architecture: Architecture = "edge_aggregated"
@@ -78,12 +75,12 @@ class EdgeConfig:
 
     filter_no_change: bool = True
     duplicate_window_s: float = 5.0
-    heartbeat_forward_interval_s: float = 300.0
+    heartbeat_forward_interval_s: float = 1800.0
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False
-    stuck_threshold: int = 10
-    silent_threshold_s: float = 3600.0
+    stuck_threshold: int = 720      
+    silent_threshold_s: float = 7200.0  
     quarantine_threshold: int = 5
     quarantine_recovery_events: int = 3
 
@@ -119,13 +116,14 @@ class CoAPConfig:
     mode: CoAPMode = "CON"
     resource: str = "parking/update"
 
+
 @dataclass
 class TrafficConfig:
     num_spots: int = 50
 
-    arrival_rate_low: float = 0.0069
-    arrival_rate_medium: float = 0.0153
-    arrival_rate_peak: float = 0.0236
+    arrival_rate_low: float = ARRIVAL_RATES["low"]
+    arrival_rate_medium: float = ARRIVAL_RATES["medium"]
+    arrival_rate_peak: float = ARRIVAL_RATES["peak"]
 
     mean_parking_duration_s: float = 1800.0
     parking_duration_cv: float = 1.5
@@ -165,36 +163,25 @@ class ScenarioConfig:
 
     def to_save_dict(self) -> dict:
         d = asdict(self)
-        link = d["link"]
-        bh = d["backhaul_link"]
-        edge = d["edge"]
-        mqtt = d["mqtt"]
-        amqp = d["amqp"]
-        coap = d["coap"]
-        traffic = d["traffic"]
+        link = d["link"]; edge = d["edge"]; mqtt = d["mqtt"]
+        amqp = d["amqp"]; coap = d["coap"]; traffic = d["traffic"]
         return {
-            "name": d["name"],
-            "description": d["description"],
-            "protocol": d["protocol"],
-            "architecture": d["architecture"],
-            "traffic_level": d["traffic_level"],
-            "num_spots": d["num_spots"],
-            "sim_duration_s": d["sim_duration_s"],
-            "group": d["group"],
-            "group_order": d["group_order"],
-            "seed": d["random_seed"],
-            "is_builtin": False,
+            "name": self.name,
+            "description": self.description,
+            "protocol": self.protocol,
+            "architecture": self.architecture,
+            "traffic_level": self.traffic_level,
+            "num_spots": self.num_spots,
+            "sim_duration_s": self.sim_duration_s,
+            "seed": self.random_seed,
+            "group": self.group,
+            "group_order": self.group_order,
+            "loss_rate": link["packet_loss_rate"],
+            "rate_limit": link["rate_limit_msgs_per_sec"],
             "base_delay_ms": link["base_delay_ms"],
             "jitter_ms": link["jitter_ms"],
             "max_payload_bytes": link["max_payload_bytes"],
             "payload_encoding_ratio": link["payload_encoding_ratio"],
-            "loss_rate": link["packet_loss_rate"],
-            "rate_limit": link["rate_limit_msgs_per_sec"],
-            "lorawan_duty_cycle": link["lorawan_duty_cycle"],
-            "sf_airtime_ms": link["sf_airtime_ms"],
-            "backhaul_base_delay_ms": bh["base_delay_ms"],
-            "backhaul_jitter_ms": bh["jitter_ms"],
-            "backhaul_loss_rate": bh["packet_loss_rate"],
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
             "max_batch_size": edge["max_batch_size"],
@@ -213,14 +200,14 @@ class ScenarioConfig:
             "amqp_durable": amqp["durable"],
             "time_scale": traffic["time_scale"],
             "parking_duration_cv": traffic["parking_duration_cv"],
+            "mean_parking_duration_s": traffic["mean_parking_duration_s"],
             "use_time_of_day": traffic["use_time_of_day"],
             "start_hour": traffic["start_hour"],
             "initial_occupancy": traffic["initial_occupancy"],
             "tod_factors": traffic["tod_factors"],
             "use_dwell_mixture": traffic["use_dwell_mixture"],
-            "use_dwell_mixture": traffic["use_dwell_mixture"],
             "heartbeat_interval_s": traffic["heartbeat_interval_s"],
-            "duplicate_send_prob": traffic["duplicate_send_prob"]
+            "duplicate_send_prob": traffic["duplicate_send_prob"],
         }
 
     @classmethod
@@ -237,12 +224,12 @@ class ScenarioConfig:
             max_event_age_s=d.get("max_event_age_s", 2.0),
             max_batch_size=d.get("max_batch_size", 50),
             duplicate_window_s=d.get("duplicate_window_s", 5.0),
-            heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 300.0),
+            heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 1800.0),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
-            stuck_threshold=d.get("stuck_threshold", 10),
-            silent_threshold_s=d.get("silent_threshold_s", 3600.0),
-            quarantine_threshold=d.get("quarantine_threshold", 3),
+            stuck_threshold=d.get("stuck_threshold", 720),
+            silent_threshold_s=d.get("silent_threshold_s", 7200.0),
+            quarantine_threshold=d.get("quarantine_threshold", 5),
             quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
@@ -251,48 +238,45 @@ class ScenarioConfig:
             amqp_durable=d.get("amqp_durable", True),
             sim_duration_s=d.get("sim_duration_s", SIM_DURATION_S),
             seed=d.get("seed", 42),
-            group=d.get("group", "User Scenarios"),
-            group_order=d.get("group_order", 99),
+            group=d.get("group", ""),
+            group_order=d.get("group_order", 0),
             rate_limit=d.get("rate_limit"),
             time_scale=d.get("time_scale", DEFAULT_TIME_SCALE),
-            is_builtin=False,
             base_delay_ms=d.get("base_delay_ms", 80.0),
             jitter_ms=d.get("jitter_ms", 30.0),
             max_payload_bytes=d.get("max_payload_bytes", 51),
             payload_encoding_ratio=d.get("payload_encoding_ratio", 0.15),
-            lorawan_duty_cycle=d.get("lorawan_duty_cycle", True),
-            sf_airtime_ms=d.get("sf_airtime_ms", 41.0),
-            backhaul_base_delay_ms=d.get("backhaul_base_delay_ms", 30.0),
-            backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
-            backhaul_loss_rate=d.get("backhaul_loss_rate", 0.001),
+            mean_parking_duration_s=d.get("mean_parking_duration_s", 1800.0),
             parking_duration_cv=d.get("parking_duration_cv", 1.5),
             use_time_of_day=d.get("use_time_of_day", False),
             start_hour=d.get("start_hour", 8.0),
             initial_occupancy=d.get("initial_occupancy"),
             tod_factors=d.get("tod_factors"),
             use_dwell_mixture=d.get("use_dwell_mixture", True),
-            heartbeat_interval_s=d.get("heartbeat_interval_s", 60.0)
+            heartbeat_interval_s=d.get("heartbeat_interval_s", 60.0),
+            duplicate_send_prob=d.get("duplicate_send_prob", 0.05),
+            is_builtin=d.get("is_builtin", False)
         )
-    
+
 
 def make_scenario(
     name: str,
-    description: str,
-    protocol: Protocol,
-    architecture: Architecture,
-    traffic_level: TrafficLevel,
+    description: str = "",
+    protocol: Protocol = "mqtt",
+    architecture: Architecture = "edge_aggregated",
+    traffic_level: TrafficLevel = "medium",
     num_spots: int = 50,
     loss_rate: float = 0.05,
     aggregation_interval: float = DEFAULT_AGG_INTERVAL_S,
     max_event_age_s: float = 2.0,
     max_batch_size: int = 50,
     duplicate_window_s: float = 5.0,
-    heartbeat_forward_interval_s: float = 300.0,
+    heartbeat_forward_interval_s: float = 1800.0,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
-    stuck_threshold: int = 10,
-    silent_threshold_s: float = 3600.0,
-    quarantine_threshold: int = 3,
+    stuck_threshold: int = 720,
+    silent_threshold_s: float = 7200.0,
+    quarantine_threshold: int = 5,
     quarantine_recovery_events: int = 3,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
@@ -330,7 +314,7 @@ def make_scenario(
     if rate_limit is None:
         rate_limit = max(2.0, num_spots / 10.0)
 
-    occ_map = {"low": 0.25, "medium": 0.55, "peak": 0.85}
+    occ_map = {"low": 0.12, "medium": 0.45, "peak": 0.80}
     occ = initial_occupancy if initial_occupancy is not None else occ_map[traffic_level]
 
     link = LinkConfig(
@@ -368,6 +352,7 @@ def make_scenario(
         time_scale=time_scale,
         use_time_of_day=use_time_of_day,
         start_hour=start_hour,
+        use_dwell_mixture=use_dwell_mixture,
         heartbeat_interval_s=heartbeat_interval_s,
         duplicate_send_prob=duplicate_send_prob,
         **({"tod_factors": tod_factors} if tod_factors is not None else {})

@@ -74,13 +74,16 @@ class EdgeNode:
 
         now_virtual = event.timestamp - self._epoch
 
+        if event.is_initial and event.sequence > self.config.num_spots:
+            cached.last_updated = event.timestamp
+            self.filtered_count += 1
+            return
+
         if self.edge_cfg.anomaly_detection:
             self._check_r3_r4(event, cached, now_virtual)
 
         if self._should_filter(event, cached):
             self.filtered_count += 1
-            if cached.state == event.state:
-                cached.consecutive_same += 1
             return
 
         if self.edge_cfg.anomaly_detection:
@@ -94,9 +97,11 @@ class EdgeNode:
 
         if state_changed:
             cached.last_state_change_timestamp = event.timestamp
+            cached.consecutive_same = 0
+        else:
+            cached.consecutive_same += 1
 
         cached.last_event_seq = max(cached.last_event_seq, event.sequence)
-        cached.consecutive_same = 0 if state_changed else cached.consecutive_same + 1
         cached.total_events += 1
 
         if self.edge_cfg.anomaly_detection:
@@ -132,7 +137,11 @@ class EdgeNode:
         if recent_repeat:
             return True
 
-        heartbeat_due = (cached.last_forwarded_timestamp == 0.0 or (event.timestamp - cached.last_forwarded_timestamp) >= self.edge_cfg.heartbeat_forward_interval_s)
+        heartbeat_due = (
+            cached.last_forwarded_timestamp == 0.0
+            or (event.timestamp - cached.last_forwarded_timestamp)
+            >= self.edge_cfg.heartbeat_forward_interval_s
+        )
         return not heartbeat_due
 
     def _flush_if_needed(self) -> None:
@@ -156,25 +165,55 @@ class EdgeNode:
     def _check_r3_r4(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
         sid = event.spot_id
 
-        last_arr = self._last_arrival_virtual.get(sid)
-        if last_arr is not None and (now_virtual - last_arr) < _RAPID_ARRIVAL_S:
-            self._flag_anomaly(sid, "R3_rapid_arrival", now_virtual)
+        if event.state.value == "occupied" and not event.is_initial:
+            last_arr = self._last_arrival_virtual.get(sid)
+            if last_arr is not None and (now_virtual - last_arr) < _RAPID_ARRIVAL_S:
+                self._flag_anomaly(sid, "R3_rapid_arrival", now_virtual)
+            else:
+                self._resolve_anomaly(sid, "R3_rapid_arrival", now_virtual)
+            self._last_arrival_virtual[sid] = now_virtual
         else:
             self._resolve_anomaly(sid, "R3_rapid_arrival", now_virtual)
-        self._last_arrival_virtual[sid] = now_virtual
 
-        if cached.last_event_seq > 0 and event.sequence <= cached.last_event_seq:
+        if cached.last_event_seq > 0 and event.sequence < cached.last_event_seq:
             self._flag_anomaly(sid, "R4_stale_seq", now_virtual)
         else:
             self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
+        """R5: impossibly short dwell between two state transitions."""
         if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
             last_change_virtual = cached.last_state_change_timestamp - self._epoch
             if (now_virtual - last_change_virtual) < _MIN_DWELL_S:
                 self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
                 return
         self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+
+    def _check_anomalies(self) -> None:
+        now_virtual = self.clock.now
+        silent_thr_s = self.edge_cfg.silent_threshold_s
+
+        stuck_thr_s = 12.0 * 3600.0
+
+        for spot_id, state in self._cache.items():
+            if state.last_state_change_timestamp > 0.0:
+                last_change_virtual = state.last_state_change_timestamp - self._epoch
+                same_state_age = now_virtual - last_change_virtual
+
+                if state.state.value == "occupied" and same_state_age > stuck_thr_s:
+                    self._flag_anomaly(spot_id, "R1_stuck_at", now_virtual)
+                else:
+                    self._resolve_anomaly(spot_id, "R1_stuck_at", now_virtual)
+            else:
+                self._resolve_anomaly(spot_id, "R1_stuck_at", now_virtual)
+
+            if state.last_updated == 0.0:
+                continue
+            last_virtual = state.last_updated - self._epoch
+            if (now_virtual - last_virtual) > silent_thr_s:
+                self._flag_anomaly(spot_id, "R2_silent", now_virtual)
+            else:
+                self._resolve_anomaly(spot_id, "R2_silent", now_virtual)
 
     def _flag_anomaly(self, spot_id: int, rule: str, virtual_time: float) -> None:
         key = (spot_id, rule)
@@ -232,25 +271,6 @@ class EdgeNode:
                 self._active_anomalies.remove(key)
                 self._resolved_anomalies += 1
         logger.info(f"[QUARANTINE] Spot {spot_id} released after {reason}")
-
-    def _check_anomalies(self) -> None:
-        now_virtual = self.clock.now
-        stuck_thr = self.edge_cfg.stuck_threshold
-        silent_thr_s = self.edge_cfg.silent_threshold_s
-
-        for spot_id, state in self._cache.items():
-            if state.consecutive_same > stuck_thr:
-                self._flag_anomaly(spot_id, "R1_stuck_at", now_virtual)
-            else:
-                self._resolve_anomaly(spot_id, "R1_stuck_at", now_virtual)
-
-            if state.last_updated == 0.0:
-                continue
-            last_virtual = state.last_updated - self._epoch
-            if (now_virtual - last_virtual) > silent_thr_s:
-                self._flag_anomaly(spot_id, "R2_silent", now_virtual)
-            else:
-                self._resolve_anomaly(spot_id, "R2_silent", now_virtual)
 
     def _forward_single(self, event: ParkingEvent) -> None:
         batch = BatchUpdate(edge_id=self.edge_id, events=[event])

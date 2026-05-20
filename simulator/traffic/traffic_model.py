@@ -10,14 +10,14 @@ from ..des.engine import SimClock
 
 
 class TrafficModel:
-   
+  
     MIN_DWELL_S: float = 30.0
-    MAX_DWELL_S: float = 43_200.0  
+    MAX_DWELL_S: float = 43_200.0 
 
-    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None], epoch: float,
-        rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
+    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None],
+                epoch: float, rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
         self.config = config
-        self.arrival_rate = arrival_rate # base arrivals / virtual second
+        self.arrival_rate = arrival_rate  # arrivals/sec for whole lot
         self.num_spots = config.num_spots
         self.mean_duration = config.mean_parking_duration_s
         self.clock = clock
@@ -35,7 +35,6 @@ class TrafficModel:
         self._end_time: float = 0.0
         self._seq: int = 0
 
-
     def _next_seq(self) -> int:
         self._seq += 1
         return self._seq
@@ -49,7 +48,7 @@ class TrafficModel:
     def _sample_dwell(self) -> float:
         if self.config.use_dwell_mixture:
             return self._sample_dwell_mixture()
-        
+
         cv = self.config.parking_duration_cv
         mu = self.mean_duration
 
@@ -65,13 +64,13 @@ class TrafficModel:
             raw = math.exp(mu_log + sigma * self.rng.gauss(0.0, 1.0))
 
         return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
-    
+
     def _sample_dwell_mixture(self) -> float:
-        P_SHORT = 0.65
+        P_SHORT = 0.90
         if self.rng.random() < P_SHORT:
-            mu, cv = 1800.0, 1.0    
+            mu, cv = 1500.0, 0.9    
         else:
-            mu, cv = 28800.0, 0.5  
+            mu, cv = 14400.0, 0.5 
 
         sigma_sq = math.log(1.0 + cv * cv)
         sigma = math.sqrt(sigma_sq)
@@ -87,8 +86,12 @@ class TrafficModel:
         frac = hour - h
         f0 = self._tod_factors[h % 24]
         f1 = self._tod_factors[(h + 1) % 24]
-        return max(f0 + frac * (f1 - f0), 0.001)  
+        return max(f0 + frac * (f1 - f0), 0.001)
 
+    def _make_timestamp(self, virtual_time: float) -> float:
+        if self._wall_clock:
+            return _time_module.time()
+        return self.epoch + virtual_time
 
     def schedule_run(self, duration_s: float) -> None:
         self._end_time = duration_s
@@ -104,12 +107,12 @@ class TrafficModel:
                     self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
 
         self._schedule_next_arrival(0.0)
+
         hb = self.config.heartbeat_interval_s
         if hb > 0.0:
             for spot_id in range(self.num_spots):
                 offset = self.rng.uniform(0.0, hb)
                 self.clock.schedule_at(offset, lambda s=spot_id, t=offset: self._heartbeat_spot(s, t))
-
 
     def _schedule_next_arrival(self, from_time: float) -> None:
         tod = self._tod_factor(from_time)
@@ -126,7 +129,7 @@ class TrafficModel:
             self.occupied[spot_id] = True
 
             ts = self._make_timestamp(virtual_time)
-            event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq())
+            event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq(), is_initial=False)
             self.event_cb(event)
 
             self._maybe_schedule_duplicate(spot_id, SpotState.OCCUPIED, virtual_time)
@@ -139,11 +142,11 @@ class TrafficModel:
 
     def _on_departure(self, spot_id: int, virtual_time: float) -> None:
         if not self.occupied.get(spot_id, False):
-            return 
+            return
         self.occupied[spot_id] = False
 
         ts = self._make_timestamp(virtual_time)
-        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.FREE, timestamp=ts, sequence=self._next_seq())
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.FREE, timestamp=ts, sequence=self._next_seq(), is_initial=False)
         self.event_cb(event)
         self._maybe_schedule_duplicate(spot_id, SpotState.FREE, virtual_time)
 
@@ -152,7 +155,7 @@ class TrafficModel:
             return
         state = SpotState.OCCUPIED if self.occupied.get(spot_id, False) else SpotState.FREE
         ts = self._make_timestamp(virtual_time)
-        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts, sequence=self._next_seq())
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts, sequence=self._next_seq(), is_initial=True)
         self.event_cb(event)
         next_t = virtual_time + self.config.heartbeat_interval_s
         if next_t < self._end_time:
@@ -168,11 +171,7 @@ class TrafficModel:
             return
         ts = self._make_timestamp(virtual_time)
         seq = self._next_seq()
-        self.clock.schedule_at(dup_t, lambda s=spot_id, st=state, t=ts, sq=seq: self.event_cb(
-            ParkingEvent(sensor_id=f"sensor_{s:04d}", spot_id=s, state=st, timestamp=t, sequence=sq)
-        ))
-
-    def _make_timestamp(self, virtual_time: float) -> float:
-        if self._wall_clock:
-            return _time_module.time()
-        return self.epoch + virtual_time
+        self.clock.schedule_at(
+            dup_t,
+            lambda s=spot_id, st=state, t=ts, sq=seq: self.event_cb(ParkingEvent(sensor_id=f"sensor_{s:04d}", spot_id=s, state=st, timestamp=t, sequence=sq, is_initial=False))
+        )
