@@ -192,7 +192,6 @@ class EdgeNode:
     def _check_anomalies(self) -> None:
         now_virtual = self.clock.now
         silent_thr_s = self.edge_cfg.silent_threshold_s
-
         stuck_thr_s = 12.0 * 3600.0
 
         for spot_id, state in self._cache.items():

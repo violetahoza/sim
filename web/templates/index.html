@@ -87,7 +87,7 @@
             <label>Random Seed</label>
             <input class="styled-input" type="number" id="cf_seed" value="42"/>
           </div>
- 
+
           <div class="form-section">Link &amp; Edge</div>
           <div class="input-group">
             <label>Packet Loss %</label>
@@ -102,34 +102,24 @@
             <input class="styled-input" type="number" id="cf_agg" value="30" min="5" max="300" step="5"/>
           </div>
 
-          <div class="form-section" id="cf_proto_section">Protocol Options</div>
-          <div id="cf_amqp" class="input-group"><label>Exchange</label>
+          <div class="form-section">Protocol Options</div>
+          <div id="cf_amqp"  class="input-group"><label>Exchange</label>
             <select class="styled-select" id="cf_amqp_exchange">
-              <option value="direct" selected>Direct</option>
-              <option value="topic">Topic</option>
-              <option value="fanout">Fanout</option>
-            </select>
-          </div>
+              <option value="direct">Direct</option><option value="topic">Topic</option><option value="fanout">Fanout</option>
+            </select></div>
           <div id="cf_amqp2" class="input-group"><label>ACK Mode</label>
             <select class="styled-select" id="cf_amqp_ack">
-              <option value="manual" selected>Manual</option>
-              <option value="auto">Auto</option>
-            </select>
-          </div>
+              <option value="manual">Manual</option><option value="auto">Auto</option>
+            </select></div>
           <div id="cf_amqp3" class="input-group"><label>Durable</label>
             <select class="styled-select" id="cf_amqp_durable">
-              <option value="true" selected>Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div id="cf_mqtt" class="input-group" style="display:none"><label>MQTT QoS</label>
+              <option value="true">Yes</option><option value="false">No</option>
+            </select></div>
+          <div id="cf_mqtt"  class="input-group" style="display:none"><label>QoS</label>
             <select class="styled-select" id="cf_qos">
-              <option value="0">QoS 0</option>
-              <option value="1" selected>QoS 1</option>
-              <option value="2">QoS 2</option>
-            </select>
-          </div>
-          <div id="cf_coap" class="input-group" style="display:none"><label>CoAP Mode</label>
+              <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+            </select></div>
+          <div id="cf_coap"  class="input-group" style="display:none"><label>CoAP Mode</label>
             <select class="styled-select" id="cf_coap_mode">
               <option value="CON">CON</option>
               <option value="NON">NON</option>
@@ -195,7 +185,7 @@
             <label>Random Seed</label>
             <input class="styled-input" type="number" id="ef_seed"/>
           </div>
- 
+
           <div class="form-section">Link &amp; Edge</div>
           <div class="input-group">
             <label>Packet Loss %</label>
@@ -407,9 +397,9 @@
         <div class="prog-item"><div class="prog-val" id="progGenerated">—</div><div class="prog-lbl">Generated</div></div>
         <div class="prog-item"><div class="prog-val" id="progReceived">—</div><div class="prog-lbl">At Cloud</div></div>
         <div class="prog-item"><div class="prog-val" id="progOccupancy">—</div><div class="prog-lbl">Occupancy</div></div>
-        <div class="prog-item"><div class="prog-val" id="progFiltered">—</div><div class="prog-lbl">Filtered</div></div>
+        <div class="prog-item" id="progFilteredItem"><div class="prog-val" id="progFiltered">—</div><div class="prog-lbl">Filtered</div></div>
         <div class="prog-item"><div class="prog-val" id="progDropped">—</div><div class="prog-lbl">Dropped</div></div>
-        <div class="prog-item"><div class="prog-val" id="progAnomalies">—</div><div class="prog-lbl">Anomalies</div></div>
+        <div class="prog-item" id="progAnomaliesItem"><div class="prog-val" id="progAnomalies">—</div><div class="prog-lbl">Anomalies</div></div>
       </div>
     </div>
 
@@ -449,25 +439,25 @@
         <div class="kpi-value" id="kpi_delivery">—</div>
         <div class="kpi-unit">%</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Agg Ratio</div>
-        <div class="kpi-value" id="kpi_agg">—</div>
-        <div class="kpi-unit">x saved</div>
+      <div class="kpi-card" id="kpi_card_4">
+        <div class="kpi-label" id="kpi_label_4">Agg Ratio</div>
+        <div class="kpi-value" id="kpi_slot_4">—</div>
+        <div class="kpi-unit"  id="kpi_unit_4">x saved</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Filtered</div>
-        <div class="kpi-value" id="kpi_filtered">—</div>
-        <div class="kpi-unit">events</div>
+      <div class="kpi-card" id="kpi_card_5">
+        <div class="kpi-label" id="kpi_label_5">Filtered</div>
+        <div class="kpi-value" id="kpi_slot_5">—</div>
+        <div class="kpi-unit"  id="kpi_unit_5">events</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">S→E Bytes</div>
-        <div class="kpi-value" id="kpi_bytes_se">—</div>
-        <div class="kpi-unit">KB</div>
+      <div class="kpi-card" id="kpi_card_6">
+        <div class="kpi-label" id="kpi_label_6">S→E Bytes</div>
+        <div class="kpi-value" id="kpi_slot_6">—</div>
+        <div class="kpi-unit"  id="kpi_unit_6">KB</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">E→C Bytes</div>
-        <div class="kpi-value" id="kpi_bytes_ec">—</div>
-        <div class="kpi-unit">KB</div>
+      <div class="kpi-card" id="kpi_card_7">
+        <div class="kpi-label" id="kpi_label_7">E→C Bytes</div>
+        <div class="kpi-value" id="kpi_slot_7">—</div>
+        <div class="kpi-unit"  id="kpi_unit_7">KB</div>
       </div>
     </div>
 
@@ -481,7 +471,7 @@
         <canvas id="latencyHistChart" style="max-height:180px"></canvas>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Message Counts by Link</div>
+        <div class="chart-title" id="msgCountChartTitle">Message Counts by Link</div>
         <canvas id="msgCountChart" style="max-height:180px"></canvas>
       </div>
       <div class="chart-card">
@@ -497,60 +487,13 @@
     <div class="metrics-table-toggle" onclick="toggleMetricsTable()">
       <span id="metricsToggleLabel">▼ Full Metrics</span>
     </div>
+
     <div class="metrics-table-wrap" id="metricsTableWrap">
       <table class="metrics-table">
-        <tbody>
-          <tr class="metrics-group-header"><td colspan="4">Message Flow</td></tr>
-          <tr><td>Events Generated</td><td id="mt_events_generated">—</td>
-              <td>S→E Messages</td><td id="mt_s2e_msgs">—</td></tr>
-          <tr><td>Filtered (edge)</td><td id="mt_filtered">—</td>
-              <td>Duplicates Delivered</td><td id="mt_dup_deliveries">—</td></tr>
-          <tr><td>S→E Dropped (link)</td><td id="mt_sensor_dropped">—</td>
-              <td>E→C Messages</td><td id="mt_e2c_msgs">—</td></tr>
-          <tr><td>E→C Dropped</td><td id="mt_e2c_dropped">—</td>
-              <td>Transport Total</td><td id="mt_transport_total">—</td></tr>
-          <tr><td>Retransmissions</td><td id="mt_retransmissions">—</td>
-              <td>Cloud Received</td><td id="mt_cloud_msgs">—</td></tr>
-          <tr class="metrics-group-header"><td colspan="4">Latency</td></tr>
-          <tr><td>Mean</td><td id="mt_lat_mean">—</td>
-              <td>Min</td><td id="mt_lat_min">—</td></tr>
-          <tr><td>P50</td><td id="mt_lat_p50">—</td>
-              <td>P95</td><td id="mt_lat_p95">—</td></tr>
-          <tr><td>P99</td><td id="mt_lat_p99">—</td>
-              <td>Max</td><td id="mt_lat_max">—</td></tr>
-          <tr><td>Warmup Excluded</td><td id="mt_warmup">—</td>
-              <td></td><td></td></tr>
-          <tr class="metrics-group-header"><td colspan="4">Delivery Ratios</td></tr>
-          <tr><td>S→E DR</td><td id="mt_s2e_dr">—</td>
-              <td>E→C DR</td><td id="mt_e2c_dr">—</td></tr>
-          <tr><td>End-to-End DR</td><td id="mt_e2e_dr">—</td>
-              <td>Physical DR</td><td id="mt_phys_dr">—</td></tr>
-          <tr><td>Cloud Reflection</td><td id="mt_cloud_reflect">—</td>
-              <td></td><td></td></tr>
-          <tr class="metrics-group-header"><td colspan="4">Edge Processing</td></tr>
-          <tr><td>Aggregation Ratio</td><td id="mt_agg_ratio">—</td>
-              <td>Msg Reduction</td><td id="mt_msg_reduction">—</td></tr>
-          <tr><td>Events/Cloud Msg</td><td id="mt_events_per_msg">—</td>
-              <td>Valid State Changes</td><td id="mt_valid_changes">—</td></tr>
-          <tr><td>Events in Cloud</td><td id="mt_events_reflected">—</td>
-              <td></td><td></td></tr>
-          <tr class="metrics-group-header"><td colspan="4">Anomaly Detection</td></tr>
-          <tr><td>Detected</td><td id="mt_anomalies">—</td>
-              <td>Resolved</td><td id="mt_anom_resolved">—</td></tr>
-          <tr><td>Active (end)</td><td id="mt_anom_active">—</td>
-              <td>Affected Spots</td><td id="mt_anom_spots">—</td></tr>
-          <tr><td>Peak Quarantined</td><td id="mt_quarantined">—</td>
-              <td>Mode Switches</td><td id="mt_mode_switches">—</td></tr>
-          <tr><td>Faults Injected</td><td id="mt_faults">—</td>
-              <td></td><td></td></tr>
-          <tr class="metrics-group-header"><td colspan="4">Bandwidth</td></tr>
-          <tr><td>S→E Bytes</td><td id="mt_bytes_se">—</td>
-              <td>E→C Bytes</td><td id="mt_bytes_ec">—</td></tr>
-          <tr><td>Protocol Overhead</td><td id="mt_proto_bytes">—</td>
-              <td>Broker Overhead Score</td><td id="mt_broker_score">—</td></tr>  
-          <tr class="metrics-group-header"><td colspan="4">Resources</td></tr>
-          <tr><td>Edge Memory</td><td id="mt_edge_mem">—</td>
-              <td>Cloud Memory</td><td id="mt_cloud_mem">—</td></tr>
+        <tbody id="metricsTableBody">
+          <tr><td colspan="4" style="color:var(--dim);font-style:italic;text-align:center;padding:1rem">
+            Run a scenario to populate metrics.
+          </td></tr>
         </tbody>
       </table>
     </div>

@@ -197,7 +197,7 @@ function _renderCmpMain(results) {
           <canvas id="cmpLatChart" style="max-height:160px"></canvas>
         </div>
         <div class="cmp-chart-box">
-          <div class="cmp-chart-title">DELIVERY RATIO (%)</div>
+          <div class="cmp-chart-title">REAL EVENTS CAPTURED (%)</div>
           <canvas id="cmpDelChart" style="max-height:160px"></canvas>
         </div>
         <div class="cmp-chart-box">
@@ -220,28 +220,52 @@ function _renderCmpMain(results) {
   _buildCmpTable(selected);
 }
 
+const _isCloudOnly = r => r.architecture === 'cloud_only';
+const _isAggregated = r => r.architecture === 'edge_aggregated';
+const _isEdge = r => !_isCloudOnly(r);  
+
+const _truncate = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '—');
+
+const _int = v => v == null ? '—' : String(v);
+const _ms = v => v == null ? '—' : v.toFixed(1) + ' ms';
+const _pct = v => v == null ? '—' : (v * 100).toFixed(2) + '%';
+const _pct1 = v => v == null ? '—' : (v * 100).toFixed(1) + '%';
+const _kb = v => v == null ? '—' : (v / 1024).toFixed(1);
+const _mb = v => v == null ? '—' : v.toFixed(1);
+const _f2 = v => v == null ? '—' : v.toFixed(2);
+const _f3 = v => v == null ? '—' : v.toFixed(3);
+const _dur = v => v == null ? '—' : `${(v / 3600).toFixed(1)} h`;
+const _str = v => v == null ? '—' : String(v);
+
+
+function _pickBy(arr, score, mode = 'min') {
+  const cands = arr.filter(r => score(r) != null);
+  if (!cands.length) return null;
+  return cands.reduce((a, b) => {
+    const cmp = mode === 'min' ? score(a) < score(b) : score(a) > score(b);
+    return cmp ? a : b;
+  });
+}
+
 function _buildCmpKpis(sel) {
   const strip = document.getElementById('cmpKpiStrip');
   if (!strip) return;
 
-  const bestLat = sel.reduce((a, b) => (a.latency_mean_ms < b.latency_mean_ms ? a : b));
-  const bestDel = sel.reduce((a, b) => ((a.sensor_to_edge_delivery_ratio ?? 1) > (b.sensor_to_edge_delivery_ratio ?? 1) ? a : b));
-  const aggCands = sel.filter(r => r.aggregation_ratio > 0);
-  const bestAgg = aggCands.length ? aggCands.reduce((a, b) => (a.aggregation_ratio < b.aggregation_ratio ? a : b)) : null;
-  const bwCands = sel.filter(r => (r.edge_to_cloud_bytes ?? 0) > 0);
-  const bestBw = bwCands.length ? bwCands.reduce((a, b) => (a.edge_to_cloud_bytes < b.edge_to_cloud_bytes ? a : b)) : null;
-  const retryCands = sel.filter(r => sel.some(s => (s.retransmissions_total ?? 0) > 0));
-  const bestRetry = retryCands.length > 1 ? retryCands.reduce((a, b) => ((a.retransmissions_total ?? 0) < (b.retransmissions_total ?? 0) ? a : b)) : null;
+  const bestLat = _pickBy(sel, r => r.latency_mean_ms, 'min');
+  const bestCoverage = _pickBy(sel, r => r.cloud_reflection_ratio, 'max');
+  const bestSavings = _pickBy(sel.filter(_isEdge), r => r.message_reduction_ratio, 'max');
+  const lowestCloudBw = _pickBy(sel, r => r.edge_to_cloud_bytes, 'min');
+  const fewestRetries = sel.length > 1 ? _pickBy(sel, r => r.retransmissions_total ?? 0, 'min') : null;
 
-  const kpis = [
-    { label:'FASTEST', icon:'⚡', name:bestLat.scenario_name, val:`${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color:'var(--cyan)' },
-    { label:'MOST RELIABLE', icon:'📦', name:bestDel.scenario_name, val:`${((bestDel.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)}% delivery`, color:'var(--green)' },
-    bestAgg ? { label:'BEST COMPRESSION', icon:'💾', name:bestAgg.scenario_name, val:`${((1-bestAgg.aggregation_ratio)*100).toFixed(1)}% fewer msgs`, color:'var(--blue)' } : null,
-    bestBw  ? { label:'LOWEST CLOUD BW', icon:'📡', name:bestBw.scenario_name, val:`${(bestBw.edge_to_cloud_bytes/1024).toFixed(1)} KB`, color:'var(--purple)' } : null,
-    bestRetry ? { label:'FEWEST RETRIES', icon:'🔁', name:bestRetry.scenario_name, val:`${bestRetry.retransmissions_total ?? 0} retransmissions`, color:'var(--green)' } : null,  
+  const cards = [
+    bestLat && { label: 'FASTEST', icon: '⚡',  name: bestLat.scenario_name, val: `${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color: 'var(--cyan)' },
+    bestCoverage && { label: 'MOST EVENTS CAPTURED', icon: '🎯', name: bestCoverage.scenario_name, val: `${(bestCoverage.cloud_reflection_ratio * 100).toFixed(1)}% of real events`, color: 'var(--green)' },
+    bestSavings && { label: 'LEAST CLOUD TRAFFIC', icon: '💾', name: bestSavings.scenario_name, val: `${(bestSavings.message_reduction_ratio * 100).toFixed(1)}% saved`, color: 'var(--blue)' },
+    lowestCloudBw && { label: 'LOWEST BANDWIDTH', icon: '📡', name: lowestCloudBw.scenario_name, val: `${(lowestCloudBw.edge_to_cloud_bytes / 1024).toFixed(1)} KB`, color: 'var(--purple)' },
+    fewestRetries && { label: 'FEWEST RETRIES', icon: '🔁', name: fewestRetries.scenario_name, val: `${fewestRetries.retransmissions_total ?? 0} retries`, color: 'var(--green)' },
   ].filter(Boolean);
 
-  strip.innerHTML = kpis.map(k => `
+  strip.innerHTML = cards.map(k => `
     <div class="cmp-kpi-card" style="--kpi-color:${k.color}">
       <div class="cmp-kpi-icon">${k.icon}</div>
       <div class="cmp-kpi-label">${k.label}</div>
@@ -249,8 +273,6 @@ function _buildCmpKpis(sel) {
       <div class="cmp-kpi-val">${k.val}</div>
     </div>`).join('');
 }
-
-function _truncate(str, n) { return str && str.length > n ? str.slice(0, n - 1) + '…' : (str || '—'); }
 
 const _CMP_PAL = ['#00e5c8','#4d9bff','#ffc246','#b47cff','#39e887','#ff5252','#ff9040','#00b4d8'];
 
@@ -263,153 +285,208 @@ function _makeChart(id, type, data, options) {
 function _buildCmpCharts(sel) {
   const labels = sel.map(r => _truncate(r.scenario_name, 16));
   const pal = _CMP_PAL;
-  const base = { responsive:true, maintainAspectRatio:false };
+  const base = { responsive: true, maintainAspectRatio: false };
+  const anyEdge = sel.some(_isEdge);
 
   _makeChart('cmpLatChart', 'bar', {
     labels,
     datasets: [
-      { label:'Mean', data:sel.map(r=>r.latency_mean_ms??0), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
-      { label:'P95', data:sel.map(r=>r.latency_p95_ms??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
-      { label:'P99', data:sel.map(r=>r.latency_p99_ms??0), backgroundColor:pal[2]+'bb', borderColor:pal[2], borderWidth:1, borderRadius:4 },
+      { label: 'Mean', data: sel.map(r => r.latency_mean_ms ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
+      { label: 'P95', data: sel.map(r => r.latency_p95_ms  ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
+      { label: 'P99', data: sel.map(r => r.latency_p99_ms  ?? 0), backgroundColor: pal[2]+'bb', borderColor: pal[2], borderWidth: 1, borderRadius: 4 },
     ],
-  }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
-    scales:{ y:{ beginAtZero:true, title:{ display:true, text:'ms', color:'#555a72', font:{size:9} } } } });
+  }, { ...base,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
+    scales:  { y: { beginAtZero: true, title: { display: true, text: 'ms', color: '#555a72', font: { size: 9 } } } } });
 
   _makeChart('cmpDelChart', 'bar', {
     labels,
     datasets: [{
-      label:'Delivery %',
-      data: sel.map(r=>+((r.sensor_to_edge_delivery_ratio??1)*100).toFixed(2)),
-      backgroundColor: sel.map(r=>{ const v=(r.sensor_to_edge_delivery_ratio??1)*100; return v>=98?'#39e887bb':v>=90?'#ffc246bb':'#ff5252bb'; }),
-      borderColor: sel.map(r=>{ const v=(r.sensor_to_edge_delivery_ratio??1)*100; return v>=98?'#39e887':v>=90?'#ffc246':'#ff5252'; }),
-      borderWidth:1, borderRadius:4,
+      label: 'Real events captured %',
+      data: sel.map(r => +((r.cloud_reflection_ratio ?? 1) * 100).toFixed(2)),
+      backgroundColor: sel.map(r => { const v = (r.cloud_reflection_ratio ?? 1) * 100; return v >= 98 ? '#39e887bb' : v >= 90 ? '#ffc246bb' : '#ff5252bb'; }),
+      borderColor: sel.map(r => { const v = (r.cloud_reflection_ratio ?? 1) * 100; return v >= 98 ? '#39e887' : v >= 90 ? '#ffc246' : '#ff5252'; }),
+      borderWidth: 1, borderRadius: 4,
     }],
-  }, { ...base, plugins:{ legend:{ display:false } },
-    scales:{ y:{ min:0, max:100, title:{ display:true, text:'%', color:'#555a72', font:{size:9} } } } });
+  }, { ...base,
+    plugins: { legend: { display: false } },
+    scales:  { y: { min: 0, max: 100, title: { display: true, text: '%', color: '#555a72', font: { size: 9 } } } } });
 
-  _makeChart('cmpMsgChart', 'bar', {
-    labels,
-    datasets: [
-      { label:'Generated', data:sel.map(r=>r.events_generated??r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[3]+'66', borderColor:pal[3], borderWidth:1, borderRadius:4 },
-      { label:'S→E', data:sel.map(r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
-      { label:'E→Cloud', data:sel.map(r=>r.edge_to_cloud_msgs??0), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
-      { label:'Filtered', data:sel.map(r=>r.filtered_events??0), backgroundColor:pal[2]+'88', borderColor:pal[2], borderWidth:1, borderRadius:4 },
-    ],
-  }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
-    scales:{ y:{ beginAtZero:true } } });
+  const msgDatasets = [
+    { label: 'Generated', data: sel.map(r => r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
+    { label: 'Sensor Sent', data: sel.map(r => r.sensor_to_edge_msgs ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
+    { label: 'Reached Cloud', data: sel.map(r => r.events_reflected_in_cloud ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
+  ];
+  if (anyEdge) {
+    msgDatasets.push({
+      label: 'Filtered (edge)',
+      data: sel.map(r => _isCloudOnly(r) ? 0 : (r.filtered_events ?? 0)),
+      backgroundColor: pal[2]+'88', borderColor: pal[2], borderWidth: 1, borderRadius: 4,
+    });
+  }
+  _makeChart('cmpMsgChart', 'bar', { labels, datasets: msgDatasets }, {
+    ...base,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
+    scales: { y: { beginAtZero: true } },
+  });
 
+  const onlyCloud = !anyEdge;
   _makeChart('cmpBwChart', 'bar', {
     labels,
     datasets: [
-      { label:'S→E (KB)', data:sel.map(r=>+((r.sensor_to_edge_bytes??0)/1024).toFixed(2)), backgroundColor:pal[1]+'bb', borderColor:pal[1], borderWidth:1, borderRadius:4 },
-      { label:'E→Cloud (KB)', data:sel.map(r=>+((r.edge_to_cloud_bytes??0)/1024).toFixed(2)), backgroundColor:pal[0]+'bb', borderColor:pal[0], borderWidth:1, borderRadius:4 },
+      { label: onlyCloud ? 'Sensor → Cloud (KB)' : 'Sensor → Edge (KB)',
+        data: sel.map(r => +((r.sensor_to_edge_bytes ?? 0) / 1024).toFixed(2)),
+        backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
+      { label: onlyCloud ? 'Reached Cloud (KB)' : 'Edge → Cloud (KB)',
+        data: sel.map(r => +((r.edge_to_cloud_bytes  ?? 0) / 1024).toFixed(2)),
+        backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
     ],
-  }, { ...base, plugins:{ legend:{ position:'bottom', labels:{ font:{size:9}, padding:6 } } },
-    scales:{ y:{ beginAtZero:true, title:{ display:true, text:'KB', color:'#555a72', font:{size:9} } } } });
+  }, { ...base,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
+    scales:  { y: { beginAtZero: true, title: { display: true, text: 'KB', color: '#555a72', font: { size: 9 } } } } });
+}
+
+const _always = () => true;
+
+function _metricsList() {
+  const G = label => ({ group: label });
+  return [
+    G('Configuration'),
+    { label: 'Protocol', value: r => (r.protocol || '').toUpperCase(), applies: _always, fmt: _str },
+    { label: 'Architecture', value: r => r.architecture || null, applies: _always, fmt: _str },
+    { label: 'Traffic', value: r => r.traffic_level || null, applies: _always, fmt: _str },
+    { label: 'Spots', value: r => r.num_spots ?? null, applies: _always, fmt: _int },
+    { label: 'Duration', value: r => r.sim_duration_s ?? null, applies: _always, fmt: _dur },
+
+    G('Sensor Activity'),
+    { label: 'Sensor messages emitted', value: r => r.events_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Real arrivals & departures', value: r => r.valid_state_changes ?? null, applies: _always, fmt: _int },
+
+    G('Wireless link (sensor → first hop)'),
+    { label: 'Unique messages sent', value: r => r.sensor_to_edge_msgs ?? null, applies: _always, fmt: _int },
+    { label: 'Lost on the radio', value: r => r.sensor_link_dropped ?? null, applies: _always, fmt: _int, better: 'low'  },
+    { label: 'Wireless delivery', value: r => r.sensor_to_edge_delivery_ratio ?? null,  applies: _always, fmt: _pct, better: 'high' },
+
+    G('Edge processing'),
+    { label: 'Filtered as redundant', value: r => r.filtered_events ?? null, applies: _isEdge, fmt: _int,  better: 'high' },
+    { label: 'Forwarded to broker', value: r => r.edge_to_cloud_msgs ?? null, applies: _isEdge, fmt: _int,  better: 'low'  },
+    { label: 'Cloud traffic saved', value: r => r.message_reduction_ratio ?? null, applies: _isEdge, fmt: _pct1, better: 'high' },
+    { label: 'Avg events per batch', value: r => r.events_per_cloud_message ?? null, applies: _isAggregated, fmt: _f2, better: 'high' },
+
+    G('Backhaul link (edge → broker)'),
+    { label: 'Backhaul delivery', value: r => r.edge_to_cloud_delivery_ratio ?? null, applies: _isEdge, fmt: _pct, better: 'high' },
+    { label: 'Lost on backhaul', value: r => r.edge_to_cloud_dropped ?? null, applies: _isEdge, fmt: _int, better: 'low'  },
+
+    G('Broker layer (MQTT/AMQP/CoAP)'),
+    { label: 'Broker retries (QoS)', value: r => r.retransmissions_total ?? null, applies: _always, fmt: _int, better: 'low' },
+    { label: 'Duplicates at cloud', value: r => r.duplicate_deliveries ?? null, applies: _always, fmt: _int, better: 'low' },
+
+    G('Cloud State'),
+    { label: 'Reached cloud (total)', value: r => r.events_reflected_in_cloud ?? null, applies: _always, fmt: _int },
+    { label: 'Real events captured', value: r => r.cloud_reflection_ratio ?? null, applies: _always, fmt: _pct, better: 'high' },
+
+    G('Latency (sensor emits → cloud stores)'),
+    { label: 'Mean', value: r => r.latency_mean_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'P50', value: r => r.latency_p50_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'P95', value: r => r.latency_p95_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'P99', value: r => r.latency_p99_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'Min', value: r => r.latency_min_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'Max', value: r => r.latency_max_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
+    { label: 'Startup samples discarded', value: r => r.warmup_excluded_samples ?? null, applies: _always, fmt: _int },
+
+    G('Anomaly Detection'),
+    { label: 'Detected', value: r => r.anomalies_detected ?? null, applies: _isEdge, fmt: _int, better: 'low' },
+    { label: 'Resolved', value: r => r.anomalies_resolved ?? null, applies: _isEdge, fmt: _int },
+    { label: 'Active at end', value: r => r.active_anomalies ?? null, applies: _isEdge, fmt: _int, better: 'low' },
+    { label: 'Affected spots', value: r => r.anomaly_detected_spots ?? null, applies: _isEdge, fmt: _int, better: 'low' },
+    { label: 'Peak quarantined', value: r => r.quarantined_spots_peak ?? null, applies: _isEdge, fmt: _int, better: 'low' },
+    { label: 'Mode switches', value: r => r.adaptive_mode_switches ?? null, applies: _isEdge, fmt: _int },
+    { label: 'Faults injected', value: r => r.fault_injected_count ?? null, applies: _isEdge, fmt: _int },
+
+    G('Bandwidth'),
+    { label: 'Sensor → first hop (KB)', value: r => r.sensor_to_edge_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'To cloud (KB)', value: r => r.edge_to_cloud_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'Protocol overhead (KB)', value: r => r.protocol_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'Broker score', value: r => r.broker_overhead_score ?? null, applies: _always, fmt: _f3, better: 'low' },
+
+    G('Resources'),
+    { label: 'Edge memory (MB)', value: r => r.edge_mem_mb ?? null,  applies: _isEdge, fmt: _mb, better: 'low' },
+    { label: 'Cloud memory (MB)', value: r => r.cloud_mem_mb ?? null, applies: _always, fmt: _mb, better: 'low' },
+  ];
 }
 
 function _buildCmpTable(sel) {
   const wrap = document.getElementById('cmpTable');
   if (!wrap) return;
-  
-  const G = label => ({ group: label });
-  const metrics = [
-    G('Configuration'),
-    { label:'Protocol', key:r=>(r.protocol||'').toUpperCase() },
-    { label:'Architecture', key:r=>r.architecture||'—' },
-    { label:'Traffic', key:r=>r.traffic_level||'—' },
-    { label:'Spots', key:r=>r.num_spots??'—' },
-    { label:'Duration', key:r=>r.sim_duration_s, fmt:v=>v!=null?`${(v/3600).toFixed(1)} h`:'—' },
-   
-    G('Message Flow'),
-    { label:'Generated', key:r=>r.events_generated??0 },
-    { label:'S→E Msgs', key:r=>r.sensor_to_edge_msgs??r.cloud_only_msgs??0 },
-    { label:'S→E Dropped', key:r=>r.sensor_link_dropped??0, cmpLow:true },
-    { label:'Filtered', key:r=>r.filtered_events??0, cmpHigh:true },
-    { label:'Duplicates', key:r=>r.duplicate_deliveries??0, cmpLow:true },
-    { label:'E→C Msgs', key:r=>r.edge_to_cloud_msgs??0, cmpLow:true },
-    { label:'E→C Dropped', key:r=>r.edge_to_cloud_dropped??0, cmpLow:true },
-    { label:'Transport Total', key:r=>r.transport_msgs_total??0 },
-    { label:'Retransmissions', key:r=>r.retransmissions_total??0, cmpLow:true },
-    { label:'Cloud Received', key:r=>r.events_reflected_in_cloud??0 },
-
-    G('Latency'),
-    { label:'Mean', key:r=>r.latency_mean_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P50', key:r=>r.latency_p50_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P95', key:r=>r.latency_p95_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'P99', key:r=>r.latency_p99_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'Min', key:r=>r.latency_min_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'Max', key:r=>r.latency_max_ms, fmt:v=>v?.toFixed(1)+' ms', cmpLow:true },
-    { label:'Warmup Excl.', key:r=>r.warmup_excluded_samples??0 },
-
-    G('Delivery Ratios'),
-    { label:'S→E DR', key:r=>(r.sensor_to_edge_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-    { label:'E→C DR', key:r=>(r.edge_to_cloud_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-    { label:'End-to-End DR', key:r=>(r.end_to_end_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-    { label:'Physical DR', key:r=>(r.physical_delivery_ratio??1)*100, fmt:v=>v?.toFixed(2)+'%', cmpHigh:true },
-
-    G('Edge Processing'),
-    { label:'Msg Reduction', key:r=>(r.message_reduction_ratio??0)*100, fmt:v=>v?.toFixed(1)+'%', cmpHigh:true },
-    { label:'Events/Cloud Msg', key:r=>r.events_per_cloud_message??0, fmt:v=>v?.toFixed(2), cmpHigh:true },
-    { label:'Valid State Changes', key:r=>r.valid_state_changes??0 },
-
-    G('Anomaly Detection'),
-    { label:'Detected', key:r=>r.anomalies_detected??0, cmpLow:true },
-    { label:'Resolved', key:r=>r.anomalies_resolved??0 },
-    { label:'Active (end)', key:r=>r.active_anomalies??0, cmpLow:true },
-    { label:'Affected Spots', key:r=>r.anomaly_detected_spots??0, cmpLow:true },
-    { label:'Peak Quarantined', key:r=>r.quarantined_spots_peak??0, cmpLow:true },
-    { label:'Mode Switches', key:r=>r.adaptive_mode_switches??0 },
-    { label:'Faults Injected', key:r=>r.fault_injected_count??0 },
-
-    G('Bandwidth'),
-    { label:'S→E (KB)', key:r=>(r.sensor_to_edge_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'E→C (KB)', key:r=>(r.edge_to_cloud_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'Protocol OH (KB)', key:r=>(r.protocol_bytes??0)/1024, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'Broker Score', key:r=>r.broker_overhead_score??0, fmt:v=>v?.toFixed(3), cmpLow:true },
-
-    G('Resources'),
-    { label:'Edge Mem (MB)', key:r=>r.edge_mem_mb, fmt:v=>v?.toFixed(1), cmpLow:true },
-    { label:'Cloud Mem (MB)', key:r=>r.cloud_mem_mb, fmt:v=>v?.toFixed(1), cmpLow:true },
-  ];
-
+  const visibleList = _filterEmptyGroups(_metricsList(), sel);
   let html = '<div class="cmp-table">';
+
   html += '<div class="cmp-table-row cmp-table-head"><div class="cmp-table-cell cmp-metric-col">METRIC</div>';
   sel.forEach(r => {
-    const c = r.protocol==='mqtt'?'var(--amber)':r.protocol==='coap'?'var(--purple)':'var(--green)';
+    const c = r.protocol === 'mqtt' ? 'var(--amber)' : r.protocol === 'coap' ? 'var(--purple)' : 'var(--green)';
     html += `<div class="cmp-table-cell" style="color:${c}" title="${r.scenario_name}">${_truncate(r.scenario_name, 20)}</div>`;
   });
   html += '</div>';
 
-  metrics.forEach(m => {
+  visibleList.forEach(m => {
     if (m.group) {
       html += `<div class="cmp-table-row cmp-group-row"><div class="cmp-table-cell cmp-group-header">${m.group}</div></div>`;
       return;
     }
-    const vals = sel.map(r => m.key(r));
-    const numVals = vals.filter(v => typeof v === 'number' && !isNaN(v));
-    let bestVal = null, worstVal = null;
-    if (numVals.length > 1) {
-      if (m.cmpLow)  { bestVal = Math.min(...numVals); worstVal = Math.max(...numVals); }
-      if (m.cmpHigh) { bestVal = Math.max(...numVals); worstVal = Math.min(...numVals); }
-    }
-    html += '<div class="cmp-table-row"><div class="cmp-table-cell cmp-metric-col">' + m.label + '</div>';
-    vals.forEach(v => {
-      const display = m.fmt ? (v != null ? m.fmt(v) : '—') : (v ?? '—');
-      let cls = '';
-      if (bestVal !== null && v === bestVal) cls = 'cmp-best';
-      else if (worstVal !== null && v === worstVal) cls = 'cmp-worst';
-      html += `<div class="cmp-table-cell ${cls}">${display}</div>`;
-    });
-    html += '</div>';
+    html += _renderMetricRow(m, sel);
   });
 
   html += '</div>';
   wrap.innerHTML = html;
 }
 
+
+function _filterEmptyGroups(list, sel) {
+  const out = [];
+  let pendingGroup = null;
+
+  list.forEach(m => {
+    if (m.group) {
+      pendingGroup = m;
+      return;
+    }
+    const anyAnswers = sel.some(r => m.applies(r));
+    if (!anyAnswers) return;
+    if (pendingGroup) {
+      out.push(pendingGroup);
+      pendingGroup = null;
+    }
+    out.push(m);
+  });
+  return out;
+}
+
+function _renderMetricRow(m, sel) {
+  const values = sel.map(r => m.applies(r) ? m.value(r) : null);
+
+  let bestVal = null, worstVal = null;
+  if (m.better) {
+    const nums = values.filter(v => typeof v === 'number' && !isNaN(v));
+    if (nums.length > 1) {
+      if (m.better === 'low')  { bestVal = Math.min(...nums); worstVal = Math.max(...nums); }
+      if (m.better === 'high') { bestVal = Math.max(...nums); worstVal = Math.min(...nums); }
+    }
+  }
+
+  let html = `<div class="cmp-table-row"><div class="cmp-table-cell cmp-metric-col">${m.label}</div>`;
+  values.forEach(v => {
+    const display = m.fmt(v);
+    let cls = '';
+    if (bestVal  !== null && v === bestVal)  cls = 'cmp-best';
+    else if (worstVal !== null && v === worstVal) cls = 'cmp-worst';
+    html += `<div class="cmp-table-cell ${cls}">${display}</div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
 function updateCreateProtoOpts() { _toggleProtoFields('cf', document.getElementById('cf_protocol')?.value); }
-function updateEditProtoOpts()   { _toggleProtoFields('ef', document.getElementById('ef_protocol')?.value); }
+function updateEditProtoOpts() { _toggleProtoFields('ef', document.getElementById('ef_protocol')?.value); }
 
 function _toggleProtoFields(prefix, proto) {
   [`${prefix}_amqp`,`${prefix}_amqp2`,`${prefix}_amqp3`,`${prefix}_mqtt`,`${prefix}_coap`]
@@ -478,16 +555,16 @@ async function saveMgrForm() {
     architecture: get('ef_arch'),
     traffic_level: get('ef_traffic'),
     num_spots: +get('ef_spots'),
-    sim_duration_h: +get('ef_duration'),        
+    sim_duration_h: +get('ef_duration'),
     seed: +get('ef_seed'),
     loss_rate: +get('ef_loss') / 100,
-    rate_limit: +get('ef_ratelimit'),          
-    aggregation_interval: +get('ef_agg'),       
+    rate_limit: +get('ef_ratelimit'),
+    aggregation_interval: +get('ef_agg'),
     amqp_exchange: get('ef_amqp_exchange'),
     amqp_ack: get('ef_amqp_ack'),
     amqp_durable: get('ef_amqp_durable') === 'true',
     mqtt_qos: +get('ef_qos'),
-    coap_mode: get('ef_coap_mode'),
+    coap_mode: get('ef_coap_mode')
   } : {
     name: get('cf_name').trim().replace(/\s+/g,'_'),
     description: get('cf_desc') || get('cf_name'),
@@ -497,22 +574,22 @@ async function saveMgrForm() {
     architecture: get('cf_arch'),
     traffic_level: get('cf_traffic'),
     num_spots: +get('cf_spots'),
-    sim_duration_h: +get('cf_duration'),         
+    sim_duration_h: +get('cf_duration'),
     seed: +get('cf_seed'),
     loss_rate: +get('cf_loss') / 100,
-    rate_limit: +get('cf_ratelimit'),             
-    aggregation_interval: +get('cf_agg'),         
+    rate_limit: +get('cf_ratelimit'),
+    aggregation_interval: +get('cf_agg'),
     amqp_exchange: get('cf_amqp_exchange'),
     amqp_ack: get('cf_amqp_ack'),
     amqp_durable: get('cf_amqp_durable') === 'true',
     mqtt_qos: +get('cf_qos'),
-    coap_mode: get('cf_coap_mode'),
+    coap_mode: get('cf_coap_mode')
   };
   if (!isEdit && !body.name) { showToast('Name is required','var(--amber)'); return; }
   try {
-    const url  = isEdit ? `/api/scenarios/${encodeURIComponent(_editingScenario)}` : '/api/scenarios';
+    const url = isEdit ? `/api/scenarios/${encodeURIComponent(_editingScenario)}` : '/api/scenarios';
     const meth = isEdit ? 'PUT' : 'POST';
-    const r    = await fetch(url, { method:meth, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const r = await fetch(url, { method:meth, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if (!r.ok) { const d=await r.json().catch(()=>{}); throw new Error(d?.detail??`${r.status}`); }
     showToast(isEdit ? `Saved "${_editingScenario}"` : `Created "${body.name}"`, 'var(--cyan)');
     closeMgr(); await loadScenarios();
@@ -533,16 +610,16 @@ async function saveCustomAsPreset() {
     architecture: get('c_arch'),
     traffic_level: get('c_traffic'),
     num_spots: +get('c_spots'),
-    sim_duration_h: +get('c_duration'),          
+    sim_duration_h: +get('c_duration'),
     seed: 42,
     loss_rate: +get('c_loss') / 100,
-    rate_limit: +get('c_ratelimit'),            
-    aggregation_interval: +get('c_agg'),          
+    rate_limit: +get('c_ratelimit'),
+    aggregation_interval: +get('c_agg'),
     amqp_exchange: get('c_amqp_exchange') || 'direct',
     amqp_ack: get('c_amqp_ack') || 'manual',
     amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
     mqtt_qos: +(get('c_qos') || 1),
-    coap_mode: get('c_coap_mode') || 'CON',
+    coap_mode: get('c_coap_mode') || 'CON'
   };
   try {
     const r = await fetch('/api/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

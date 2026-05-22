@@ -58,10 +58,7 @@ def _cloud_worker(config_dict: dict, epoch: float, batch_queue: mp.Queue, metric
             if engine:
                 try:
                     from simulator.models import ExperimentMetrics
-                    m = ExperimentMetrics(**{
-                        k: v for k, v in metrics_dict.items()
-                        if k in ExperimentMetrics.__dataclass_fields__
-                    })
+                    m = ExperimentMetrics(**{k: v for k, v in metrics_dict.items() if k in ExperimentMetrics.__dataclass_fields__})
                     cloud.flush_to_db(engine, m)
                 except Exception:
                     logger.exception("cloud_worker: DB flush error")
@@ -130,11 +127,7 @@ class CloudWorkerProcess:
 
     def receive_batch(self, batch, raw: bytes) -> None:
         import time as _t
-        self._batch_q.put_nowait({
-            "batch": batch.to_dict(),
-            "payload": raw.hex(),
-            "wall_arrival": _t.time(),
-        })
+        self._batch_q.put_nowait({"batch": batch.to_dict(), "payload": raw.hex(), "wall_arrival": _t.time(),})
         self.received_events += len(batch.events)
 
     def request_snapshot(self) -> None:

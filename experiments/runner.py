@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 _PROTOCOL_SEED_OFFSET = {"mqtt": 1000, "coap": 2000, "amqp": 3000}
 
-
 def _protocol_seed_offset(protocol: str) -> int:
     return _PROTOCOL_SEED_OFFSET.get(protocol, 9000)
 
@@ -39,7 +38,6 @@ class ExperimentRunner:
         self._spot_states: dict[int, str] = {}
         self._fault_injector = fault_injector
         self._edge_summary: dict = {}
-        # Bug 2 fix: keep a handle on the backhaul link so cloud_only can report its real bytes.
         self._backhaul_link: LinkEmulator | None = None
 
     def cancel(self) -> None:
@@ -77,18 +75,21 @@ class ExperimentRunner:
         backend = _make_simulated_backend(cfg, clock, cloud_recv, seed)
         arch = cfg.architecture
 
-        _backhaul_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol) + 5000)
-        backhaul_link = LinkEmulator(cfg.backhaul_link.to_link_config(), clock, rng=_backhaul_rng)
-        backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
-        backhaul_link.set_batch_callback(backend.publish)
-        self._backhaul_link = backhaul_link
+        if arch == "cloud_only":
+            backhaul_link = None
+            self._backhaul_link = None
+            edge = EdgeNode(cfg, clock, lambda b, p: None, epoch) 
+        else:
+            _backhaul_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol) + 5000)
+            backhaul_link = LinkEmulator(cfg.backhaul_link.to_link_config(), clock, rng=_backhaul_rng)
+            backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
+            backhaul_link.set_batch_callback(backend.publish)
+            self._backhaul_link = backhaul_link
 
-        def edge_to_cloud(batch: BatchUpdate, raw: bytes) -> None:
-            backhaul_link.transmit_batch(batch, raw)
+            def edge_to_cloud(batch: BatchUpdate, raw: bytes) -> None:
+                backhaul_link.transmit_batch(batch, raw)
 
-        edge = EdgeNode(cfg, clock, edge_to_cloud, epoch)
-
-        if arch != "cloud_only":
+            edge = EdgeNode(cfg, clock, edge_to_cloud, epoch)
             backhaul_link.on_drop = lambda: edge.record_cloud_drop()
             backend.on_drop = lambda: edge.record_cloud_drop()
 
@@ -101,7 +102,7 @@ class ExperimentRunner:
             def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
                 batch = BatchUpdate(edge_id="direct", events=[event])
                 payload = EdgeNode._serialize_batch(batch)
-                backhaul_link.transmit_batch(batch, payload)
+                backend.publish(batch, payload)
         else:
             def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
                 edge.receive(event, raw)
@@ -113,11 +114,7 @@ class ExperimentRunner:
 
         def sensor_cb(event: ParkingEvent) -> None:
             if not self._cancelled:
-                self._spot_states[event.spot_id] = (
-                    event.state.value
-                    if isinstance(event.state, SpotState)
-                    else str(event.state)
-                )
+                self._spot_states[event.spot_id] = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
                 link.transmit(event)
 
         sensors.add_callback(sensor_cb)
@@ -174,41 +171,33 @@ class ExperimentRunner:
         cs = cloud.get_metrics_snapshot(include_cpu=False)
         arch = cfg.architecture
 
-        bh = self._backhaul_link.stats if self._backhaul_link is not None else None
-
         s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
         s2e_dr = ls.delivery_ratio
 
         if arch == "cloud_only":
-            # No edge node, but the backhaul link DID carry traffic; report it as e2c.
-            e2c_msgs = bh.sent if bh is not None else 0
-            e2c_bytes = bh.total_bytes_sent if bh is not None else 0
-            e2c_dr = bh.delivery_ratio if bh is not None else 1.0
+            e2c_msgs = ls.received  
+            e2c_bytes = ls.total_bytes_received 
+            e2c_dr = 1.0 
+            e2c_dropped = 0  
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
-
+            e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
+  
         filtered_events = es.get("filtered", 0)
         events_reflected = cloud_events
-
         valid_state_changes = state_changes_generated
 
         physical_delivery_ratio = s2e_dr * e2c_dr
-        if valid_state_changes > 0:
-            cloud_reflection_ratio = min(cloud_transitions / valid_state_changes, 1.0)
-        else:
-            cloud_reflection_ratio = 1.0
+        cloud_reflection_ratio = (min(cloud_transitions / valid_state_changes, 1.0) if valid_state_changes > 0 else 1.0)
 
-        cloud_msgs = e2c_msgs
-        agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
-        message_reduction_ratio = (1.0 - agg_ratio) if sensor_events > 0 else 0.0
-        events_per_cloud_message = (events_reflected / cloud_msgs) if cloud_msgs > 0 else 0.0
-
+        s2e_received = ls.received
+        agg_ratio = (e2c_msgs / s2e_received) if s2e_received > 0 else 1.0
+        message_reduction_ratio = max(0.0, 1.0 - agg_ratio)
+        events_per_cloud_message = (events_reflected / e2c_msgs) if e2c_msgs > 0 else 0.0
         transport_total = s2e_msgs + retransmits
-        e2c_dropped = (bh.dropped if arch == "cloud_only" and bh is not None
-                       else es.get("link_stats", {}).get("dropped", 0))
 
         fi = self._fault_injector
         return ExperimentMetrics(
@@ -315,11 +304,7 @@ class ExperimentRunner:
 
         def sensor_cb(event: ParkingEvent) -> None:
             if not self._cancelled:
-                self._spot_states[event.spot_id] = (
-                    event.state.value
-                    if isinstance(event.state, SpotState)
-                    else str(event.state)
-                )
+                self._spot_states[event.spot_id] = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
                 link.transmit(event)
 
         sensors.add_callback(sensor_cb)
@@ -386,9 +371,7 @@ class ExperimentRunner:
         sensor_events = sensors.total_generated
         state_changes_generated = sensors.state_changes_generated
         cloud_events = all_data.get("received_events", cloud_proc.received_events)
-        cloud_transitions = (cloud_snapshot.get("transitions_received")
-                             or all_data.get("transitions_received")
-                             or cloud_events)
+        cloud_transitions = (cloud_snapshot.get("transitions_received") or all_data.get("transitions_received") or cloud_events)
         ls = link.stats
         es = edge_proc.summary()
         arch = cfg.architecture
@@ -400,27 +383,25 @@ class ExperimentRunner:
             e2c_msgs = s2e_msgs
             e2c_bytes = s2e_bytes
             e2c_dr = 1.0
+            e2c_dropped = 0
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
+            e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
 
         filtered_events = es.get("filtered", 0)
         valid_state_changes = state_changes_generated
         events_reflected = cloud_events
 
         physical_delivery_ratio = s2e_dr * e2c_dr
-        if valid_state_changes > 0:
-            cloud_reflection_ratio = min(cloud_transitions / valid_state_changes, 1.0)
-        else:
-            cloud_reflection_ratio = 1.0
+        cloud_reflection_ratio = (min(cloud_transitions / valid_state_changes, 1.0) if valid_state_changes > 0 else 1.0)
 
-        cloud_msgs = e2c_msgs
-        agg_ratio = (cloud_msgs / sensor_events) if sensor_events > 0 else 1.0
-        message_reduction_ratio = (1.0 - agg_ratio) if sensor_events > 0 else 0.0
-        events_per_cloud_message = (events_reflected / cloud_msgs) if cloud_msgs > 0 else 0.0
-        e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
+        s2e_received = ls.received
+        agg_ratio = (e2c_msgs / s2e_received) if s2e_received > 0 else 1.0
+        message_reduction_ratio = max(0.0, 1.0 - agg_ratio)
+        events_per_cloud_message = (events_reflected / e2c_msgs) if e2c_msgs > 0 else 0.0
 
         return ExperimentMetrics(
             scenario_name=cfg.name,
@@ -475,7 +456,6 @@ class ExperimentRunner:
 
             broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
 
-            # Bug 4 & 5 fix: populate these in the real path too.
             events_generated=sensor_events,
             sensor_link_dropped=ls.dropped,
 
@@ -484,19 +464,35 @@ class ExperimentRunner:
 
     def _log_done(self, cfg, metrics, cloud=None, cloud_events: int = 0) -> None:
         ev = cloud.received_events if cloud else cloud_events
-        logger.info(
-            f"[{cfg.name}] Done. "
-            f"logical={metrics.sensor_to_edge_msgs}  "
-            f"transport={metrics.transport_msgs_total}  "
-            f"retransmits={metrics.retransmissions_total}  "
-            f"cloud={ev}  "
-            f"lat={metrics.latency_mean_ms:.1f}ms  "
-            f"p99={metrics.latency_p99_ms:.1f}ms  "
-            f"cloud_reflection={metrics.cloud_reflection_ratio:.1%}  "
-            f"msg_reduction={metrics.message_reduction_ratio:.1%}  "
-            f"filtered={metrics.filtered_events}  "
-            f"e2c_dropped={metrics.edge_to_cloud_dropped}"
-        )
+        arch = cfg.architecture
+        m = metrics
+        if arch == "cloud_only":
+            wire = m.transport_msgs_total - m.sensor_to_edge_msgs
+            logger.info(
+                f"[{cfg.name}] Done (cloud_only). "
+                f"sent={m.sensor_to_edge_msgs}  "
+                f"on_wire={m.transport_msgs_total} (+{wire} retries)  "
+                f"reached_cloud={ev}  "
+                f"wireless_dropped={m.sensor_link_dropped}  "
+                f"transitions={m.cloud_reflection_ratio:.1%}  "
+                f"lat={m.latency_mean_ms:.1f}ms  "
+                f"p99={m.latency_p99_ms:.1f}ms"
+            )
+        else:
+            wire = m.transport_msgs_total - m.sensor_to_edge_msgs
+            logger.info(
+                f"[{cfg.name}] Done ({arch}). "
+                f"sent_by_sensors={m.sensor_to_edge_msgs}  "
+                f"filtered_at_edge={m.filtered_events}  "
+                f"forwarded={m.edge_to_cloud_msgs}  "
+                f"reached_cloud={ev}  "
+                f"wireless_dropped={m.sensor_link_dropped}  "
+                f"backhaul_dropped={m.edge_to_cloud_dropped}  "
+                f"transitions={m.cloud_reflection_ratio:.1%}  "
+                f"msg_reduction={m.message_reduction_ratio:.1%}  "
+                f"lat={m.latency_mean_ms:.1f}ms  "
+                f"p99={m.latency_p99_ms:.1f}ms"
+            )
 
 
 def _make_simulated_backend(cfg, clock, cloud_recv, seed):

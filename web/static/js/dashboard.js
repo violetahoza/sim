@@ -9,6 +9,7 @@ let allResults = [];
 let simRunning = false;
 let currentSpotCount = 0;
 let allScenarios = [];
+let currentArchitecture = null;  
 
 document.addEventListener('DOMContentLoaded', async () => {
   initCharts();
@@ -111,9 +112,9 @@ async function runCustom() {
     traffic_level: get('c_traffic'),
     num_spots: +get('c_spots'),
     loss_rate: +get('c_loss') / 100,
-    sim_duration_h: +get('c_duration'),      
-    rate_limit: +get('c_ratelimit'),           
-    aggregation_interval: +get('c_agg'),       
+    sim_duration_h: +get('c_duration'),
+    rate_limit: +get('c_ratelimit'),
+    aggregation_interval: +get('c_agg'),
     amqp_exchange: get('c_amqp_exchange') || 'direct',
     amqp_ack: get('c_amqp_ack') || 'manual',
     amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
@@ -128,37 +129,30 @@ async function startRun(url, body) {
   const resp = await fetch(url, {
     method:  'POST',
     headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? JSON.stringify(body) : undefined
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    alert('Error: ' + (err.detail || JSON.stringify(err)));
-    return;
+    alert('Failed to start: ' + (err.detail || resp.status));
   }
-  setRunning(true);
 }
 
-async function stopSim() { await fetch('/api/stop', { method: 'POST' }); }
+async function stopSim() {
+  if (!simRunning) return;
+  await fetch('/api/stop', { method: 'POST' }).catch(() => {});
+}
 
 async function clearResults() {
   if (!confirm('Clear all run history?')) return;
-  await fetch('/api/results', { method: 'DELETE' });
+  await fetch('/api/results', { method: 'DELETE' }).catch(() => {});
   allResults = [];
-  const tbl = document.getElementById('resultsTable');
-  if (tbl) tbl.innerHTML = '<div class="results-empty">No runs yet. Start a scenario.</div>';
-  updateComparisonChart();
-  updateDeliveryChart();
+  const c = document.getElementById('resultsTable');
+  if (c) c.innerHTML = '<div class="results-empty">No runs yet. Start a scenario.</div>';
   updateAIBadge();
-  aiSetOutput('<p class="ai-placeholder">Run scenarios, then click <strong>Analyse</strong> for expert insights.</p>');
-  aiSetTag('', '');
 }
 
 function setRunning(running) {
   simRunning = running;
-  ['runPresetBtn', 'runCustomBtn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = running;
-  });
   const sb = document.getElementById('stopBtn');
   const pb = document.getElementById('progressBarWrap');
   if (sb) sb.style.display = running ? 'block' : 'none';
@@ -184,6 +178,12 @@ function connectSSE() {
     const ls = document.getElementById('lotStats');
     if (ls) ls.style.display = 'grid';
     resetLiveSection();
+    currentArchitecture = d.architecture || null;
+    const isCloudOnly = currentArchitecture === 'cloud_only';
+    const fi = document.getElementById('progFilteredItem');
+    const ai = document.getElementById('progAnomaliesItem');
+    if (fi) fi.style.display = isCloudOnly ? 'none' : '';
+    if (ai) ai.style.display = isCloudOnly ? 'none' : '';
   });
   es.addEventListener('progress', e => onProgress(JSON.parse(e.data)));
   es.addEventListener('sim_flushing', e => {
@@ -239,8 +239,7 @@ function onProgress(d) {
   setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '—');
   setText('progFiltered', edge.filtered ?? '—');
   setText('progDropped', edge.link_stats?.dropped ?? '—');
-  const es = d.edge || {};
-  setText('progAnomalies', es.anomalies ?? '—');
+  setText('progAnomalies', edge.anomalies ?? '—');
   const spots = d.spot_states;
   if (spots) {
     const n = Object.keys(spots).length;
@@ -256,75 +255,174 @@ function onProgress(d) {
 }
 
 function resetLiveSection() {
-  ['progElapsed','progGenerated','progReceived','progOccupancy','progFiltered','progDropped']
+  ['progElapsed','progGenerated','progReceived','progOccupancy','progFiltered','progDropped','progAnomalies']
     .forEach(id => setText(id, '—'));
 }
 
-function showResult(r, animate) {
+const _fmt = (v, unit = '', d = 1) => v != null ? `${(+v).toFixed(d)}${unit}` : '—';
+const _fmtInt = v => (v != null ? String(v) : '—');
+const _fmtPct = v => v != null ? `${(v * 100).toFixed(2)}%` : '—';
+const _fmtKB  = v => v ? `${(v / 1024).toFixed(1)} KB` : '—';
+
+function renderKpiStrip(r) {
+  const isCloudOnly = r.architecture === 'cloud_only';
+
   setText('kpi_lat_mean', r.latency_mean_ms?.toFixed(1) ?? '—');
   setText('kpi_lat_p50', r.latency_p50_ms?.toFixed(1) ?? '—');
   setText('kpi_lat_p95', r.latency_p95_ms?.toFixed(1) ?? '—');
   setText('kpi_lat_p99', r.latency_p99_ms?.toFixed(1) ?? '—');
-  setText('kpi_delivery', ((r.sensor_to_edge_delivery_ratio ?? 1) * 100).toFixed(1));
-  const agg = r.aggregation_ratio ?? 1;
-  setText('kpi_agg', agg > 0 ? (1 / agg).toFixed(1) : '—');
-  setText('kpi_filtered', r.filtered_events ?? '—');
-  setText('kpi_bytes_se', r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—');
-  setText('kpi_bytes_ec', r.edge_to_cloud_bytes ? (r.edge_to_cloud_bytes / 1024).toFixed(1) : '—');
+  
+  const delivery = isCloudOnly ? (r.sensor_to_edge_delivery_ratio ?? 1) : (r.cloud_reflection_ratio ?? r.sensor_to_edge_delivery_ratio ?? 1);
+  setText('kpi_delivery', (delivery * 100).toFixed(1));
+
+  const slots = isCloudOnly ? [
+    { label: 'Cloud Msgs', val: _fmtInt(r.events_reflected_in_cloud), unit: 'received'  },
+    { label: 'Sensor Drops', val: _fmtInt(r.sensor_link_dropped), unit: 'pkts lost' },
+    { label: 'Sensor Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB sent' },
+    { label: 'Cloud Bytes', val: r.edge_to_cloud_bytes ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '—', unit: 'KB recv' },
+  ] : [
+    { label: 'Agg Ratio', val: (r.aggregation_ratio > 0 ? (1 / r.aggregation_ratio).toFixed(1) : '—'), unit: 'x saved' },
+    { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
+    { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB' },
+    { label: 'E→C Bytes', val: r.edge_to_cloud_bytes  ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '—', unit: 'KB' },
+  ];
+
+  slots.forEach((s, i) => {
+    const idx = 4 + i;
+    setText(`kpi_label_${idx}`, s.label);
+    setText(`kpi_slot_${idx}`, s.val);
+    setText(`kpi_unit_${idx}`, s.unit);
+  });
+}
+
+
+function metricsRowsCloudOnly(r) {
+  const survivedWireless = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
+  const captured = Math.round((r.cloud_reflection_ratio ?? 0) * (r.valid_state_changes ?? 0));
+  const total = r.valid_state_changes ?? 0;
+  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '—';
+
+  return [
+    { group: 'Sensor activity' },
+    { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
+
+    { group: 'Wireless link (sensor → broker)' },
+    { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs),
+      l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
+    { l1: 'Wireless delivery', v1: _fmtPct(r.sensor_to_edge_delivery_ratio),
+      l2: 'Survived to broker', v2: _fmtInt(survivedWireless) },
+
+    { group: 'Broker layer (MQTT/AMQP/CoAP)' },
+    { l1: 'Reached cloud', v1: _fmtInt(r.events_reflected_in_cloud),
+      l2: 'Duplicate deliveries', v2: _fmtInt(r.duplicate_deliveries) },
+    { l1: 'Broker retries (QoS)', v1: _fmtInt(r.retransmissions_total),
+      l2: 'Protocol overhead', v2: _fmtKB(r.protocol_bytes) },
+
+    { group: 'Coverage' },
+    { l1: 'Real events captured', v1: coverage, l2: '', v2: '' },
+
+    { group: 'End-to-End Latency' },
+    { l1: 'Mean', v1: _fmt(r.latency_mean_ms, ' ms'),
+      l2: 'Min', v2: _fmt(r.latency_min_ms, ' ms') },
+    { l1: 'P50', v1: _fmt(r.latency_p50_ms, ' ms'),
+      l2: 'P95', v2: _fmt(r.latency_p95_ms, ' ms') },
+    { l1: 'P99', v1: _fmt(r.latency_p99_ms, ' ms'),
+      l2: 'Max', v2: _fmt(r.latency_max_ms, ' ms') },
+    { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
+
+    { group: 'Bandwidth' },
+    { l1: 'Sent by sensors', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Received by cloud', v2: _fmtKB(r.edge_to_cloud_bytes) },
+
+    { group: 'Resources' },
+    { l1: 'Cloud Memory', v1: _fmt(r.cloud_mem_mb, ' MB', 1), l2: '', v2: '' }
+  ];
+}
+
+function metricsRowsEdge(r) {
+  const survivedWireless = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
+  const captured = Math.round((r.cloud_reflection_ratio ?? 0) * (r.valid_state_changes ?? 0));
+  const total = r.valid_state_changes ?? 0;
+  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '—';
+
+  const isAggregated = r.architecture === 'edge_aggregated';
+  const edgeRows = [
+    { l1: 'Filtered as redundant', v1: _fmtInt(r.filtered_events),
+      l2: 'Forwarded to broker',   v2: _fmtInt(r.edge_to_cloud_msgs) },
+    { l1: 'Cloud traffic saved',   v1: _fmtPct(r.message_reduction_ratio),
+      l2: '', v2: '' },
+  ];
+  if (isAggregated) {
+    edgeRows[1].l2 = 'Avg events per batch';
+    edgeRows[1].v2 = _fmt(r.events_per_cloud_message, '', 2);
+  }
+
+  return [
+    { group: 'Sensor activity' },
+    { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
+
+    { group: 'Wireless link (sensor → edge gateway)' },
+    { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs), l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
+    { l1: 'Wireless delivery', v1: _fmtPct(r.sensor_to_edge_delivery_ratio), l2: 'Reached the gateway', v2: _fmtInt(survivedWireless) },
+
+    { group: 'Edge processing' },
+    ...edgeRows,
+
+    { group: 'Backhaul link (edge → broker)' },
+    { l1: 'Messages on backhaul', v1: _fmtInt(r.edge_to_cloud_msgs), l2: 'Lost on backhaul', v2: _fmtInt(r.edge_to_cloud_dropped) },
+    { l1: 'Backhaul delivery', v1: _fmtPct(r.edge_to_cloud_delivery_ratio), l2: 'Broker retries (QoS)', v2: _fmtInt(r.retransmissions_total) },
+
+    { group: 'Coverage' },
+    { l1: 'Real events captured', v1: coverage, l2: 'Reached cloud (total)', v2: _fmtInt(r.events_reflected_in_cloud) },
+
+    { group: 'End-to-End Latency' },
+    { l1: 'Mean', v1: _fmt(r.latency_mean_ms, ' ms'), l2: 'Min', v2: _fmt(r.latency_min_ms, ' ms') },
+    { l1: 'P50', v1: _fmt(r.latency_p50_ms, ' ms'), l2: 'P95', v2: _fmt(r.latency_p95_ms, ' ms') },
+    { l1: 'P99', v1: _fmt(r.latency_p99_ms, ' ms'), l2: 'Max', v2: _fmt(r.latency_max_ms, ' ms') },
+    { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
+
+    { group: 'Anomaly Detection' },
+    { l1: 'Detected', v1: _fmtInt(r.anomalies_detected),
+      l2: 'Resolved', v2: _fmtInt(r.anomalies_resolved) },
+    { l1: 'Active at end', v1: _fmtInt(r.active_anomalies),
+      l2: 'Affected spots', v2: _fmtInt(r.anomaly_detected_spots) },
+    { l1: 'Peak quarantined', v1: _fmtInt(r.quarantined_spots_peak),
+      l2: 'Mode switches', v2: _fmtInt(r.adaptive_mode_switches) },
+    { l1: 'Faults injected', v1: _fmtInt(r.fault_injected_count), l2: '', v2: '' },
+
+    { group: 'Bandwidth' },
+    { l1: 'Sensor → edge', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Edge → broker', v2: _fmtKB(r.edge_to_cloud_bytes) },
+    { l1: 'Protocol overhead', v1: _fmtKB(r.protocol_bytes), l2: '', v2: '' },
+
+    { group: 'Resources' },
+    { l1: 'Edge memory',   v1: _fmt(r.edge_mem_mb,  ' MB', 1), l2: 'Cloud memory',  v2: _fmt(r.cloud_mem_mb, ' MB', 1) }
+  ];
+}
+
+function renderMetricsTable(r) {
+  const body = document.getElementById('metricsTableBody');
+  if (!body) return;
+  const rows = r.architecture === 'cloud_only'
+    ? metricsRowsCloudOnly(r)
+    : metricsRowsEdge(r);
+
+  body.innerHTML = rows.map(row => {
+    if (row.group) {
+      return `<tr class="metrics-group-header"><td colspan="4">${row.group}</td></tr>`;
+    }
+    return `<tr>
+      <td>${row.l1}</td><td>${row.v1}</td>
+      <td>${row.l2}</td><td>${row.v2}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showResult(r, animate) {
+  renderKpiStrip(r);
+  renderMetricsTable(r);
   updateLatencyHistogram(r.latency_samples || []);
   updateMsgCountChart(r);
   updateBandwidthChart(r);
   if (animate) buildLotGrid(r.num_spots);
-  const fmt = (v, unit = '', d = 1) => v != null ? `${(+v).toFixed(d)}${unit}` : '—';
-  const fmtPct = v => v != null ? `${(v * 100).toFixed(2)}%` : '—';
-  const fmtKB = v => v ? `${(v / 1024).toFixed(1)} KB` : '—';
-
-  setText('mt_events_generated', r.events_generated ?? '—');
-  setText('mt_s2e_msgs', r.sensor_to_edge_msgs ?? '—');
-  setText('mt_filtered', r.filtered_events ?? '—');
-  setText('mt_dup_deliveries', r.duplicate_deliveries ?? '—');
-  setText('mt_sensor_dropped', r.sensor_link_dropped ?? '—');
-  setText('mt_e2c_msgs', r.edge_to_cloud_msgs || r.cloud_only_msgs || '—');
-  setText('mt_e2c_dropped', r.edge_to_cloud_dropped ?? '—');
-  setText('mt_transport_total', r.transport_msgs_total ?? '—');
-  setText('mt_retransmissions', r.retransmissions_total ?? '—');
-  setText('mt_cloud_msgs', r.events_reflected_in_cloud ?? '—');
-
-  setText('mt_lat_mean', fmt(r.latency_mean_ms, ' ms'));
-  setText('mt_lat_min', fmt(r.latency_min_ms, ' ms'));
-  setText('mt_lat_p50', fmt(r.latency_p50_ms, ' ms'));
-  setText('mt_lat_p95', fmt(r.latency_p95_ms, ' ms'));
-  setText('mt_lat_p99', fmt(r.latency_p99_ms, ' ms'));
-  setText('mt_lat_max', fmt(r.latency_max_ms, ' ms'));
-  setText('mt_warmup', r.warmup_excluded_samples ?? '—');
-
-  setText('mt_s2e_dr', fmtPct(r.sensor_to_edge_delivery_ratio));
-  setText('mt_e2c_dr', fmtPct(r.edge_to_cloud_delivery_ratio));
-  setText('mt_e2e_dr', fmtPct(r.end_to_end_delivery_ratio));
-  setText('mt_phys_dr', fmtPct(r.physical_delivery_ratio));
-  setText('mt_cloud_reflect', fmtPct(r.cloud_reflection_ratio));
-
-  setText('mt_agg_ratio', fmt(r.aggregation_ratio, '', 4));
-  setText('mt_msg_reduction', fmtPct(r.message_reduction_ratio));
-  setText('mt_events_per_msg', fmt(r.events_per_cloud_message, '', 2));
-  setText('mt_valid_changes', r.valid_state_changes ?? '—');
-  setText('mt_events_reflected', r.events_reflected_in_cloud ?? '—');
-
-  setText('mt_anomalies', r.anomalies_detected ?? '—');
-  setText('mt_anom_resolved', r.anomalies_resolved ?? '—');
-  setText('mt_anom_active', r.active_anomalies ?? '—');
-  setText('mt_anom_spots', r.anomaly_detected_spots ?? '—');
-  setText('mt_quarantined', r.quarantined_spots_peak ?? '—');
-  setText('mt_mode_switches', r.adaptive_mode_switches ?? '—');
-  setText('mt_faults', r.fault_injected_count ?? '—');
-
-  setText('mt_bytes_se', fmtKB(r.sensor_to_edge_bytes));
-  setText('mt_bytes_ec', fmtKB(r.edge_to_cloud_bytes));
-  setText('mt_proto_bytes', fmtKB(r.protocol_bytes));
-  setText('mt_broker_score', fmt(r.broker_overhead_score, '', 3));
-
-  setText('mt_edge_mem', fmt(r.edge_mem_mb, ' MB', 1));
-  setText('mt_cloud_mem', fmt(r.cloud_mem_mb, ' MB', 1));
 }
 
 function toggleMetricsTable() {
@@ -512,21 +610,35 @@ function updateLatencyHistogram(samples) {
   charts.latencyHist.update('none');
 }
 
+
 function updateMsgCountChart(r) {
   if (!charts.msgCount) return;
-  const s2e = r.sensor_to_edge_msgs || r.cloud_only_msgs || 0;
-  charts.msgCount.data.datasets[0].data = [
-    s2e, r.edge_to_cloud_msgs || 0, r.filtered_events || 0,
-    Math.round(s2e * (1 - (r.sensor_to_edge_delivery_ratio || 1))),
-  ];
+  const isCloudOnly = r.architecture === 'cloud_only';
+  const s2e = r.sensor_to_edge_msgs || 0;
+  const dropped = Math.round(s2e * (1 - (r.sensor_to_edge_delivery_ratio || 1)));
+  const titleEl = document.getElementById('msgCountChartTitle');
+
+  if (isCloudOnly) {
+    if (titleEl) titleEl.textContent = 'Message Counts — Sensor → Cloud';
+    charts.msgCount.data.labels = ['Sensor Sent', 'Cloud Received', 'Dropped'];
+    charts.msgCount.data.datasets[0].data = [s2e, r.events_reflected_in_cloud || 0, dropped];
+    charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.red + '88'];
+  } else {
+    if (titleEl) titleEl.textContent = 'Message Counts by Link';
+    charts.msgCount.data.labels = ['S→E Sent', 'E→C Msgs', 'Filtered', 'Dropped'];
+    charts.msgCount.data.datasets[0].data = [s2e, r.edge_to_cloud_msgs || 0, r.filtered_events || 0, dropped];
+    charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.amber + '88', C.red + '88'];
+  }
   charts.msgCount.update('none');
 }
 
 function updateBandwidthChart(r) {
   if (!charts.bandwidth) return;
+  const isCloudOnly = r.architecture === 'cloud_only';
+  charts.bandwidth.data.labels = isCloudOnly ? ['Sensor → Cloud sent (KB)', 'Cloud received (KB)'] : ['Sensor → Edge (KB)', 'Edge → Cloud (KB)'];
   charts.bandwidth.data.datasets[0].data = [
     +((r.sensor_to_edge_bytes || 0) / 1024).toFixed(2),
-    +((r.edge_to_cloud_bytes  || 0) / 1024).toFixed(2),
+    +((r.edge_to_cloud_bytes || 0) / 1024).toFixed(2),
   ];
   charts.bandwidth.update('none');
 }
@@ -555,7 +667,12 @@ function updateComparisonChart() {
 function updateDeliveryChart() {
   if (!charts.delivery || !allResults.length) return;
   const labels = allResults.map(r => r.scenario_name?.replace(/_/g, ' ').substring(0, 20));
-  const data = allResults.map(r => +((r.sensor_to_edge_delivery_ratio || 1) * 100).toFixed(1));
+  const data = allResults.map(r => {
+    const v = r.architecture === 'cloud_only'
+      ? (r.sensor_to_edge_delivery_ratio ?? 1)
+      : (r.cloud_reflection_ratio ?? r.sensor_to_edge_delivery_ratio ?? 1);
+    return +(v * 100).toFixed(1);
+  });
   const colors = data.map(v => v >= 98 ? C.green + '99' : v >= 90 ? C.amber + '99' : C.red + '99');
   charts.delivery.data.labels = labels;
   charts.delivery.data.datasets[0].data = data;

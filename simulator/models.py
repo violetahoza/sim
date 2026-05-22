@@ -23,7 +23,7 @@ class ParkingEvent:
             "spot_id": self.spot_id,
             "state": self.state.value,
             "timestamp": self.timestamp,
-            "sequence": self.sequence,
+            "sequence": self.sequence
         }
 
 
@@ -33,10 +33,7 @@ class BatchUpdate:
     events: list[ParkingEvent]
 
     def to_dict(self) -> dict:
-        return {
-            "edge_id": self.edge_id,
-            "events": [e.to_dict() for e in self.events],
-        }
+        return {"edge_id": self.edge_id, "events": [e.to_dict() for e in self.events]}
 
 
 @dataclass

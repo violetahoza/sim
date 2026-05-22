@@ -27,11 +27,7 @@ class TrafficModel:
         self._tod_factors: list[float] = config.tod_factors
         self._wall_clock = wall_clock
         self._time_scale = config.time_scale
-
-        self.occupied: dict[int, bool] = {
-            i: self.rng.random() < config.initial_occupancy
-            for i in range(self.num_spots)
-        }
+        self.occupied: dict[int, bool] = {i: self.rng.random() < config.initial_occupancy for i in range(self.num_spots)}
         self._end_time: float = 0.0
         self._seq: int = 0
 
