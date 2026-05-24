@@ -238,7 +238,10 @@ function onProgress(d) {
   const edge = d.edge || {};
   setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '—');
   setText('progFiltered', edge.filtered ?? '—');
-  setText('progDropped', edge.link_stats?.dropped ?? '—');
+  const sensorDrops = edge.sensor_link_stats?.dropped ?? '—';
+  const backhaulDrops = edge.link_stats?.dropped ?? '—';
+  setText('progSensorDropped', sensorDrops);
+  setText('progBackhaulDropped', backhaulDrops);
   setText('progAnomalies', edge.anomalies ?? '—');
   const spots = d.spot_states;
   if (spots) {
@@ -320,7 +323,7 @@ function metricsRowsCloudOnly(r) {
 
     { group: 'Coverage' },
     { l1: 'Real events captured', v1: coverage, l2: '', v2: '' },
-
+ 
     { group: 'End-to-End Latency' },
     { l1: 'Mean', v1: _fmt(r.latency_mean_ms, ' ms'),
       l2: 'Min', v2: _fmt(r.latency_min_ms, ' ms') },
@@ -333,8 +336,6 @@ function metricsRowsCloudOnly(r) {
     { group: 'Bandwidth' },
     { l1: 'Sent by sensors', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Received by cloud', v2: _fmtKB(r.edge_to_cloud_bytes) },
 
-    { group: 'Resources' },
-    { l1: 'Cloud Memory', v1: _fmt(r.cloud_mem_mb, ' MB', 1), l2: '', v2: '' }
   ];
 }
 
@@ -393,9 +394,7 @@ function metricsRowsEdge(r) {
     { l1: 'Sensor → edge', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Edge → broker', v2: _fmtKB(r.edge_to_cloud_bytes) },
     { l1: 'Protocol overhead', v1: _fmtKB(r.protocol_bytes), l2: '', v2: '' },
 
-    { group: 'Resources' },
-    { l1: 'Edge memory',   v1: _fmt(r.edge_mem_mb,  ' MB', 1), l2: 'Cloud memory',  v2: _fmt(r.cloud_mem_mb, ' MB', 1) }
-  ];
+    ];
 }
 
 function renderMetricsTable(r) {
@@ -616,18 +615,19 @@ function updateMsgCountChart(r) {
   const isCloudOnly = r.architecture === 'cloud_only';
   const s2e = r.sensor_to_edge_msgs || 0;
   const dropped = Math.round(s2e * (1 - (r.sensor_to_edge_delivery_ratio || 1)));
+  const backhaulDrops = r.edge_to_cloud_dropped || 0;
   const titleEl = document.getElementById('msgCountChartTitle');
 
   if (isCloudOnly) {
     if (titleEl) titleEl.textContent = 'Message Counts — Sensor → Cloud';
-    charts.msgCount.data.labels = ['Sensor Sent', 'Cloud Received', 'Dropped'];
+    charts.msgCount.data.labels = ['Sensor Sent', 'Cloud Received', 'Wireless Dropped'];
     charts.msgCount.data.datasets[0].data = [s2e, r.events_reflected_in_cloud || 0, dropped];
     charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.red + '88'];
   } else {
     if (titleEl) titleEl.textContent = 'Message Counts by Link';
-    charts.msgCount.data.labels = ['S→E Sent', 'E→C Msgs', 'Filtered', 'Dropped'];
-    charts.msgCount.data.datasets[0].data = [s2e, r.edge_to_cloud_msgs || 0, r.filtered_events || 0, dropped];
-    charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.amber + '88', C.red + '88'];
+    charts.msgCount.data.labels = ['S→E Sent', 'E→C Msgs', 'Filtered', 'Wireless Drops', 'Backhaul Drops'];
+    charts.msgCount.data.datasets[0].data = [s2e, r.edge_to_cloud_msgs || 0, r.filtered_events || 0, dropped, backhaulDrops];
+    charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.amber + '88', C.red + '88', C.red + 'cc'];
   }
   charts.msgCount.update('none');
 }
@@ -668,15 +668,17 @@ function updateDeliveryChart() {
   if (!charts.delivery || !allResults.length) return;
   const labels = allResults.map(r => r.scenario_name?.replace(/_/g, ' ').substring(0, 20));
   const data = allResults.map(r => {
-    const v = r.architecture === 'cloud_only'
-      ? (r.sensor_to_edge_delivery_ratio ?? 1)
-      : (r.cloud_reflection_ratio ?? r.sensor_to_edge_delivery_ratio ?? 1);
+    let v = r.final_state_match_ratio;
+    if (v == null || v === 0) 
+      v = r.architecture === 'cloud_only' ? (r.sensor_to_edge_delivery_ratio ?? 1) : (r.cloud_reflection_ratio ?? r.sensor_to_edge_delivery_ratio ?? 1);
     return +(v * 100).toFixed(1);
   });
   const colors = data.map(v => v >= 98 ? C.green + '99' : v >= 90 ? C.amber + '99' : C.red + '99');
   charts.delivery.data.labels = labels;
   charts.delivery.data.datasets[0].data = data;
   charts.delivery.data.datasets[0].backgroundColor = colors;
+  if (charts.delivery.options?.plugins?.title) 
+    charts.delivery.options.plugins.title.text = 'Real-state match at cloud (% of spots whose state matches ground truth)';
   charts.delivery.update('none');
 }
 

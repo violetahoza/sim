@@ -61,7 +61,7 @@ class CloudBackend:
         self._snapshot_cache: dict | None = None
         self._snapshot_cache_len: int = -1
         self._last_cpu_time: float = time.monotonic()
-
+        self._cpu_samples: list[float] = []
 
     def receive_batch(self, batch: BatchUpdate, raw_bytes: bytes) -> None:
         from simulator.protocols.broker_config import use_real_brokers
@@ -198,6 +198,14 @@ class CloudBackend:
         finally:
             session.close()
 
+    def sample_cpu(self) -> None:
+        try:
+            v = self._process.cpu_percent(interval=None)
+            if v > 0.0 or self._cpu_samples:
+                self._cpu_samples.append(v)
+        except Exception:
+            pass
+
     def get_occupancy(self) -> dict:
         total = len(self._spots)
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
@@ -225,12 +233,15 @@ class CloudBackend:
             mean = p50 = p95 = p99 = mn = mx = 0.0
 
         if include_cpu:
-            now = time.monotonic()
-            elapsed = now - self._last_cpu_time
-            cpu = self._process.cpu_percent(interval=0.1 if elapsed < 0.5 else None)
-            self._last_cpu_time = time.monotonic()
+            if self._cpu_samples:
+                cpu = sum(self._cpu_samples) / len(self._cpu_samples)
+            else:
+                now = time.monotonic()
+                elapsed = now - self._last_cpu_time
+                cpu = self._process.cpu_percent(interval=0.1 if elapsed < 0.5 else None)
+                self._last_cpu_time = time.monotonic()
         else:
-            cpu = -1.0
+            cpu = (sum(self._cpu_samples) / len(self._cpu_samples)) if self._cpu_samples else -1.0
         mem = self._process.memory_info().rss / (1024 * 1024)
 
         snapshot = {

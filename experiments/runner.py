@@ -123,6 +123,8 @@ class ExperimentRunner:
         logger.info(f"[{cfg.name}] DES simulated — {cfg.sim_duration_s:.0f} s virtual …")
 
         def des_progress(virtual_now: float, end_time: float) -> None:
+            edge.sample_cpu()
+            cloud.sample_cpu()
             if self.progress_cb is None:
                 return
             snap = {
@@ -246,9 +248,9 @@ class ExperimentRunner:
             edge_to_cloud_dropped=e2c_dropped,
 
             measurement_mode="simulated",
-            edge_cpu_pct=-1.0,
+            edge_cpu_pct=es.get("cpu_pct", -1.0),
             edge_mem_mb=es.get("mem_mb", 0.0),
-            cloud_cpu_pct=-1.0,
+            cloud_cpu_pct=cs.get("cpu_pct", -1.0),
             cloud_mem_mb=cs.get("mem_mb", 0.0),
 
             broker_overhead_score=cloud.compute_broker_overhead_score(),
@@ -499,14 +501,24 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     from simulator.protocols.mqtt_client import SimulatedMQTTBackend
     from simulator.protocols.amqp_client import SimulatedAMQPBackend
     from simulator.protocols.coap_client import SimulatedCoAPBackend
+    
+    ack_one_way = cfg.backhaul_link.base_delay_ms / 1000.0
+    ack_jitter  = cfg.backhaul_link.jitter_ms / 1000.0
+
+    if cfg.architecture == "cloud_only":
+        proto_loss = cfg.link.packet_loss_rate
+        ack_one_way = cfg.link.base_delay_ms / 1000.0
+        ack_jitter = cfg.link.jitter_ms / 1000.0
+    else:
+        proto_loss = cfg.backhaul_link.packet_loss_rate
 
     proto = cfg.protocol
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, proto_loss, seed + 2, ack_one_way_delay_s=ack_one_way, ack_jitter_s=ack_jitter)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, proto_loss, seed + 2, ack_one_way_delay_s=ack_one_way, ack_jitter_s=ack_jitter)
     elif proto == "coap":
-        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, cfg.backhaul_link.packet_loss_rate, seed + 2)
+        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, proto_loss, seed + 2, ack_one_way_delay_s=ack_one_way, ack_jitter_s=ack_jitter)
     raise ValueError(f"Unknown protocol: {proto}")
 
 

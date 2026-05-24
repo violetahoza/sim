@@ -46,6 +46,7 @@ class EdgeNode:
         self._process = psutil.Process()
         self._process.cpu_percent(interval=None)
         self._sensor_link_stats: Optional[LinkStats] = None
+        self._cpu_samples: list[float] = []
 
         self._active_anomalies: set[tuple[int, str]] = set()
         self._resolved_anomalies: int = 0
@@ -181,7 +182,6 @@ class EdgeNode:
             self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
-        """R5: impossibly short dwell between two state transitions."""
         if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
             last_change_virtual = cached.last_state_change_timestamp - self._epoch
             if (now_virtual - last_change_virtual) < _MIN_DWELL_S:
@@ -340,9 +340,22 @@ class EdgeNode:
     @staticmethod
     def _serialize_batch(batch: BatchUpdate) -> bytes:
         return json.dumps(batch.to_dict()).encode()
+    
+    def sample_cpu(self) -> None:
+        try:
+            v = self._process.cpu_percent(interval=None)
+            if v > 0.0 or self._cpu_samples:
+                self._cpu_samples.append(v)
+        except Exception:
+            pass
 
     def resource_usage(self, include_cpu: bool = False) -> dict:
-        cpu = self._process.cpu_percent(interval=0.1) if include_cpu else -1.0
+        if self._cpu_samples:
+            cpu = sum(self._cpu_samples) / len(self._cpu_samples)
+        elif include_cpu:
+            cpu = self._process.cpu_percent(interval=0.1)
+        else:
+            cpu = -1.0
         mem = self._process.memory_info().rss / (1024 * 1024)
         return {"cpu_pct": round(cpu, 1), "mem_mb": round(mem, 2)}
 

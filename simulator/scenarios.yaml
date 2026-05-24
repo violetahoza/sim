@@ -1,168 +1,145 @@
 scenarios:
 
-  # ════════════════════════════════════════════════════════════════════════════
-  # A – Architecture Comparison
-  # Baseline: MQTT QoS-1, 50 spots, medium urban traffic, 24 h, NHTS tod curve.
-  # Isolates the effect of edge processing mode; all other parameters identical.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: arch_cloud_only
-    # Expected: highest cloud message count (~1 000–1 200 events/day at medium
-    # traffic), latency ≈ link delay (80 ms mean), aggregation_ratio ≈ 1.0,
-    # delivery ratio ≈ 1 − loss_rate (5%).
+  - name: A1_cloud_only
     description: >
       Cloud-Only Baseline |
-      Every sensor state-change is forwarded directly to the cloud with no edge
-      processing. Represents the upper bound on cloud bandwidth and the lowest
+      Every sensor state change goes straight to the cloud. Represents the upper bound on cloud bandwidth and the lowest
       possible added latency, at the cost of maximum message volume.
     protocol: mqtt
     architecture: cloud_only
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0 
+    use_time_of_day: false
+    backhaul_loss_rate: 0.02
     group: "A - Architecture Comparison"
     group_order: 1
     is_builtin: true
 
-  - name: arch_edge_filtered
-    # Expected: ~15–25% fewer cloud messages vs cloud_only (same-state duplicates
-    # dropped); negligible latency increase; anomaly detection still fires
-    # correctly since each state change is forwarded individually.
+  - name: A2_edge_filtered
     description: >
       Edge Filtered |
-      The gateway drops duplicate state-change events (same state as last reading
-      per spot) before forwarding. Reduces cloud traffic with no added batching
-      latency; well-suited for low-density lots and high-loss RF environments.
+      Duplicate state-change events and heartbeats are dropped at the
+      gateway. No batching, so no added latency. Reduces cloud traffic with no added batching
+      latency.
     protocol: mqtt
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    backhaul_loss_rate: 0.02
     group: "A - Architecture Comparison"
     group_order: 2
     is_builtin: true
 
-  - name: arch_edge_aggregated
-    # Expected: fewer edge→cloud messages than edge_filtered, with bounded added
-    # latency because the gateway flushes by interval, max event age, or batch size.
+  - name: A3_edge_agg_5s
     description: >
-      Edge Aggregated |
-      Events are buffered briefly at the gateway and flushed by interval, maximum
-      event age, or maximum batch size. Reduces cloud connections while keeping
+      Edge Aggregated - 5 s window |
+      Events are buffered briefly at the gateway and flushed by interval. Reduces cloud connections while keeping
       live availability latency bounded.
     protocol: mqtt
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    aggregation_interval: 1.0
-    max_event_age_s: 2.0
-    max_batch_size: 50
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    max_batch_size: 500
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    backhaul_loss_rate: 0.02
     group: "A - Architecture Comparison"
     group_order: 3
     is_builtin: true
 
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # B – Protocol Comparison
-  # Fixed: edge_filtered, 50 spots, medium traffic, 24 h, NHTS tod.
-  # Varies only protocol and QoS/mode, without aggregation delay hiding protocol effects.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: proto_mqtt_qos0
-    # Expected: ~5% unrecovered message loss matching link loss_rate; lowest
-    # latency overhead (0 ms QoS cost); broker_overhead_score ≈ 0.5/1k events.
+  - name: A4_edge_agg_15s
     description: >
-      MQTT QoS 0 |
-      Fire-and-forget — no ACK, no retransmit. Minimal overhead but lost packets
+      Edge Aggregated - 15 s window |
+      Same setup as A3 with a 3x wider window: ~5-6 events per batch.
+      Cleaner aggregation effect, larger latency penalty. The latency vs
+      bandwidth trade-off is the headline result of this group.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    backhaul_loss_rate: 0.02
+    group: "A - Architecture Comparison"
+    group_order: 4
+    is_builtin: true
+
+
+  - name: B1_mqtt_qos0
+    description: >
+      MQTT QoS 0 - Fire & forget |
+      No ACK, no retransmit. Minimal overhead but lost packets
       are never recovered; acceptable only where occasional data gaps are tolerable.
     protocol: mqtt
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
     mqtt_qos: 0
-    sim_duration_s: 86400.0
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 1
     is_builtin: true
 
-  - name: proto_mqtt_qos1
-    # Expected: delivery ratio > 99% despite 5% link loss (retransmit recovers
-    # most); +5 ms overhead vs QoS 0; P99 elevated by ~1 s from first retry.
+  - name: B2_mqtt_qos1
     description: >
-      MQTT QoS 1 |
-      At-least-once delivery with broker ACK and exponential-backoff retransmit.
-      Recovers most packet losses at the cost of ~5 ms added overhead per message.
+      MQTT QoS 1 - At-least-once with PUBACK |
+      One ACK round-trip; lost ACK triggers a retransmit (subscriber
+      detects the duplicate). 
     protocol: mqtt
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
     mqtt_qos: 1
-    sim_duration_s: 86400.0
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 2
     is_builtin: true
 
-  - name: proto_mqtt_qos2
-    # Expected: exactly-once guarantee; +15 ms overhead (4-way handshake);
-    # highest broker_overhead_score; no duplicates even under retransmit.
+  - name: B3_mqtt_qos2
     description: >
-      MQTT QoS 2 |
-      Exactly-once delivery via four-way handshake. Eliminates duplicates at the
-      cost of ~15 ms added overhead — justified for billing or access-control
-      systems where double-counting causes errors.
+      MQTT QoS 2 - Exactly-once via 4-way handshake |
+      Three ACK legs (PUBREC, PUBREL, PUBCOMP) each can lose its ACK,
+      compounding to ≈9 % chance of needing retransmit. Highest byte
+      overhead of the MQTT family; ≈16 % more bytes than QoS 0.
     protocol: mqtt
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
     mqtt_qos: 2
-    sim_duration_s: 86400.0
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 3
     is_builtin: true
 
-  - name: proto_coap_con
-    # Expected: ~8 ms added overhead; CBOR encoding reduces payload ~35% vs JSON;
-    # up to 4 retransmits with 2 s initial timeout; delivery ratio comparable to
-    # MQTT QoS 1 under the same link conditions.
-    description: >
-      CoAP Confirmable (CON) |
-      Confirmable UDP with ACK and RFC 7252 retransmit. CBOR encoding trims
-      payload by ~35% versus JSON; suited for constrained NB-IoT or LoRa sensors.
-    protocol: coap
-    architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    coap_mode: CON
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "B - Protocol Comparison"
-    group_order: 4
-    is_builtin: true
-
-  - name: proto_coap_non
-    # Expected: +1 ms overhead; delivery degrades linearly with loss_rate (no
-    # retransmit); lowest broker_overhead_score after MQTT QoS 0.
+  - name: B4_coap_non
     description: >
       CoAP Non-Confirmable (NON) |
       Fire-and-forget UDP — lowest overhead of all protocols. No retransmit;
@@ -170,668 +147,626 @@ scenarios:
       gaps in occupancy state are acceptable.
     protocol: coap
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
     coap_mode: NON
-    sim_duration_s: 86400.0
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
+    group: "B - Protocol Comparison"
+    group_order: 4
+    is_builtin: true
+
+  - name: B5_coap_con
+    description: >
+      CoAP Confirmable (CON) |
+      ACK round-trip per RFC 7252; up to 4 retransmits with exponential
+      backoff. Comparable retransmit count to MQTT QoS 1 but on roughly
+      half the byte volume thanks to CBOR.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
+    coap_mode: CON
+    sim_duration_s: 43200.0
+    use_time_of_day: true
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 5
     is_builtin: true
 
-  - name: proto_amqp_direct
-    # Expected: ~8 ms overhead (frame + manual ACK + persistence); durable queue
-    # survives broker restart; per-frame cost 37-byte header + routing-key.
+  - name: B6_amqp_auto
     description: >
-      AMQP Direct Exchange |
-      Direct-routed durable queue with manual ACK. Represents a standard RabbitMQ
-      deployment; broker persistence adds ~8 ms overhead but guarantees at-least-
-      once delivery and survives broker restarts.
+      AMQP direct exchange - auto ACK, non-durable |
+      The broker acknowledges messages automatically on dispatch, with
+      no consumer-side confirmation. No retransmits. Equivalent to QoS 0
+      semantics but with AMQP's heavier frame overhead.
     protocol: amqp
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
     amqp_exchange: direct
-    amqp_ack: manual
-    amqp_durable: true
-    sim_duration_s: 86400.0
+    amqp_ack: auto
+    amqp_durable: false
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 6
     is_builtin: true
 
-  - name: proto_amqp_topic
-    # Expected: ~4 ms extra overhead vs direct (pattern-routing CPU cost);
-    # enables per-zone subscriptions without duplicating the sensor pipeline.
+  - name: B7_amqp_manual_durable
     description: >
-      AMQP Topic Exchange |
-      Pattern-routed durable queue — enables per-zone subscriptions (e.g. per
-      floor or parking section) without duplicating the sensor pipeline. Slightly
-      higher overhead than direct exchange due to routing evaluation.
+      AMQP direct exchange - manual ACK, durable |
+      Consumer ACK travels back over the lossy backhaul; lost ACKs cause
+      the broker to requeue. Equivalent to MQTT QoS 1 semantics but with
+      stronger persistence guarantees. Highest byte overhead overall.
     protocol: amqp
     architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    amqp_exchange: topic
+    traffic_level: peak
+    num_spots: 500
+    seed: 2001
+    amqp_exchange: direct
     amqp_ack: manual
     amqp_durable: true
-    sim_duration_s: 86400.0
+    sim_duration_s: 43200.0
     use_time_of_day: true
-    start_hour: 0.0
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
     group: "B - Protocol Comparison"
     group_order: 7
     is_builtin: true
 
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # C – Traffic Level Sweep
-  # Fixed: AMQP direct/manual/durable, edge_aggregated, 50 spots, 24 h, NHTS.
-  # Varies traffic level (arrival rate + initial occupancy).
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: traffic_low
-    # Expected: ~600 events/day; batches mostly singletons → aggregation_ratio
-    # slightly above 1.0; daily pattern clearly visible in latency timeseries.
+  - name: B8_amqp_topic
     description: >
-      Low Traffic (25% occ.) |
-      Residential street or overnight lot — low arrival rate and occupancy.
-      Aggregation provides little bandwidth saving at this density; most batches
-      contain a single event.
+      AMQP topic exchange - manual ACK, durable |
+      Pattern-routed exchange (parking.<edge>.update). Slightly higher
+      broker overhead than B7 (pattern matching), otherwise identical.
+      Useful when subscribers want per-zone or per-floor filtering.
     protocol: amqp
-    architecture: edge_aggregated
-    traffic_level: low
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "C - Traffic Level Sweep"
-    group_order: 1
-    is_builtin: true
-
-  - name: traffic_medium
-    # Expected: ~1 100 events/day; aggregation_ratio approaches 1.0; both
-    # morning and evening NHTS peaks visible in the latency timeseries.
-    description: >
-      Medium Traffic (55% occ.) |
-      Commuter lot at SFpark pilot baseline occupancy. Aggregation begins to
-      provide meaningful bandwidth reduction; dual daily peaks visible in the
-      latency timeseries.
-    protocol: amqp
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "C - Traffic Level Sweep"
-    group_order: 2
-    is_builtin: true
-
-  - name: traffic_peak
-    # Expected: ~1 700 events/day; rate limiter activates during morning and
-    # evening peaks; aggregation_ratio < 1.0 (batches save cloud bandwidth).
-    description: >
-      Peak Traffic (85% occ.) |
-      Airport short-stay or event lot operating near capacity. The gateway rate
-      limiter activates during peak hours; aggregation delivers its strongest
-      bandwidth reduction across the traffic sweep.
-    protocol: amqp
-    architecture: edge_aggregated
+    architecture: edge_filtered
     traffic_level: peak
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "C - Traffic Level Sweep"
-    group_order: 3
-    is_builtin: true
-
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # D – Link Loss Impact
-  # Fixed: MQTT QoS-1, edge_aggregated, 50 spots, medium traffic, 24 h, NHTS.
-  # Varies only packet_loss_rate.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: loss_1pct
-    # Expected: end_to_end_delivery_ratio ≈ 99%; P99 dominated by aggregation
-    # window, not retransmits; near-baseline latency distribution.
-    description: >
-      1% Packet Loss |
-      Near-ideal LoRa line-of-sight under 100 m. Retransmits are rare; latency
-      tail is determined by the aggregation window rather than recovery cycles.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.01
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "D - Link Loss Impact"
-    group_order: 1
-    is_builtin: true
-
-  - name: loss_5pct
-    # Expected: QoS-1 recovers most losses; end_to_end_dr ~97–99%; P99 elevated
-    # ~1 s from first retry; rate limiter occasionally activated by retransmit
-    # bursts during peak hours.
-    description: >
-      5% Packet Loss |
-      Moderate NLOS in an urban canyon (100–300 m, buildings). QoS-1 retransmit
-      recovers most packets; the P99 latency tail is noticeably inflated compared
-      to the 1% scenario.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.05
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "D - Link Loss Impact"
-    group_order: 2
-    is_builtin: true
-
-  - name: loss_15pct
-    # Expected: heavy retransmit load; some events permanently lost (max retries
-    # exceeded); end_to_end_dr ~88–93%; P99 latency significantly elevated;
-    # adaptive edge would trigger in this scenario.
-    description: >
-      15% Packet Loss |
-      Harsh RF environment — dense urban core or >300 m NLOS. Heavy retransmit
-      load with some unrecovered loss. This is the threshold where adaptive edge
-      mode switches from aggregated to filtered.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.15
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "D - Link Loss Impact"
-    group_order: 3
-    is_builtin: true
-
-  - name: loss_25pct
-    # Expected: end_to_end_dr ~75–85%; QoS-1 retransmit queue frequently
-    # saturated; P99 heavily elevated; significant unrecovered loss.
-    # Real fix: LoRa repeater per floor or switch to BLE mesh backhaul.
-    description: >
-      25% Packet Loss |
-      Severe RF degradation — underground B3 or dense metal racking. QoS-1
-      retransmit cannot compensate; meaningful unrecovered loss and heavily
-      elevated tail latency. Represents a deployment that needs infrastructure
-      changes.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.25
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "D - Link Loss Impact"
-    group_order: 4
-    is_builtin: true
-
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # E – Scalability
-  # Fixed: MQTT QoS-1, edge_aggregated, medium traffic, 5% loss, 24 h, NHTS.
-  # Varies only num_spots (rate_limit auto-scales with num_spots).
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: scale_50
-    # Expected: aggregation_ratio slightly above 1.0 (batches outnumber events
-    # at low density); baseline for the scalability group.
-    description: >
-      50 Spots |
-      On-street block or small surface lot. At this density edge aggregation
-      adds slight overhead rather than saving bandwidth; serves as the
-      scalability group baseline.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "E - Scalability"
-    group_order: 1
-    is_builtin: true
-
-  - name: scale_200
-    # Expected: ~4x events per window vs scale_50; aggregation_ratio < 1.0;
-    # rate limiter (20 msg/s) occasionally binding during peaks.
-    description: >
-      200 Spots |
-      Multi-level car park or medium retail lot. Aggregation ratio improves
-      substantially over the 50-spot baseline; rate limiter activates during
-      peak hours.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 200
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "E - Scalability"
-    group_order: 2
-    is_builtin: true
-
-  - name: scale_500
-    # Expected: ~10 events/batch on average; strong aggregation savings;
-    # rate limiter (50 msg/s) generally not binding; P95 latency stable.
-    description: >
-      500 Spots |
-      Large shopping-centre or hospital car park. Strong aggregation benefit
-      as multiple events accumulate per window; latency distribution remains
-      stable compared to smaller deployments.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
     num_spots: 500
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "E - Scalability"
-    group_order: 3
-    is_builtin: true
-
-  - name: scale_1000
-    # Expected: ~18 events/batch; aggregation_ratio ≈ 0.05–0.07; LoRa 1% duty-
-    # cycle becomes the practical binding constraint (multi-gateway required);
-    # rate limiter (100 msg/s) binding during morning peak.
-    description: >
-      1000 Spots |
-      Airport or stadium structure. Maximum aggregation benefit in this group;
-      at LoRa 1% duty-cycle the per-sensor TX budget becomes the real constraint,
-      making multi-gateway clustering necessary in practice.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 1000
-    seed: 42
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "E - Scalability"
-    group_order: 4
-    is_builtin: true
-
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # F – Deployment Archetypes
-  # Realistic link parameters and custom TOD profiles per site type.
-  # All run 24 h from midnight.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: deploy_street
-    # Expected: dual NHTS peaks clearly visible; aggregation_ratio < 1.0 during
-    # peaks; rate limiter active at 08:00 and 17:00–18:00; P99 ≈ link P99 + retry.
-    # TOD: standard urban NHTS curve (default).
-    description: >
-      On-Street (LoRa) |
-      On-street metered bays with LoRa SF7 + 4G backhaul. Representative of
-      SFpark / ParkRight deployments; 30 s aggregation window matches navigation-
-      app refresh cadence.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: peak
-    num_spots: 80
-    seed: 42
-    loss_rate: 0.02
-    aggregation_interval: 30.0
-    base_delay_ms: 80.0
-    jitter_ms: 30.0
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    group: "F - Deployment Archetypes"
-    group_order: 1
-    is_builtin: true
-
-  - name: deploy_mall
-    # Expected: near-zero overnight, strong 11:00–20:00 traffic; 94%+ cloud
-    # message reduction during trading hours; latency ~6x lower than LoRa street.
-    # TOD: shopping-centre profile — dead 00:00–09:00, peaks at 12:00 and 18:00.
-    description: >
-      Shopping Mall (WiFi) |
-      Indoor mall with WiFi 802.11ac backhaul. AMQP topic exchange enables
-      per-zone subscriptions; 60 s aggregation matches guidance-sign refresh.
-      Custom TOD profile reflects mall opening hours.
-    protocol: amqp
-    architecture: edge_aggregated
-    traffic_level: peak
-    num_spots: 300
-    seed: 42
-    loss_rate: 0.01
-    aggregation_interval: 60.0
-    base_delay_ms: 15.0
-    jitter_ms: 8.0
+    seed: 2001
     amqp_exchange: topic
     amqp_ack: manual
     amqp_durable: true
-    max_payload_bytes: 1400
-    payload_encoding_ratio: 1.0
+    sim_duration_s: 43200.0
+    use_time_of_day: true
+    start_hour: 6.0
+    backhaul_loss_rate: 0.03
+    group: "B - Protocol Comparison"
+    group_order: 8
+    is_builtin: true
+
+
+  - name: C1_traffic_low
+    description: >
+      Low Traffic |
+      Aggregation finds very few events per batch (<1 on average).
+      Most batches are singletons; bandwidth saving is modest, latency
+      penalty approaches the full window width.
+    protocol: amqp
+    architecture: edge_aggregated
+    traffic_level: low
+    num_spots: 500
+    seed: 3001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    tod_factors: [0.00, 0.00, 0.00, 0.00, 0.00, 0.00,
-                  0.00, 0.00, 0.10, 0.50, 1.20, 1.80,
-                  2.00, 1.80, 1.40, 1.20, 1.50, 2.20,
-                  2.00, 1.40, 0.60, 0.10, 0.00, 0.00]
-    group: "F - Deployment Archetypes"
+    backhaul_loss_rate: 0.02
+    group: "C - Traffic Level Sweep"
+    group_order: 1
+    is_builtin: true
+
+  - name: C2_traffic_medium
+    description: >
+      Medium Traffic |
+      ~3 events per batch on average. Aggregation begins to pay off
+      visibly; the latency penalty is still bounded by the window.
+    protocol: amqp
+    architecture: edge_aggregated
+    traffic_level: medium
+    num_spots: 500
+    seed: 3001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "C - Traffic Level Sweep"
     group_order: 2
     is_builtin: true
 
-  - name: deploy_campus
-    # Expected: flat 09:00–17:00 plateau; mean latency ~3x higher than LoRa
-    # street despite lower loss — NB-IoT TX setup dominates; 86% cloud reduction.
-    # TOD: campus/university — dead overnight, flat working-hours plateau.
+  - name: C3_traffic_peak
     description: >
-      Campus / Hospital (NB-IoT) |
-      Hospital or campus surface lot with NB-IoT connected-mode backhaul. CoAP
-      CON chosen for mission-critical reliability. Custom TOD profile reflects
-      shift-change and lecture-hour peaks.
-    protocol: coap
+      Peak Traffic |
+      ~5-6 events per batch. Aggregation provides its strongest
+      bandwidth saving in this group; first signs of token-bucket
+      pressure on the sensor-edge link.
+    protocol: amqp
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 200
-    seed: 42
-    loss_rate: 0.005
-    aggregation_interval: 60.0
-    base_delay_ms: 250.0
-    jitter_ms: 80.0
-    coap_mode: CON
-    max_payload_bytes: 1400
-    payload_encoding_ratio: 1.0
+    traffic_level: peak
+    num_spots: 500
+    seed: 3001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    tod_factors: [0.05, 0.03, 0.02, 0.02, 0.03, 0.10,
-                  0.40, 1.60, 2.00, 1.80, 1.60, 1.40,
-                  1.20, 1.40, 1.60, 1.80, 1.40, 0.80,
-                  0.40, 0.20, 0.10, 0.08, 0.06, 0.05]
-    group: "F - Deployment Archetypes"
+    backhaul_loss_rate: 0.02
+    group: "C - Traffic Level Sweep"
     group_order: 3
     is_builtin: true
 
-  - name: deploy_campus_edrx
-    # Expected: mean latency ~5 400 ms (NB-IoT eDRX paging wait dominates);
-    # P99 ≈ 10 s; ~80% battery saving vs connected mode; suitable only for
-    # low-urgency guidance displays.
-    # TOD: same campus profile as deploy_campus.
+
+  - name: D1_scale_50
     description: >
-      Campus eDRX (Battery Mode) |
-      Same site as Campus/Hospital but with NB-IoT eDRX (T_eDRX = 10.24 s).
-      Sensors sleep between windows — ~80% battery saving versus connected mode,
-      at the cost of ~20x higher latency.
-    protocol: coap
+      50 spots @ peak - small lot baseline |
+      ~0.04 events/s post-filter. Almost every batch is a singleton.
+      Aggregation actively hurts bandwidth here (overhead > savings).
+    protocol: mqtt
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 200
-    seed: 42
-    loss_rate: 0.005
-    aggregation_interval: 60.0
-    base_delay_ms: 5370.0
-    jitter_ms: 5120.0
-    coap_mode: CON
-    max_payload_bytes: 1400
-    payload_encoding_ratio: 1.0
+    traffic_level: peak
+    num_spots: 50
+    seed: 4001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    tod_factors: [0.05, 0.03, 0.02, 0.02, 0.03, 0.10,
-                  0.40, 1.60, 2.00, 1.80, 1.60, 1.40,
-                  1.20, 1.40, 1.60, 1.80, 1.40, 0.80,
-                  0.40, 0.20, 0.10, 0.08, 0.06, 0.05]
-    group: "F - Deployment Archetypes"
+    backhaul_loss_rate: 0.02
+    group: "D - Scalability Sweep"
+    group_order: 1
+    is_builtin: true
+
+  - name: D2_scale_200
+    description: >
+      200 spots @ peak - medium structure |
+      ~0.15 events/s post-filter. Aggregation begins to find batches
+      of 2-3 events. Reasonable break-even point.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 200
+    seed: 4001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "D - Scalability Sweep"
+    group_order: 2
+    is_builtin: true
+
+  - name: D3_scale_500
+    description: >
+      500 spots @ peak - large structure |
+      ~5 events per batch. Clear aggregation savings, low queue depth.
+      Cloud-side broker queue stays shallow.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "D - Scalability Sweep"
+    group_order: 3
+    is_builtin: true
+
+  - name: D4_scale_2000
+    description: >
+      2000 spots @ peak - airport/stadium |
+      ~22 events per batch. Sensor link's token bucket and queue
+      capacity start to bind; some link-layer drops appear before
+      events even reach the gateway.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 2000
+    seed: 4001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "D - Scalability Sweep"
     group_order: 4
     is_builtin: true
 
-  - name: deploy_underground
-    # Expected: P99 noticeably elevated by 8% loss + retransmits; end_to_end_dr
-    # ~90–94%; edge_filtered limits batch blast-radius vs aggregated.
-    # TOD: office building — sharp morning fill, flat day, sharp evening drain.
+
+  - name: E1_qos1_loss1pct
     description: >
-      Underground Garage (LoRa) |
-      Office-building underground garage with one LoRa repeater hop per floor.
-      Edge-filtered (dedup only) limits retransmit amplification under the
-      elevated concrete-multipath loss. Custom TOD reflects office occupancy hours.
+      MQTT QoS 1 at 1 % backhaul loss |
+      Near-ideal conditions; ≈1 % retransmits, delivery near 100 %,
+      tail latency only marginally elevated.
     protocol: mqtt
-    architecture: edge_filtered
-    traffic_level: medium
-    num_spots: 150
-    seed: 42
-    loss_rate: 0.08
-    aggregation_interval: 30.0
-    base_delay_ms: 130.0
-    jitter_ms: 50.0
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
     mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    sim_duration_s: 3600.0
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    tod_factors: [0.01, 0.01, 0.01, 0.01, 0.02, 0.05,
-                  0.40, 1.80, 2.20, 1.00, 0.80, 0.80,
-                  0.60, 0.80, 0.90, 1.00, 2.00, 1.60,
-                  0.60, 0.20, 0.08, 0.04, 0.02, 0.01]
-    group: "F - Deployment Archetypes"
+    group: "E - Reliability Under Loss"
+    group_order: 1
+    is_builtin: true
+
+  - name: E2_qos1_loss5pct
+    description: >
+      MQTT QoS 1 at 5 % backhaul loss |
+      ≈5 % retransmits; delivery stays above 99 % thanks to recovery;
+      P99 latency rises by the first retry backoff (~1 s).
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.05
+    group: "E - Reliability Under Loss"
+    group_order: 2
+    is_builtin: true
+
+  - name: E3_qos1_loss15pct
+    description: >
+      MQTT QoS 1 at 15 % backhaul loss |
+      Heavy retransmit load; some messages exhaust the retry budget
+      and are permanently lost. P99 substantially elevated. This is
+      the threshold where adaptive edge mode would switch to filtered.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.15
+    group: "E - Reliability Under Loss"
+    group_order: 3
+    is_builtin: true
+
+  - name: E4_coap_con_loss5pct
+    description: >
+      CoAP CON at 5 % backhaul loss |
+      Direct comparison to E2. CBOR encoding keeps bytes much lower;
+      RFC 7252 backoff is slower than MQTT (initial 2 s vs 1 s) so
+      latency tail can be longer.
+    protocol: coap
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    coap_mode: CON
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.05
+    group: "E - Reliability Under Loss"
+    group_order: 4
+    is_builtin: true
+
+  - name: E5_qos0_loss5pct
+    description: >
+      MQTT QoS 0 at 5 % backhaul loss |
+      No retransmit, no recovery. Delivery ratio ≈ 95 %. This is the
+      "what you give up for the lowest overhead" reference point.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 0
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.05
+    group: "E - Reliability Under Loss"
     group_order: 5
     is_builtin: true
 
 
-  # ════════════════════════════════════════════════════════════════════════════
-  # G – Time-of-Day Variation
-  # Isolates time-of-day effects on message volume and latency distribution.
-  # All use the default NHTS urban curve unless noted.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: tod_morning_rush
-    # Expected: rapidly rising occupancy 07:00–09:00; burst of OCCUPIED events;
-    # rate limiter pressure as lot fills; daily NHTS peak clearly visible.
+  - name: F0_filter_only
     description: >
-      Morning Rush (07:00 start) |
-      80-spot lot starting nearly empty at 07:00 under the NHTS morning peak.
-      Captures the rapid lot-fill event burst and rate-limiter pressure as
-      occupancy climbs toward saturation.
+      No aggregation, just edge filtering |
+      Baseline for the curve: minimum latency, maximum cloud message
+      count (one per real state change after dedup).
     protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 80
-    seed: 42
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 6001
+    mqtt_qos: 1
     sim_duration_s: 86400.0
     use_time_of_day: true
-    start_hour: 7.0
-    initial_occupancy: 0.05
-    group: "G - Time-of-Day Variation"
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "F - Aggregation Window Sweep"
     group_order: 1
     is_builtin: true
 
-  - name: tod_evening_rush
-    # Expected: occupancy falling 17:00–19:00 (mostly FREE events); compare
-    # event type distribution vs morning rush — departures dominate here.
+  - name: F1_agg_1s
     description: >
-      Evening Rush (16:00 start) |
-      80-spot lot starting 65% full at 16:00 under the NHTS evening peak.
-      Captures the departure-dominated drain and compares event-type distribution
-      against the morning fill.
+      1 s aggregation window |
+      Too short relative to event rate (0.36 ev/s) — most batches are
+      singletons. Demonstrates that aggregation can ADD overhead when
+      mistuned.
     protocol: mqtt
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 80
-    seed: 43
+    traffic_level: peak
+    num_spots: 500
+    seed: 6001
+    mqtt_qos: 1
+    aggregation_interval: 1.0
+    max_event_age_s: 2.0
     sim_duration_s: 86400.0
     use_time_of_day: true
-    start_hour: 16.0
-    initial_occupancy: 0.65
-    group: "G - Time-of-Day Variation"
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "F - Aggregation Window Sweep"
     group_order: 2
     is_builtin: true
 
-  - name: tod_full_day
-    # Expected: full NHTS curve visible over 24 h; both morning and evening peaks
-    # captured; stable long-term latency distribution across low and high periods.
+  - name: F2_agg_5s
     description: >
-      Commuter Lot — Full Day |
-      80-spot commuter lot over a full 24-hour NHTS cycle. Captures both peaks,
-      the midday lull, and overnight quiet to give the most complete view of
-      daily aggregation savings and latency stability.
+      5 s aggregation window |
+      ~1.8 events per batch. Modest savings, modest latency cost.
     protocol: mqtt
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 80
-    seed: 44
+    traffic_level: peak
+    num_spots: 500
+    seed: 6001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    initial_occupancy: 0.05
-    group: "G - Time-of-Day Variation"
+    backhaul_loss_rate: 0.02
+    group: "F - Aggregation Window Sweep"
     group_order: 3
     is_builtin: true
 
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # H – Site Profiles
-  # Large-scale realistic sites with bespoke TOD and link parameters.
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: site_shopping_centre
-    # Expected: near-zero overnight; strong 12:00–14:00 lunch peak and
-    # 17:00–20:00 evening peak; 94%+ cloud message reduction; anomaly detection
-    # fires for any sensor silent through a full trading day.
+  - name: F3_agg_15s
     description: >
-      Shopping Centre Profile |
-      400-spot mall over 24 h with a custom TOD profile — quiet morning,
-      strong lunch and evening peaks. AMQP topic exchange supports per-zone
-      subscriptions; anomaly detection guards against silent sensors in RF-
-      challenged multi-storey bays.
-    protocol: amqp
+      15 s aggregation window |
+      ~5-6 events per batch. Significant cloud message reduction with
+      a bounded latency penalty (half the window on average).
+    protocol: mqtt
     architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 400
-    seed: 50
+    traffic_level: peak
+    num_spots: 500
+    seed: 6001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    initial_occupancy: 0.10
+    backhaul_loss_rate: 0.02
+    group: "F - Aggregation Window Sweep"
+    group_order: 4
+    is_builtin: true
+
+  - name: F4_agg_60s
+    description: >
+      60 s aggregation window |
+      ~22 events per batch — near-maximum cloud bandwidth saving.
+      Latency penalty approaches 30 s for the average event;
+      unsuitable for real-time guidance displays.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 6001
+    mqtt_qos: 1
     aggregation_interval: 60.0
+    max_event_age_s: 120.0
+    max_batch_size: 10000
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "F - Aggregation Window Sweep"
+    group_order: 5
+    is_builtin: true
+
+
+  - name: G1_adaptive_harsh_15pct
+    description: >
+      Adaptive Edge at 15 % loss |
+      Direct comparison to E3. When sensor-edge delivery dips below
+      85%, the gateway flips from aggregated to filtered to limit the
+      retransmit amplification. Look for adaptive_mode_switches > 0.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 7001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    adaptive_edge: true
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.15
+    group: "G - Adaptive Edge"
+    group_order: 1
+    is_builtin: true
+
+  - name: G2_adaptive_benign_2pct
+    description: >
+      Adaptive Edge at 2 % loss |
+      Sanity check: with benign link conditions, the gateway should
+      stay in aggregated mode the entire time (mode_switches == 0).
+      Confirms that adaptation does not misfire under normal conditions.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 7001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    adaptive_edge: true
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    backhaul_loss_rate: 0.02
+    group: "G - Adaptive Edge"
+    group_order: 2
+    is_builtin: true
+
+
+  - name: H1_street_lora
+    description: >
+      On-Street LoRa Deployment |
+      120 spots, LoRa SF7 link (80 ms ± 30 ms one-way, 2 % loss), 4G
+      backhaul (30 ms ± 10 ms, 1 % loss). AMQP topic exchange enables
+      per-block subscriptions. 30 s aggregation matches navigation-app
+      refresh cadence. Standard SFpark-style profile.
+    protocol: amqp
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 120
+    seed: 8001
+    amqp_exchange: topic
+    amqp_ack: manual
+    amqp_durable: true
+    aggregation_interval: 30.0
+    max_event_age_s: 60.0
+    max_batch_size: 500
+    base_delay_ms: 80.0
+    jitter_ms: 30.0
+    loss_rate: 0.02
+    backhaul_base_delay_ms: 30.0
+    backhaul_jitter_ms: 10.0
+    backhaul_loss_rate: 0.01
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    group: "H - Realistic Deployments"
+    group_order: 1
+    is_builtin: true
+
+  - name: H2_mall_wifi
+    description: >
+      Indoor Mall WiFi Deployment |
+      400 spots, WiFi 802.11ac access link (15 ms ± 8 ms, 1 % loss),
+      fibre backhaul (5 ms ± 3 ms, 0.1 % loss). MQTT QoS 1 with a 60 s
+      aggregation window aligned to guidance-sign refresh. Custom TOD
+      reflecting mall opening hours.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 400
+    seed: 8002
+    mqtt_qos: 1
+    aggregation_interval: 60.0
+    max_event_age_s: 90.0
+    max_batch_size: 2000
     base_delay_ms: 15.0
     jitter_ms: 8.0
     loss_rate: 0.01
     max_payload_bytes: 1400
     payload_encoding_ratio: 1.0
-    amqp_exchange: topic
-    amqp_ack: manual
-    amqp_durable: true
-    anomaly_detection: true
+    backhaul_base_delay_ms: 5.0
+    backhaul_jitter_ms: 3.0
+    backhaul_loss_rate: 0.001
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
     tod_factors: [0.00, 0.00, 0.00, 0.00, 0.00, 0.00,
                   0.02, 0.08, 0.30, 0.70, 1.10, 1.50,
                   2.00, 1.80, 1.20, 0.90, 1.10, 2.00,
                   2.20, 1.80, 1.20, 0.50, 0.10, 0.00]
-    group: "H - Site Profiles"
-    group_order: 1
+    group: "H - Realistic Deployments"
+    group_order: 2
     is_builtin: true
 
-  - name: site_hospital
-    # Expected: constant low background overnight; three sharp shift-change
-    # spikes (07:00, 15:00, 23:00); anomaly detection critical — silent sensor
-    # in a disabled bay is a safety concern.
+  - name: H3_airport_nbiot
     description: >
-      Hospital 24h Profile |
-      250-spot hospital car park over a full 24-hour cycle with three shift-change
-      spikes. Anomaly detection is safety-critical; MQTT QoS-1 ensures event
-      delivery during high-traffic shift transitions.
-    protocol: mqtt
+      Airport NB-IoT Deployment |
+      1500 spots, NB-IoT connected-mode access link (250 ms ± 80 ms,
+      0.5 % loss), fibre backhaul. CoAP CON for mission-critical
+      reliability with CBOR compression. 30 s aggregation. Time-of-day
+      reflects flight schedules.
+    protocol: coap
     architecture: edge_aggregated
-    traffic_level: low
-    num_spots: 250
-    seed: 51
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    initial_occupancy: 0.40
+    traffic_level: peak
+    num_spots: 1500
+    seed: 8003
+    coap_mode: CON
     aggregation_interval: 30.0
-    base_delay_ms: 80.0
-    jitter_ms: 30.0
-    loss_rate: 0.02
-    mqtt_qos: 1
-    anomaly_detection: true
-    tod_factors: [0.30, 0.25, 0.20, 0.20, 0.25, 0.40,
-                  0.80, 2.00, 1.20, 0.60, 0.50, 0.50,
-                  0.50, 0.50, 0.60, 1.80, 1.00, 0.50,
-                  0.40, 0.40, 0.35, 0.30, 0.30, 1.50]
-    group: "H - Site Profiles"
-    group_order: 2
-    is_builtin: true
-
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # I – Adaptive Edge
-  # Compares adaptive mode switching against static architectures under
-  # conditions where adaptation is expected to trigger (high loss).
-  # ════════════════════════════════════════════════════════════════════════════
-
-  - name: adaptive_vs_static
-    # Expected: multiple mode switches logged during peak-hour bursts (delivery
-    # ratio dips below 85%); lower unrecovered loss than loss_15pct with static
-    # aggregated; mode_switches > 0.
-    description: >
-      Adaptive Edge (15% Loss) |
-      Edge gateway with adaptive mode enabled under harsh RF conditions. When the
-      sensor→edge delivery ratio drops below 85%, the gateway automatically
-      switches from aggregated to filtered to limit retransmit amplification.
-      Compare against loss_15pct for the static equivalent.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.15
+    max_event_age_s: 60.0
+    max_batch_size: 2000
+    base_delay_ms: 250.0
+    jitter_ms: 80.0
+    loss_rate: 0.005
+    max_payload_bytes: 1400
+    payload_encoding_ratio: 1.0
+    backhaul_base_delay_ms: 10.0
+    backhaul_jitter_ms: 5.0
+    backhaul_loss_rate: 0.005
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    adaptive_edge: true
-    group: "I - Adaptive Edge"
-    group_order: 1
-    is_builtin: true
-
-  - name: adaptive_vs_filtered
-    # Expected: at low loss, delivery ratio stays above 95% — gateway stays in
-    # aggregated mode; mode_switches ≈ 0; results should be near-identical to
-    # arch_edge_aggregated (no adaptation triggered).
-    description: >
-      Adaptive Edge (5% Loss) |
-      Same adaptive gateway under normal urban RF conditions (5% loss). With the
-      delivery ratio typically above 95%, adaptation should rarely trigger —
-      validating that the adaptive logic does not interfere under benign conditions.
-    protocol: mqtt
-    architecture: edge_aggregated
-    traffic_level: medium
-    num_spots: 50
-    seed: 42
-    loss_rate: 0.05
-    sim_duration_s: 86400.0
-    use_time_of_day: true
-    start_hour: 0.0
-    adaptive_edge: true
-    group: "I - Adaptive Edge"
-    group_order: 2
+    tod_factors: [0.30, 0.20, 0.15, 0.20, 0.40, 0.80,
+                  1.40, 1.80, 2.00, 1.60, 1.40, 1.40,
+                  1.60, 1.80, 1.60, 1.40, 1.60, 2.00,
+                  1.80, 1.40, 1.00, 0.80, 0.60, 0.40]
+    group: "H - Realistic Deployments"
+    group_order: 3
     is_builtin: true

@@ -409,9 +409,6 @@ function _metricsList() {
     { label: 'Protocol overhead (KB)', value: r => r.protocol_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
     { label: 'Broker score', value: r => r.broker_overhead_score ?? null, applies: _always, fmt: _f3, better: 'low' },
 
-    G('Resources'),
-    { label: 'Edge memory (MB)', value: r => r.edge_mem_mb ?? null,  applies: _isEdge, fmt: _mb, better: 'low' },
-    { label: 'Cloud memory (MB)', value: r => r.cloud_mem_mb ?? null, applies: _always, fmt: _mb, better: 'low' },
   ];
 }
 
