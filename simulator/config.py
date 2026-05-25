@@ -73,6 +73,7 @@ class EdgeConfig:
     filter_no_change: bool = True
     duplicate_window_s: float = 5.0
     heartbeat_forward_interval_s: float = 1800.0
+    resync_interval_s: float = 300.0 
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False

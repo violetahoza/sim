@@ -70,8 +70,31 @@ class EdgeNode:
         now_virtual = event.timestamp - self._epoch
 
         if event.is_initial and event.sequence > self.config.num_spots:
+            resync_due = (
+                self.edge_cfg.resync_interval_s > 0 and cached.last_forwarded_timestamp > 0.0
+                and (event.timestamp - cached.last_forwarded_timestamp) >= self.edge_cfg.resync_interval_s
+            )
+            if not resync_due:
+                cached.last_updated = event.timestamp
+                self.filtered_count += 1
+                return
+
+            previous_state = cached.state
+            state_changed = previous_state != event.state
+            cached.state = event.state
             cached.last_updated = event.timestamp
-            self.filtered_count += 1
+            if state_changed:
+                cached.last_state_change_timestamp = event.timestamp
+                cached.consecutive_same = 0
+            cached.last_event_seq = max(cached.last_event_seq, event.sequence)
+            cached.total_events += 1
+
+            if self._active_arch == "edge_filtered":
+                self._forward_single(event)
+            elif self._active_arch == "edge_aggregated":
+                self._pending.append(event)
+                self._flush_if_needed()
+            cached.last_forwarded_timestamp = event.timestamp
             return
 
         if self.edge_cfg.anomaly_detection:

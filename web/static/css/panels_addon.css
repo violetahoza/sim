@@ -1,0 +1,171 @@
+.panel-collapse-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .06em;
+  padding: .18rem .45rem;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.panel-collapse-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.panel-config.collapsed,
+.panel-right.collapsed {
+  width: 28px !important;
+  min-width: 28px;
+  padding: 0;
+  overflow: hidden;
+}
+
+
+.main-grid {
+  transition: grid-template-columns .25s ease;
+}
+
+.panel-collapsed-label {
+  display: none;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: .12em;
+  color: var(--text3);
+  text-transform: uppercase;
+  padding: .75rem 0;
+  white-space: nowrap;
+  cursor: pointer;
+  width: 28px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .4rem;
+}
+.panel-config.collapsed .panel-collapsed-label,
+.panel-right.collapsed .panel-collapsed-label {
+  display: flex;
+}
+.panel-config.collapsed > *:not(.panel-collapsed-label),
+.panel-right.collapsed > *:not(.panel-collapsed-label) {
+  display: none !important;
+}
+
+.ai-expand-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  font-size: .58rem;
+  padding: .15rem .4rem;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ai-expand-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.ai-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(0, 0, 0, .75);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+}
+.ai-modal-overlay.open { display: flex; }
+
+.ai-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--rl);
+  width: min(860px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(0, 229, 200, .14);
+}
+
+.ai-modal-header {
+  padding: .85rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  flex-shrink: 0;
+}
+.ai-modal-title {
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  flex: 1;
+}
+.ai-modal-close {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: .1rem .3rem;
+}
+.ai-modal-close:hover { color: var(--red); }
+
+.ai-modal-controls {
+  padding: .75rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: .75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.ai-modal-controls .ai-field { flex: 1; min-width: 140px; }
+.ai-modal-controls .ai-btn { height: 32px; padding: 0 1rem; }
+
+.ai-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+
+  font-size: .82rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.ai-modal-body h2 { font-family: var(--mono); font-size: .82rem; color: var(--cyan); letter-spacing: .1em; text-transform: uppercase; margin: .9rem 0 .45rem; padding-bottom: .3rem; border-bottom: 1px solid var(--border); }
+.ai-modal-body h3 { font-family: var(--mono); font-size: .74rem; color: var(--blue); letter-spacing: .08em; text-transform: uppercase; margin: .75rem 0 .38rem; }
+.ai-modal-body h4 { font-family: var(--mono); font-size: .68rem; color: var(--purple); letter-spacing: .06em; margin: .65rem 0 .32rem; }
+.ai-modal-body p { margin-bottom: .6rem; }
+.ai-modal-body ul { padding-left: 1.15rem; margin-bottom: .6rem; }
+.ai-modal-body li { margin-bottom: .3rem; }
+.ai-modal-body strong { color: var(--amber); font-weight: 600; }
+.ai-modal-body em { color: var(--text2); font-style: italic; }
+.ai-modal-body code { font-family: var(--mono); font-size: .72rem; background: rgba(77,155,255,.1); color: var(--blue); padding: .08rem .3rem; border-radius: 3px; white-space: nowrap; }
+
+.ai-modal-status {
+  padding: .5rem 1.1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.ai-modal-tag {
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .18rem .42rem;
+  border-radius: 20px;
+}

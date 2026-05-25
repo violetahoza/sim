@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="/static/css/style.css"/>
+<link rel="stylesheet" href="/static/css/panels_addon.css"/>
 </head>
 <body>
 
@@ -21,7 +22,7 @@
     <div class="modal-body">
       <div class="mgr-tabs">
         <button class="mgr-tab active" id="mgrTabList" onclick="switchMgrTab('list')">All Scenarios</button>
-        <button class="mgr-tab" id="mgrTabCreate" onclick="switchMgrTab('create')">＋ New Scenario</button>
+        <button class="mgr-tab" id="mgrTabCreate" onclick="switchMgrTab('create')">+ New Scenario</button>
         <button class="mgr-tab hidden" id="mgrTabEdit" onclick="switchMgrTab('edit')">✎ Edit</button>
         <button class="mgr-tab" id="mgrTabCompare" onclick="switchMgrTab('compare')">⇌ Compare Runs</button>
       </div>
@@ -234,6 +235,54 @@
   </div>
 </div>
 
+<div class="ai-modal-overlay" id="aiModalOverlay" onclick="if(event.target===this)closeAIModal()">
+  <div class="ai-modal">
+    <div class="ai-modal-header">
+      <span class="ai-star">✦</span>
+      <span class="ai-modal-title">AI Interpreter</span>
+      <span id="aiModalTag" class="ai-modal-tag"></span>
+      <button class="ai-modal-close" onclick="closeAIModal()">✕</button>
+    </div>
+
+    <div class="ai-modal-controls">
+      <div class="ai-field">
+        <label class="ai-label">Focus</label>
+        <select id="aiModalFocus" class="ai-select">
+          <option value="general">🔍 General overview</option>
+          <option value="latency">⚡ Latency deep-dive</option>
+          <option value="reliability">📦 Reliability &amp; loss</option>
+          <option value="bandwidth">💾 Bandwidth efficiency</option>
+          <option value="protocol">📡 Protocol comparison</option>
+          <option value="architecture">🧠 Edge vs Cloud</option>
+          <option value="scale">🏙️ Large-scale analysis</option>
+          <option value="recommendation">✅ Production recommendation</option>
+        </select>
+      </div>
+      <div class="ai-field" style="max-width:140px">
+        <label class="ai-label">Scope</label>
+        <select id="aiModalScope" class="ai-select">
+          <option value="all">All runs</option>
+          <option value="last3">Last 3</option>
+          <option value="last1">Latest only</option>
+        </select>
+      </div>
+      <button class="ai-btn" id="aiModalAnalyseBtn" onclick="runAIAnalysisModal()" style="margin-bottom:1px">
+        <span class="ai-btn-star">✦</span> Analyse
+      </button>
+    </div>
+
+    <div class="ai-modal-body" id="aiModalBody">
+      <p class="ai-placeholder">Run scenarios, then click <strong>Analyse</strong> for expert insights.</p>
+    </div>
+
+    <div class="ai-modal-status">
+      <span style="font-family:var(--mono);font-size:.6rem;color:var(--text3);letter-spacing:.06em">
+        ESC or click outside to close
+      </span>
+    </div>
+  </div>
+</div>
+
 <header class="header">
   <div class="header-inner">
     <div class="logo">
@@ -243,6 +292,12 @@
         <div class="logo-sub">IoT Protocol Simulator</div>
       </div>
     </div>
+
+    <div style="display:flex;align-items:center;gap:.35rem;margin-left:.75rem">
+      <button id="leftCollapseBtn"  class="panel-collapse-btn" title="Collapse left panel"  onclick="toggleLeftPanel()">‹</button>
+      <button id="rightCollapseBtn" class="panel-collapse-btn" title="Collapse right panel" onclick="toggleRightPanel()">›</button>
+    </div>
+
     <div class="header-center">
       <div class="progress-bar-wrap" id="progressBarWrap" style="display:none">
         <div class="progress-bar-fill" id="progressBarFill"></div>
@@ -260,6 +315,7 @@
 <main class="main-grid">
 
   <aside class="panel panel-config">
+    <div class="panel-collapsed-label" onclick="toggleLeftPanel()">⚙ CONFIG</div>
     <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
       <span><span class="panel-title-icon">⚙</span> SCENARIO CONFIG</span>
       <button class="btn-mgr" onclick="openMgr()">⚙ Manage</button>
@@ -395,9 +451,10 @@
         <div class="prog-item"><div class="prog-val" id="progElapsed">—</div><div class="prog-lbl">Elapsed s</div></div>
         <div class="prog-item"><div class="prog-val" id="progSimTime">—</div><div class="prog-lbl">Sim Time</div></div>
         <div class="prog-item"><div class="prog-val" id="progGenerated">—</div><div class="prog-lbl">Generated</div></div>
-        <div class="prog-item"><div class="prog-val" id="progHeartbeats">—</div><div class="prog-lbl">Heartbeats</div></div>
         <div class="prog-item"><div class="prog-val" id="progReceived">—</div><div class="prog-lbl">At Cloud</div></div>
+        <div class="prog-item"><div class="prog-val" id="progOccupancy">—</div><div class="prog-lbl">Occupancy</div></div>
         <div class="prog-item" id="progFilteredItem"><div class="prog-val" id="progFiltered">—</div><div class="prog-lbl">Filtered</div></div>
+        <div class="prog-item"><div class="prog-val" id="progDropped">—</div><div class="prog-lbl">Dropped</div></div>
         <div class="prog-item" id="progAnomaliesItem"><div class="prog-val" id="progAnomalies">—</div><div class="prog-lbl">Anomalies</div></div>
       </div>
     </div>
@@ -410,6 +467,7 @@
       <div class="results-empty">No runs yet. Start a scenario.</div>
     </div>
   </aside>
+
 
   <section class="panel panel-metrics">
     <div class="kpi-row">
@@ -499,6 +557,7 @@
   </section>
 
   <aside class="panel panel-right">
+    <div class="panel-collapsed-label" onclick="toggleRightPanel()">🅿 LOT · ✦ AI</div>
     <div class="panel-title">
       <span class="panel-title-icon">🅿</span> PARKING LOT
       <span class="lot-legend">
@@ -523,7 +582,10 @@
           <span class="ai-title-text">AI INTERPRETER</span>
           <span id="aiBadge" class="ai-badge" style="display:none">0</span>
         </div>
-        <span id="aiModelTag" class="ai-model-tag"></span>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <span id="aiModelTag" class="ai-model-tag"></span>
+          <button class="ai-expand-btn" title="Open in full view" onclick="openAIModal()">⤢ expand</button>
+        </div>
       </div>
 
       <div class="ai-field">
@@ -564,5 +626,13 @@
 
 <script src="/static/js/dashboard.js"></script>
 <script src="/static/js/scenario_manager.js"></script>
+<script src="/static/js/panels_addon.js"></script>
+
+<script>
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeAIModal();
+});
+</script>
+
 </body>
 </html>
