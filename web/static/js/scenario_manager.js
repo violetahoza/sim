@@ -361,6 +361,10 @@ function _metricsList() {
     G('Sensor Activity'),
     { label: 'Sensor messages emitted', value: r => r.events_generated ?? null, applies: _always, fmt: _int },
     { label: 'Real arrivals & departures', value: r => r.valid_state_changes ?? null, applies: _always, fmt: _int },
+    { label: 'Startup occupancy snapshots', value: r => r.initial_snapshots_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Duplicate retransmits', value: r => r.duplicate_sends_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Heartbeats emitted', value: r => r.heartbeats_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Heartbeat interval (s)', value: r => r.heartbeat_interval_s ?? null, applies: _always, fmt: _f2 },
 
     G('Wireless link (sensor → first hop)'),
     { label: 'Unique messages sent', value: r => r.sensor_to_edge_msgs ?? null, applies: _always, fmt: _int },
@@ -399,9 +403,9 @@ function _metricsList() {
     { label: 'Resolved', value: r => r.anomalies_resolved ?? null, applies: _isEdge, fmt: _int },
     { label: 'Active at end', value: r => r.active_anomalies ?? null, applies: _isEdge, fmt: _int, better: 'low' },
     { label: 'Affected spots', value: r => r.anomaly_detected_spots ?? null, applies: _isEdge, fmt: _int, better: 'low' },
-    { label: 'Peak quarantined', value: r => r.quarantined_spots_peak ?? null, applies: _isEdge, fmt: _int, better: 'low' },
+    { label: 'Quarantined at end', value: r => r.quarantined_spots_final ?? null, applies: _isEdge, fmt: _int, better: 'low' },
     { label: 'Mode switches', value: r => r.adaptive_mode_switches ?? null, applies: _isEdge, fmt: _int },
-    { label: 'Faults injected', value: r => r.fault_injected_count ?? null, applies: _isEdge, fmt: _int },
+    { label: 'Faults injected', value: r => r.fault_injected_count ?? null, applies: r => _isEdge(r) && (r.fault_injected_count ?? 0) > 0, fmt: _int },
 
     G('Bandwidth'),
     { label: 'Sensor → first hop (KB)', value: r => r.sensor_to_edge_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },

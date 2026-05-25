@@ -21,7 +21,6 @@ _TOPIC_TMPL = "{prefix}/{edge_id}/update"
 MQTT_FIXED_HEADER = 2
 MQTT_PUBACK_BYTES = 4
 MQTT_PUBREL_BYTES = 4
-MQTT_CONNACK_BYTES = 4
 
 _QOS_BROKER_OVERHEAD_S = {0: 0.0005, 1: 0.001, 2: 0.0015}
 _MAX_RETRIES = {0: 0, 1: 3, 2: 5}
@@ -107,7 +106,7 @@ class SimulatedMQTTBackend(ProtocolBackend):
                         self._retry_or_drop(batch, payload, msg_id, attempt, qos)
                 self.clock.schedule(self._ack_delay(), puback_arrives)
                 return
-            
+
             if qos == 2:
                 def pubrec_arrives() -> None:
                     if self._rng.random() < self.loss_rate:

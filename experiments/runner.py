@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _PROTOCOL_SEED_OFFSET = {"mqtt": 1000, "coap": 2000, "amqp": 3000}
 
+
 def _protocol_seed_offset(protocol: str) -> int:
     return _PROTOCOL_SEED_OFFSET.get(protocol, 9000)
 
@@ -38,7 +39,6 @@ class ExperimentRunner:
         self._spot_states: dict[int, str] = {}
         self._fault_injector = fault_injector
         self._edge_summary: dict = {}
-        self._backhaul_link: LinkEmulator | None = None
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -76,15 +76,12 @@ class ExperimentRunner:
         arch = cfg.architecture
 
         if arch == "cloud_only":
-            backhaul_link = None
-            self._backhaul_link = None
-            edge = EdgeNode(cfg, clock, lambda b, p: None, epoch) 
+            edge = EdgeNode(cfg, clock, lambda b, p: None, epoch)
         else:
             _backhaul_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol) + 5000)
             backhaul_link = LinkEmulator(cfg.backhaul_link.to_link_config(), clock, rng=_backhaul_rng)
             backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
             backhaul_link.set_batch_callback(backend.publish)
-            self._backhaul_link = backhaul_link
 
             def edge_to_cloud(batch: BatchUpdate, raw: bytes) -> None:
                 backhaul_link.transmit_batch(batch, raw)
@@ -123,8 +120,6 @@ class ExperimentRunner:
         logger.info(f"[{cfg.name}] DES simulated — {cfg.sim_duration_s:.0f} s virtual …")
 
         def des_progress(virtual_now: float, end_time: float) -> None:
-            edge.sample_cpu()
-            cloud.sample_cpu()
             if self.progress_cb is None:
                 return
             snap = {
@@ -136,10 +131,12 @@ class ExperimentRunner:
                 "sim_duration_s": cfg.sim_duration_s,
                 "progress_pct": min(100, round(virtual_now / end_time * 100, 1)),
                 "generated": sensors.total_generated,
+                "heartbeats": sensors.heartbeats_generated,
+                "heartbeat_interval_s": cfg.traffic.heartbeat_interval_s,
                 "cloud_events": cloud.received_events,
                 "occupancy": sensors.occupancy_snapshot(),
                 "spot_states": dict(self._spot_states),
-                "edge": edge.summary(include_cpu=False)
+                "edge": edge.summary(),
             }
             self.progress_cb(snap)
 
@@ -150,9 +147,9 @@ class ExperimentRunner:
         dup_deliveries = getattr(backend, "duplicates_delivered", 0) or getattr(backend, "duplicates_suppressed", 0)
         protocol_bytes = backend.bytes_sent
 
-        self._edge_summary = edge.summary(include_cpu=False)
+        self._edge_summary = edge.summary()
         metrics = self._collect_metrics_simulated(cfg, sensors, link, edge, cloud, protocol_bytes, retransmits=retransmits, dup_deliveries=dup_deliveries)
-        self._log_done(cfg, metrics, cloud)
+        self._log_done(cfg, metrics, cloud_events=cloud.received_events)
 
         if self.flush_cb:
             self.flush_cb()
@@ -170,29 +167,29 @@ class ExperimentRunner:
         cloud_transitions = cloud.transitions_received
         ls = link.stats
         es = self._edge_summary if self._edge_summary else edge.summary()
-        cs = cloud.get_metrics_snapshot(include_cpu=False)
         arch = cfg.architecture
 
         s2e_msgs, s2e_bytes = ls.sent, ls.total_bytes_sent
         s2e_dr = ls.delivery_ratio
 
         if arch == "cloud_only":
-            e2c_msgs = ls.received  
-            e2c_bytes = ls.total_bytes_received 
-            e2c_dr = 1.0 
-            e2c_dropped = 0  
+            e2c_msgs = s2e_msgs
+            e2c_bytes = s2e_bytes
+            e2c_dr = 1.0
+            e2c_dropped = 0
+            physical_delivery_ratio = s2e_dr
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
             e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
-  
+            physical_delivery_ratio = s2e_dr * e2c_dr
+
         filtered_events = es.get("filtered", 0)
         events_reflected = cloud_events
         valid_state_changes = state_changes_generated
 
-        physical_delivery_ratio = s2e_dr * e2c_dr
         cloud_reflection_ratio = (min(cloud_transitions / valid_state_changes, 1.0) if valid_state_changes > 0 else 1.0)
 
         s2e_received = ls.received
@@ -204,7 +201,6 @@ class ExperimentRunner:
         fi = self._fault_injector
         return ExperimentMetrics(
             scenario_name=cfg.name,
-            group=cfg.group,
             protocol=cfg.protocol,
             architecture=cfg.architecture,
             traffic_level=cfg.traffic_level,
@@ -247,23 +243,21 @@ class ExperimentRunner:
             adaptive_mode_switches=es.get("mode_switches", 0),
             edge_to_cloud_dropped=e2c_dropped,
 
-            measurement_mode="simulated",
-            edge_cpu_pct=es.get("cpu_pct", -1.0),
-            edge_mem_mb=es.get("mem_mb", 0.0),
-            cloud_cpu_pct=cs.get("cpu_pct", -1.0),
-            cloud_mem_mb=cs.get("mem_mb", 0.0),
-
             broker_overhead_score=cloud.compute_broker_overhead_score(),
             warmup_excluded_samples=cloud.warmup_excluded,
 
             fault_injected_count=fi.injected_count if fi is not None else 0,
-            quarantined_spots_peak=es.get("quarantined_count", 0),
+            quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
 
             events_generated=sensor_events,
+            heartbeats_generated=sensors.heartbeats_generated,
+            initial_snapshots_generated=sensors.initial_snapshots_generated,
+            duplicate_sends_generated=sensors.duplicate_sends_generated,
+            heartbeat_interval_s=cfg.traffic.heartbeat_interval_s,
             sensor_link_dropped=ls.dropped,
 
-            latency_samples=post_samples[-50_000:]
+            latency_samples=post_samples[-50_000:],
         )
 
     async def _run_real(self) -> ExperimentMetrics:
@@ -333,10 +327,12 @@ class ExperimentRunner:
                 "sim_duration_s": cfg.sim_duration_s,
                 "progress_pct": min(100, round(virtual_now / end_time * 100, 1)),
                 "generated": sensors.total_generated,
+                "heartbeats": sensors.heartbeats_generated,
+                "heartbeat_interval_s": cfg.traffic.heartbeat_interval_s,
                 "cloud_events": cloud_proc.received_events,
                 "occupancy": sensors.occupancy_snapshot(),
                 "spot_states": dict(self._spot_states),
-                "edge": edge_summary
+                "edge": edge_summary,
             }
             self.progress_cb(snap)
 
@@ -350,7 +346,7 @@ class ExperimentRunner:
         retransmits = getattr(backend, "retransmitted", 0)
         dup_deliveries = getattr(backend, "duplicates_delivered", 0) or 0
         metrics = await self._collect_metrics_real(cfg, sensors, link, edge_proc, cloud_proc, backend, retransmits=retransmits, dup_deliveries=dup_deliveries)
-        self._log_done(cfg, metrics, None, cloud_events=cloud_proc.received_events)
+        self._log_done(cfg, metrics, cloud_events=cloud_proc.received_events)
 
         if self.flush_cb:
             self.flush_cb()
@@ -386,18 +382,19 @@ class ExperimentRunner:
             e2c_bytes = s2e_bytes
             e2c_dr = 1.0
             e2c_dropped = 0
+            physical_delivery_ratio = s2e_dr
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
             e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
+            physical_delivery_ratio = s2e_dr * e2c_dr
 
         filtered_events = es.get("filtered", 0)
         valid_state_changes = state_changes_generated
         events_reflected = cloud_events
 
-        physical_delivery_ratio = s2e_dr * e2c_dr
         cloud_reflection_ratio = (min(cloud_transitions / valid_state_changes, 1.0) if valid_state_changes > 0 else 1.0)
 
         s2e_received = ls.received
@@ -407,7 +404,6 @@ class ExperimentRunner:
 
         return ExperimentMetrics(
             scenario_name=cfg.name,
-            group=cfg.group,
             protocol=cfg.protocol,
             architecture=cfg.architecture,
             traffic_level=cfg.traffic_level,
@@ -450,44 +446,43 @@ class ExperimentRunner:
             adaptive_mode_switches=es.get("mode_switches", 0),
             edge_to_cloud_dropped=e2c_dropped,
 
-            measurement_mode="real",
-            edge_cpu_pct=edge_proc.cpu_pct,
-            edge_mem_mb=edge_proc.mem_mb,
-            cloud_cpu_pct=cloud_snapshot.get("cpu_pct", 0.0),
-            cloud_mem_mb=cloud_snapshot.get("mem_mb", 0.0),
-
             broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
 
+            quarantined_spots_final=es.get("quarantined_count", 0),
+            anomaly_detected_spots=es.get("detected_spots", 0),
+
             events_generated=sensor_events,
+            heartbeats_generated=sensors.heartbeats_generated,
+            initial_snapshots_generated=sensors.initial_snapshots_generated,
+            duplicate_sends_generated=sensors.duplicate_sends_generated,
+            heartbeat_interval_s=cfg.traffic.heartbeat_interval_s,
             sensor_link_dropped=ls.dropped,
 
-            latency_samples=post_samples[-50_000:]
+            latency_samples=post_samples[-50_000:],
         )
 
-    def _log_done(self, cfg, metrics, cloud=None, cloud_events: int = 0) -> None:
-        ev = cloud.received_events if cloud else cloud_events
+    def _log_done(self, cfg, metrics, cloud_events: int) -> None:
         arch = cfg.architecture
         m = metrics
+        wire = m.transport_msgs_total - m.sensor_to_edge_msgs
         if arch == "cloud_only":
-            wire = m.transport_msgs_total - m.sensor_to_edge_msgs
             logger.info(
                 f"[{cfg.name}] Done (cloud_only). "
                 f"sent={m.sensor_to_edge_msgs}  "
                 f"on_wire={m.transport_msgs_total} (+{wire} retries)  "
-                f"reached_cloud={ev}  "
+                f"reached_cloud={cloud_events}  "
                 f"wireless_dropped={m.sensor_link_dropped}  "
                 f"transitions={m.cloud_reflection_ratio:.1%}  "
                 f"lat={m.latency_mean_ms:.1f}ms  "
                 f"p99={m.latency_p99_ms:.1f}ms"
             )
         else:
-            wire = m.transport_msgs_total - m.sensor_to_edge_msgs
             logger.info(
                 f"[{cfg.name}] Done ({arch}). "
                 f"sent_by_sensors={m.sensor_to_edge_msgs}  "
                 f"filtered_at_edge={m.filtered_events}  "
                 f"forwarded={m.edge_to_cloud_msgs}  "
-                f"reached_cloud={ev}  "
+                f"reached_cloud={cloud_events}  "
                 f"wireless_dropped={m.sensor_link_dropped}  "
                 f"backhaul_dropped={m.edge_to_cloud_dropped}  "
                 f"transitions={m.cloud_reflection_ratio:.1%}  "
@@ -501,9 +496,6 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     from simulator.protocols.mqtt_client import SimulatedMQTTBackend
     from simulator.protocols.amqp_client import SimulatedAMQPBackend
     from simulator.protocols.coap_client import SimulatedCoAPBackend
-    
-    ack_one_way = cfg.backhaul_link.base_delay_ms / 1000.0
-    ack_jitter  = cfg.backhaul_link.jitter_ms / 1000.0
 
     if cfg.architecture == "cloud_only":
         proto_loss = cfg.link.packet_loss_rate
@@ -511,6 +503,8 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
         ack_jitter = cfg.link.jitter_ms / 1000.0
     else:
         proto_loss = cfg.backhaul_link.packet_loss_rate
+        ack_one_way = cfg.backhaul_link.base_delay_ms / 1000.0
+        ack_jitter = cfg.backhaul_link.jitter_ms / 1000.0
 
     proto = cfg.protocol
     if proto == "mqtt":
@@ -529,7 +523,7 @@ async def _make_real_backend(cfg, cloud_recv):
     from simulator.protocols.broker_config import MQTTBrokerConfig, AMQPBrokerConfig, CoAPBrokerConfig
 
     proto = cfg.protocol
-    name  = cfg.name
+    name = cfg.name
 
     if proto == "mqtt":
         backend = RealMQTTBackend(cfg.mqtt, MQTTBrokerConfig.from_env(), cloud_recv, scenario_name=name)

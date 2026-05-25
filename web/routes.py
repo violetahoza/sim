@@ -30,6 +30,7 @@ async def list_scenarios():
             "loss_rate": s.link.packet_loss_rate,
             "rate_limit": s.link.rate_limit_msgs_per_sec,
             "aggregation_interval": s.edge.aggregation_interval_s,
+            "heartbeat_interval_s": s.traffic.heartbeat_interval_s,
             "mqtt_qos": s.mqtt.qos,
             "coap_mode": s.coap.mode,
             "amqp_exchange": s.amqp.exchange_type,

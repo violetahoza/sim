@@ -3,7 +3,6 @@ import logging
 import multiprocessing as mp
 import time
 from typing import TYPE_CHECKING
-import psutil
 
 if TYPE_CHECKING:
     from simulator.config import ScenarioConfig
@@ -28,9 +27,6 @@ def _cloud_worker(config_dict: dict, epoch: float, batch_queue: mp.Queue, metric
         init_schema(engine)
         import json as _json
         cloud.open_run(engine, config_json=_json.dumps(config_dict))
-
-    proc = psutil.Process()
-    proc.cpu_percent(interval=None)
 
     metric_queue.put_nowait({"type": "ready"})
 
@@ -70,7 +66,7 @@ def _cloud_worker(config_dict: dict, epoch: float, batch_queue: mp.Queue, metric
                 "samples": samples,
                 "occupancy": cloud.get_occupancy(),
                 "snapshot": cloud.get_metrics_snapshot(),
-                "received_events": cloud.received_events,
+                "received_events": cloud.received_events
             })
         elif ctype == "stop":
             break
@@ -99,12 +95,7 @@ class CloudWorkerProcess:
         self._metric_q: mp.Queue = ctx.Queue(maxsize=1_000)
         self._cmd_q: mp.Queue = ctx.Queue(maxsize=100)
 
-        self._proc: mp.Process = ctx.Process(
-            target=_cloud_worker,
-            args=(config.to_save_dict(), epoch, self._batch_q, self._metric_q, self._cmd_q, db_url),
-            daemon=True,
-            name="CloudWorker",
-        )
+        self._proc: mp.Process = ctx.Process(target=_cloud_worker, args=(config.to_save_dict(), epoch, self._batch_q, self._metric_q, self._cmd_q, db_url), daemon=True, name="CloudWorker")
         self._ready = False
         self._last_snapshot: dict = {}
         self.received_events: int = 0
@@ -127,7 +118,7 @@ class CloudWorkerProcess:
 
     def receive_batch(self, batch, raw: bytes) -> None:
         import time as _t
-        self._batch_q.put_nowait({"batch": batch.to_dict(), "payload": raw.hex(), "wall_arrival": _t.time(),})
+        self._batch_q.put_nowait({"batch": batch.to_dict(), "payload": raw.hex(), "wall_arrival": _t.time()})
         self.received_events += len(batch.events)
 
     def request_snapshot(self) -> None:
@@ -161,31 +152,14 @@ class CloudWorkerProcess:
                 return
 
     def get_all_latency_samples(self) -> list[float]:
-        data = self.get_all_data()
-        return data.get("samples", [])
+        return self.get_all_data().get("samples", [])
 
     def get_occupancy(self) -> dict:
-        data = self.get_all_data()
-        return data.get("occupancy", {})
+        return self.get_all_data().get("occupancy", {})
 
     def compute_broker_overhead_score(self) -> float:
-        cfg = self._config
-        from simulator.cloud.cloud_backend import _BROKER_SERVICE_RATE
-        proto = cfg.protocol
-        if proto == "mqtt":
-            key = f"mqtt_qos{cfg.mqtt.qos}"
-        elif proto == "amqp":
-            key = f"amqp_{cfg.amqp.exchange_type}/{cfg.amqp.ack_mode}"
-        elif proto == "coap":
-            key = f"coap_{cfg.coap.mode}"
-        else:
-            key = ""
-            
-        mu = _BROKER_SERVICE_RATE.get(key, 20_000.0)
-        lam = self.received_events / max(cfg.sim_duration_s, 1.0)
-        rho = min(lam / mu, 0.999)
-        e_w_ms = 1000.0 / (mu * (1.0 - rho))
-        return round(e_w_ms, 6)
+        from simulator.cloud.cloud_backend import compute_broker_overhead_score
+        return compute_broker_overhead_score(self._config, self.received_events)
 
     def _drain_metrics(self, block: bool = False, timeout: float = 0.0) -> None:
         import queue as _q

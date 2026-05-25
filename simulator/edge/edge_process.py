@@ -4,7 +4,6 @@ import logging
 import multiprocessing as mp
 import time
 from typing import Callable
-import psutil
 
 from simulator.config import ScenarioConfig
 from simulator.models import BatchUpdate, ParkingEvent, SpotState
@@ -24,11 +23,6 @@ def _edge_worker(config_dict: dict, cmd_queue: mp.Queue, result_queue: mp.Queue,
         result_queue.put_nowait({"type": "batch", "batch": batch.to_dict(), "payload": payload.hex()})
 
     edge = EdgeNode(cfg, clock, cloud_cb, epoch)
-
-    proc = psutil.Process()
-    proc.cpu_percent(interval=None)  
-    import time as _time
-    _last_cpu_t = _time.monotonic()
 
     result_queue.put_nowait({"type": "ready"})
 
@@ -64,17 +58,11 @@ def _edge_worker(config_dict: dict, cmd_queue: mp.Queue, result_queue: mp.Queue,
         elif mtype == "flush":
             edge.flush_final()
         elif mtype == "snapshot_req":
-            _now_t = _time.monotonic()
-            _elapsed = _now_t - _last_cpu_t
-            cpu = proc.cpu_percent(interval=0.1 if _elapsed < 0.5 else None)
-            _last_cpu_t = _time.monotonic()
-            mem = proc.memory_info().rss / (1024 * 1024)
-            result_queue.put_nowait({"type": "snapshot", "cpu_pct": round(cpu, 1), "mem_mb": round(mem, 2), "summary": edge.summary()})
+            result_queue.put_nowait({"type": "snapshot", "summary": edge.summary()})
         elif mtype == "stop":
             break
         else:
             logger.warning(f"edge_worker: unknown message type {mtype!r}")
-
 
 
 class EdgeWorkerProcess:
@@ -87,12 +75,7 @@ class EdgeWorkerProcess:
         ctx = mp.get_context("spawn")
         self._cmd_q: mp.Queue = ctx.Queue(maxsize=10_000)
         self._result_q: mp.Queue = ctx.Queue(maxsize=10_000)
-        self._proc: mp.Process = ctx.Process(
-            target=_edge_worker,
-            args=(config.to_save_dict(), self._cmd_q, self._result_q, epoch),
-            daemon=True,
-            name="EdgeWorker"
-        )
+        self._proc: mp.Process = ctx.Process(target=_edge_worker, args=(config.to_save_dict(), self._cmd_q, self._result_q, epoch), daemon=True, name="EdgeWorker")
 
         self._last_snapshot: dict = {}
         self._ready = False
@@ -113,7 +96,6 @@ class EdgeWorkerProcess:
         if self._proc.is_alive():
             self._proc.terminate()
 
-
     def receive(self, event: ParkingEvent, raw: bytes) -> None:
         self._cmd_q.put_nowait({"type": "event", "event": event.to_dict()})
 
@@ -128,24 +110,12 @@ class EdgeWorkerProcess:
     def drain(self) -> None:
         self._drain_results(block=False)
 
-
     def summary(self) -> dict:
         return self._last_snapshot.get("summary", {
             "received": 0, "filtered": 0, "forwarded_events": 0,
             "anomalies": 0, "mode_switches": 0, "active_arch": "unknown",
-            "link_stats": {"sent": 0, "received": 0, "dropped": 0, "total_bytes_sent": 0, "total_bytes_received": 0, "delivery_ratio": 1.0, "drop_rate": 0.0},
-            "cpu_pct": self._last_snapshot.get("cpu_pct", 0.0),
-            "mem_mb": self._last_snapshot.get("mem_mb", 0.0)
+            "link_stats": {"sent": 0, "received": 0, "dropped": 0, "total_bytes_sent": 0, "total_bytes_received": 0, "delivery_ratio": 1.0, "drop_rate": 0.0}
         })
-
-    @property
-    def cpu_pct(self) -> float:
-        return self._last_snapshot.get("cpu_pct", 0.0)
-
-    @property
-    def mem_mb(self) -> float:
-        return self._last_snapshot.get("mem_mb", 0.0)
-
 
     def _drain_results(self, block: bool = False, timeout: float = 0.0) -> None:
         import queue as _queue
@@ -153,7 +123,7 @@ class EdgeWorkerProcess:
         while True:
             try:
                 msg = self._result_q.get(block=block, timeout=timeout)
-                block = False  # only block on first item
+                block = False
             except (_queue.Empty, Exception):
                 break
 

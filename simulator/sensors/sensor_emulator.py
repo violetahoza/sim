@@ -20,6 +20,8 @@ class SensorEmulator:
         self._total_generated = 0
         self._state_changes_generated = 0
         self._heartbeats_generated = 0
+        self._initial_snapshots_generated = 0
+        self._duplicate_sends_generated = 0
         self._fault_injector = None
 
     def set_fault_injector(self, fi) -> None:
@@ -31,8 +33,11 @@ class SensorEmulator:
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
 
-        is_heartbeat_or_initial = event.is_initial
-        is_transition = (not is_heartbeat_or_initial) and (state.state != event.state)
+        is_initial = event.is_initial
+        is_initial_snapshot = is_initial and event.sequence <= self.num_spots
+        is_heartbeat = is_initial and event.sequence > self.num_spots
+        is_transition = (not is_initial) and (state.state != event.state)
+        is_duplicate_send = (not is_initial) and (state.state == event.state)
 
         if state.state == event.state:
             state.consecutive_same += 1
@@ -47,9 +52,12 @@ class SensorEmulator:
 
         if is_transition:
             self._state_changes_generated += 1
-        elif is_heartbeat_or_initial:
-            if event.sequence > self.num_spots:
-                self._heartbeats_generated += 1
+        elif is_heartbeat:
+            self._heartbeats_generated += 1
+        elif is_initial_snapshot:
+            self._initial_snapshots_generated += 1
+        elif is_duplicate_send:
+            self._duplicate_sends_generated += 1
 
         tx_events = (self._fault_injector.apply(event) if self._fault_injector is not None else [event])
         for e in tx_events:
@@ -72,7 +80,16 @@ class SensorEmulator:
     def heartbeats_generated(self) -> int:
         return self._heartbeats_generated
 
+    @property
+    def initial_snapshots_generated(self) -> int:
+        return self._initial_snapshots_generated
+
+    @property
+    def duplicate_sends_generated(self) -> int:
+        return self._duplicate_sends_generated
+
     def occupancy_snapshot(self) -> dict:
         total = self.num_spots
         occupied = sum(1 for s in self._sensor_states.values() if s.state == SpotState.OCCUPIED)
-        return {"total": total, "occupied": occupied, "free": total - occupied, "occupancy_pct": round(occupied / total * 100, 1) if total else 0}
+        return {"total": total, "occupied": occupied, "free": total - occupied,
+                "occupancy_pct": round(occupied / total * 100, 1) if total else 0}

@@ -54,11 +54,6 @@ class ScenarioRun(Base):
     anomalies_detected = Column(Integer)
     adaptive_mode_switches = Column(Integer)
 
-    edge_cpu_pct = Column(Float)
-    edge_mem_mb = Column(Float)
-    cloud_cpu_pct = Column(Float)
-    cloud_mem_mb = Column(Float)
-
     broker_overhead_score = Column(Float)
 
 

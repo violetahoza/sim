@@ -56,8 +56,6 @@ class LinkStats:
     dropped: int = 0
     total_bytes_sent: int = 0
     total_bytes_received: int = 0
-    retransmissions: int = 0
-    duplicate_deliveries: int = 0
 
     @property
     def delivery_ratio(self) -> float:
@@ -76,9 +74,7 @@ class LinkStats:
             "total_bytes_sent": self.total_bytes_sent,
             "total_bytes_received": self.total_bytes_received,
             "delivery_ratio": self.delivery_ratio,
-            "drop_rate": self.drop_rate,
-            "retransmissions": self.retransmissions,
-            "duplicate_deliveries": self.duplicate_deliveries
+            "drop_rate": self.drop_rate
         }
 
 
@@ -90,7 +86,6 @@ class ExperimentMetrics:
     traffic_level: str
     num_spots: int
     sim_duration_s: float
-    group: str = ""
 
     latency_mean_ms: float = 0.0
     latency_p50_ms: float = 0.0
@@ -130,21 +125,18 @@ class ExperimentMetrics:
     adaptive_mode_switches: int = 0
     edge_to_cloud_dropped: int = 0
 
-    measurement_mode: str = "simulated"
-    edge_cpu_pct: float = -1.0
-    edge_mem_mb: float = 0.0
-    cloud_cpu_pct: float = -1.0
-    cloud_mem_mb: float = 0.0
-
     broker_overhead_score: float = 0.0
-
     warmup_excluded_samples: int = 0
 
     fault_injected_count: int = 0
-    quarantined_spots_peak: int = 0
+    quarantined_spots_final: int = 0
     anomaly_detected_spots: int = 0
 
     events_generated: int = 0
+    heartbeats_generated: int = 0
+    initial_snapshots_generated: int = 0
+    duplicate_sends_generated: int = 0
+    heartbeat_interval_s: float = 0.0
     sensor_link_dropped: int = 0
 
     latency_samples: list[float] = field(default_factory=list)

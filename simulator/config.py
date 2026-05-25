@@ -15,10 +15,10 @@ AMQPExchange = Literal["direct", "fanout", "topic"]
 AMQPAckMode = Literal["auto", "manual"]
 
 DEFAULT_TOD_FACTORS: list[float] = [
-    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  # 00–05
-    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  # 06–11
-    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,  # 12–17
-    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  # 18–23
+    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  
+    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  
+    1.70, 1.50, 1.30, 1.50, 1.80, 2.20, 
+    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  
 ]
 
 ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
@@ -41,8 +41,6 @@ class LinkConfig:
     max_payload_bytes: int = 51
     rate_limit_msgs_per_sec: float = 5.0
     payload_encoding_ratio: float = 0.15
-    lorawan_duty_cycle: bool = False
-    sf_airtime_ms: float = 41.0
 
 
 @dataclass
@@ -61,8 +59,7 @@ class BackhaulLinkConfig:
             packet_loss_rate=self.packet_loss_rate,
             max_payload_bytes=self.max_payload_bytes,
             rate_limit_msgs_per_sec=self.rate_limit_msgs_per_sec,
-            payload_encoding_ratio=self.payload_encoding_ratio,
-            lorawan_duty_cycle=False
+            payload_encoding_ratio=self.payload_encoding_ratio
         )
 
 
@@ -79,8 +76,7 @@ class EdgeConfig:
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False
-    stuck_threshold: int = 720      
-    silent_threshold_s: float = 7200.0  
+    silent_threshold_s: float = 7200.0
     quarantine_threshold: int = 5
     quarantine_recovery_events: int = 3
 
@@ -120,11 +116,6 @@ class CoAPConfig:
 @dataclass
 class TrafficConfig:
     num_spots: int = 50
-
-    arrival_rate_low: float = ARRIVAL_RATES["low"]
-    arrival_rate_medium: float = ARRIVAL_RATES["medium"]
-    arrival_rate_peak: float = ARRIVAL_RATES["peak"]
-
     mean_parking_duration_s: float = 1800.0
     parking_duration_cv: float = 1.5
     sim_duration_s: float = 10800.0
@@ -192,7 +183,6 @@ class ScenarioConfig:
             "heartbeat_forward_interval_s": edge["heartbeat_forward_interval_s"],
             "anomaly_detection": edge["anomaly_detection"],
             "adaptive_edge": edge["adaptive_edge"],
-            "stuck_threshold": edge["stuck_threshold"],
             "silent_threshold_s": edge["silent_threshold_s"],
             "quarantine_threshold": edge["quarantine_threshold"],
             "quarantine_recovery_events": edge["quarantine_recovery_events"],
@@ -210,7 +200,7 @@ class ScenarioConfig:
             "tod_factors": traffic["tod_factors"],
             "use_dwell_mixture": traffic["use_dwell_mixture"],
             "heartbeat_interval_s": traffic["heartbeat_interval_s"],
-            "duplicate_send_prob": traffic["duplicate_send_prob"],
+            "duplicate_send_prob": traffic["duplicate_send_prob"]
         }
 
     @classmethod
@@ -230,7 +220,6 @@ class ScenarioConfig:
             heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 1800.0),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
-            stuck_threshold=d.get("stuck_threshold", 720),
             silent_threshold_s=d.get("silent_threshold_s", 7200.0),
             quarantine_threshold=d.get("quarantine_threshold", 5),
             quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
@@ -280,7 +269,6 @@ def make_scenario(
     heartbeat_forward_interval_s: float = 1800.0,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
-    stuck_threshold: int = 720,
     silent_threshold_s: float = 7200.0,
     quarantine_threshold: int = 5,
     quarantine_recovery_events: int = 3,
@@ -303,8 +291,6 @@ def make_scenario(
     backhaul_jitter_ms: float = 10.0,
     backhaul_loss_rate: float = 0.02,
     payload_encoding_ratio: float = 0.15,
-    lorawan_duty_cycle: bool = True,
-    sf_airtime_ms: float = 41.0,
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
     use_time_of_day: bool = False,
@@ -335,7 +321,7 @@ def make_scenario(
     backhaul = BackhaulLinkConfig(
         base_delay_ms=backhaul_base_delay_ms,
         jitter_ms=backhaul_jitter_ms,
-        packet_loss_rate=backhaul_loss_rate,
+        packet_loss_rate=backhaul_loss_rate
     )
 
     edge = EdgeConfig(
@@ -347,16 +333,12 @@ def make_scenario(
         heartbeat_forward_interval_s=heartbeat_forward_interval_s,
         anomaly_detection=anomaly_detection,
         adaptive_edge=adaptive_edge,
-        stuck_threshold=stuck_threshold,
         silent_threshold_s=silent_threshold_s,
         quarantine_threshold=quarantine_threshold,
         quarantine_recovery_events=quarantine_recovery_events
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
-        arrival_rate_low=ARRIVAL_RATES["low"] * (num_spots / 50),
-        arrival_rate_medium=ARRIVAL_RATES["medium"] * (num_spots / 50),
-        arrival_rate_peak=ARRIVAL_RATES["peak"] * (num_spots / 50),
         mean_parking_duration_s=mean_parking_duration_s,
         parking_duration_cv=parking_duration_cv,
         sim_duration_s=sim_duration_s,

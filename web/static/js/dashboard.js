@@ -62,7 +62,7 @@ async function loadScenarios() {
     const hint = document.getElementById('groupHint');
     if (hint && full?.group) {
       const sibs = allScenarios.filter(s => s.group === full.group);
-      hint.textContent = sibs.length > 1 ? `💡 Part of "${full.group}" — run all ${sibs.length} to compare` : '';
+      hint.textContent = sibs.length > 1 ? `💡 Part of "${full.group}" - run all ${sibs.length} to compare` : '';
       hint.style.display = sibs.length > 1 ? 'block' : 'none';
     } else if (hint) hint.style.display = 'none';
   });
@@ -227,22 +227,23 @@ function onProgress(d) {
   const pl = document.getElementById('progressBarLabel');
   if (pf) pf.style.width = pct + '%';
   if (pl) pl.textContent = pct + '%';
-  setText('progElapsed', d.elapsed_s ?? '—');
+  setText('progElapsed', d.elapsed_s ?? '-');
   const simSec = d.simulated_elapsed_s ?? 0;
   const simH = Math.floor(simSec / 3600);
   const simM = Math.floor((simSec % 3600) / 60);
   setText('progSimTime', `${simH}h ${String(simM).padStart(2,'0')}m`);
-  setText('progGenerated', d.generated ?? '—');
-  setText('progReceived', d.cloud_events ?? '—');
+  setText('progGenerated', d.generated ?? '-');
+  setText('progHeartbeats', d.heartbeats ?? '-');
+  setText('progReceived', d.cloud_events ?? '-');
   const occ = d.occupancy || {};
   const edge = d.edge || {};
-  setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '—');
-  setText('progFiltered', edge.filtered ?? '—');
-  const sensorDrops = edge.sensor_link_stats?.dropped ?? '—';
-  const backhaulDrops = edge.link_stats?.dropped ?? '—';
+  setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '-');
+  setText('progFiltered', edge.filtered ?? '-');
+  const sensorDrops = edge.sensor_link_stats?.dropped ?? '-';
+  const backhaulDrops = edge.link_stats?.dropped ?? '-';
   setText('progSensorDropped', sensorDrops);
   setText('progBackhaulDropped', backhaulDrops);
-  setText('progAnomalies', edge.anomalies ?? '—');
+  setText('progAnomalies', edge.anomalies ?? '-');
   const spots = d.spot_states;
   if (spots) {
     const n = Object.keys(spots).length;
@@ -258,22 +259,22 @@ function onProgress(d) {
 }
 
 function resetLiveSection() {
-  ['progElapsed','progGenerated','progReceived','progOccupancy','progFiltered','progDropped','progAnomalies']
-    .forEach(id => setText(id, '—'));
+  ['progElapsed','progGenerated','progHeartbeats','progReceived','progOccupancy','progFiltered','progDropped','progAnomalies']
+    .forEach(id => setText(id, '-'));
 }
 
-const _fmt = (v, unit = '', d = 1) => v != null ? `${(+v).toFixed(d)}${unit}` : '—';
-const _fmtInt = v => (v != null ? String(v) : '—');
-const _fmtPct = v => v != null ? `${(v * 100).toFixed(2)}%` : '—';
-const _fmtKB  = v => v ? `${(v / 1024).toFixed(1)} KB` : '—';
+const _fmt = (v, unit = '', d = 1) => v != null ? `${(+v).toFixed(d)}${unit}` : '-';
+const _fmtInt = v => (v != null ? String(v) : '-');
+const _fmtPct = v => v != null ? `${(v * 100).toFixed(2)}%` : '-';
+const _fmtKB  = v => v ? `${(v / 1024).toFixed(1)} KB` : '-';
 
 function renderKpiStrip(r) {
   const isCloudOnly = r.architecture === 'cloud_only';
 
-  setText('kpi_lat_mean', r.latency_mean_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p50', r.latency_p50_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p95', r.latency_p95_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p99', r.latency_p99_ms?.toFixed(1) ?? '—');
+  setText('kpi_lat_mean', r.latency_mean_ms?.toFixed(1) ?? '-');
+  setText('kpi_lat_p50', r.latency_p50_ms?.toFixed(1) ?? '-');
+  setText('kpi_lat_p95', r.latency_p95_ms?.toFixed(1) ?? '-');
+  setText('kpi_lat_p99', r.latency_p99_ms?.toFixed(1) ?? '-');
   
   const delivery = isCloudOnly ? (r.sensor_to_edge_delivery_ratio ?? 1) : (r.cloud_reflection_ratio ?? r.sensor_to_edge_delivery_ratio ?? 1);
   setText('kpi_delivery', (delivery * 100).toFixed(1));
@@ -281,13 +282,13 @@ function renderKpiStrip(r) {
   const slots = isCloudOnly ? [
     { label: 'Cloud Msgs', val: _fmtInt(r.events_reflected_in_cloud), unit: 'received'  },
     { label: 'Sensor Drops', val: _fmtInt(r.sensor_link_dropped), unit: 'pkts lost' },
-    { label: 'Sensor Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB sent' },
-    { label: 'Cloud Bytes', val: r.edge_to_cloud_bytes ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '—', unit: 'KB recv' },
+    { label: 'Sensor Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '-', unit: 'KB sent' },
+    { label: 'Cloud Bytes', val: r.edge_to_cloud_bytes ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '-', unit: 'KB recv' },
   ] : [
-    { label: 'Agg Ratio', val: (r.aggregation_ratio > 0 ? (1 / r.aggregation_ratio).toFixed(1) : '—'), unit: 'x saved' },
+    { label: 'Agg Ratio', val: (r.aggregation_ratio > 0 ? (1 / r.aggregation_ratio).toFixed(1) : '-'), unit: 'x saved' },
     { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
-    { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB' },
-    { label: 'E→C Bytes', val: r.edge_to_cloud_bytes  ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '—', unit: 'KB' },
+    { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '-', unit: 'KB' },
+    { label: 'E→C Bytes', val: r.edge_to_cloud_bytes  ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '-', unit: 'KB' },
   ];
 
   slots.forEach((s, i) => {
@@ -303,11 +304,14 @@ function metricsRowsCloudOnly(r) {
   const survivedWireless = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
   const captured = Math.round((r.cloud_reflection_ratio ?? 0) * (r.valid_state_changes ?? 0));
   const total = r.valid_state_changes ?? 0;
-  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '—';
+  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '-';
 
   return [
     { group: 'Sensor activity' },
     { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
+    { l1: 'Heartbeats emitted', v1: _fmtInt(r.heartbeats_generated),
+      l2: 'Heartbeat interval', v2: (r.heartbeat_interval_s && r.heartbeat_interval_s > 0) ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled' },
+    { l1: 'Startup occupancy snapshots', v1: _fmtInt(r.initial_snapshots_generated), l2: 'Duplicate retransmits', v2: _fmtInt(r.duplicate_sends_generated) },
 
     { group: 'Wireless link (sensor → broker)' },
     { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs),
@@ -343,13 +347,13 @@ function metricsRowsEdge(r) {
   const survivedWireless = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
   const captured = Math.round((r.cloud_reflection_ratio ?? 0) * (r.valid_state_changes ?? 0));
   const total = r.valid_state_changes ?? 0;
-  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '—';
+  const coverage = total > 0 ? `${captured} of ${total} (${_fmtPct(r.cloud_reflection_ratio)})` : '-';
 
   const isAggregated = r.architecture === 'edge_aggregated';
   const edgeRows = [
     { l1: 'Filtered as redundant', v1: _fmtInt(r.filtered_events),
-      l2: 'Forwarded to broker',   v2: _fmtInt(r.edge_to_cloud_msgs) },
-    { l1: 'Cloud traffic saved',   v1: _fmtPct(r.message_reduction_ratio),
+      l2: 'Forwarded to broker', v2: _fmtInt(r.edge_to_cloud_msgs) },
+    { l1: 'Cloud traffic saved', v1: _fmtPct(r.message_reduction_ratio),
       l2: '', v2: '' },
   ];
   if (isAggregated) {
@@ -357,9 +361,25 @@ function metricsRowsEdge(r) {
     edgeRows[1].v2 = _fmt(r.events_per_cloud_message, '', 2);
   }
 
+  const anomalyRows = [
+    { group: 'Anomaly Detection' },
+    { l1: 'Detected', v1: _fmtInt(r.anomalies_detected),
+      l2: 'Resolved', v2: _fmtInt(r.anomalies_resolved) },
+    { l1: 'Active at end', v1: _fmtInt(r.active_anomalies),
+      l2: 'Affected spots', v2: _fmtInt(r.anomaly_detected_spots) },
+    { l1: 'Quarantined at end', v1: _fmtInt(r.quarantined_spots_final),
+      l2: 'Mode switches', v2: _fmtInt(r.adaptive_mode_switches) },
+  ];
+  if ((r.fault_injected_count ?? 0) > 0) {
+    anomalyRows.push({ l1: 'Faults injected', v1: _fmtInt(r.fault_injected_count), l2: '', v2: '' });
+  }
+
   return [
     { group: 'Sensor activity' },
     { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
+    { l1: 'Heartbeats emitted', v1: _fmtInt(r.heartbeats_generated),
+      l2: 'Heartbeat interval', v2: (r.heartbeat_interval_s && r.heartbeat_interval_s > 0) ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled' },
+    { l1: 'Startup occupancy snapshots', v1: _fmtInt(r.initial_snapshots_generated), l2: 'Duplicate retransmits', v2: _fmtInt(r.duplicate_sends_generated) },
 
     { group: 'Wireless link (sensor → edge gateway)' },
     { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs), l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
@@ -381,20 +401,12 @@ function metricsRowsEdge(r) {
     { l1: 'P99', v1: _fmt(r.latency_p99_ms, ' ms'), l2: 'Max', v2: _fmt(r.latency_max_ms, ' ms') },
     { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
 
-    { group: 'Anomaly Detection' },
-    { l1: 'Detected', v1: _fmtInt(r.anomalies_detected),
-      l2: 'Resolved', v2: _fmtInt(r.anomalies_resolved) },
-    { l1: 'Active at end', v1: _fmtInt(r.active_anomalies),
-      l2: 'Affected spots', v2: _fmtInt(r.anomaly_detected_spots) },
-    { l1: 'Peak quarantined', v1: _fmtInt(r.quarantined_spots_peak),
-      l2: 'Mode switches', v2: _fmtInt(r.adaptive_mode_switches) },
-    { l1: 'Faults injected', v1: _fmtInt(r.fault_injected_count), l2: '', v2: '' },
+    ...anomalyRows,
 
     { group: 'Bandwidth' },
     { l1: 'Sensor → edge', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Edge → broker', v2: _fmtKB(r.edge_to_cloud_bytes) },
     { l1: 'Protocol overhead', v1: _fmtKB(r.protocol_bytes), l2: '', v2: '' },
-
-    ];
+  ];
 }
 
 function renderMetricsTable(r) {
@@ -448,7 +460,7 @@ function addResultRow(r, scrollIntoView) {
       <span class="result-tag">${r.architecture || ''}</span>
       <span class="result-tag">${r.traffic_level || ''}</span>
       ${durationLabel ? `<span class="result-tag">${durationLabel}</span>` : ''}
-      <span class="result-lat">${r.latency_mean_ms?.toFixed(1) ?? '—'}ms</span>
+      <span class="result-lat">${r.latency_mean_ms?.toFixed(1) ?? '-'}ms</span>
     </div>`;
   row.onclick = () => {
     document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
@@ -482,7 +494,7 @@ function aiSetTag(text, cls) {
 
 async function runAIAnalysis() {
   if (!allResults.length) {
-    aiSetOutput('<p class="ai-error">⚠️ No results yet — run at least one scenario first.</p>');
+    aiSetOutput('<p class="ai-error">⚠️ No results yet - run at least one scenario first.</p>');
     return;
   }
   const focus = document.getElementById('aiFocus')?.value ?? 'general';
@@ -619,7 +631,7 @@ function updateMsgCountChart(r) {
   const titleEl = document.getElementById('msgCountChartTitle');
 
   if (isCloudOnly) {
-    if (titleEl) titleEl.textContent = 'Message Counts — Sensor → Cloud';
+    if (titleEl) titleEl.textContent = 'Message Counts - Sensor → Cloud';
     charts.msgCount.data.labels = ['Sensor Sent', 'Cloud Received', 'Wireless Dropped'];
     charts.msgCount.data.datasets[0].data = [s2e, r.events_reflected_in_cloud || 0, dropped];
     charts.msgCount.data.datasets[0].backgroundColor = [C.blue + 'bb', C.cyan + 'bb', C.red + '88'];
@@ -719,7 +731,7 @@ function updateSpot(id, state) {
 
 function setText(id, val) {
   const el = document.getElementById(id);
-  if (el) el.textContent = val ?? '—';
+  if (el) el.textContent = val ?? '-';
 }
 
 async function fetchJSON(url) {

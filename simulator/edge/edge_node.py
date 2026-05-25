@@ -4,8 +4,6 @@ import json
 import logging
 from typing import Callable, Optional
 
-import psutil
-
 from ..config import ScenarioConfig
 from ..des.engine import SimClock
 from ..models import BatchUpdate, LinkStats, ParkingEvent, SensorState
@@ -17,6 +15,7 @@ CloudForwardCallback = Callable[[BatchUpdate, bytes], None]
 _RAPID_ARRIVAL_S: float = 0.5
 _MIN_DWELL_S: float = 10.0
 _RELEASE_CLEAN_TICKS: int = 5
+_STUCK_THRESHOLD_S: float = 12.0 * 3600.0
 
 
 class EdgeNode:
@@ -43,19 +42,14 @@ class EdgeNode:
         self.forwarded_events = 0
         self.mode_switches = 0
 
-        self._process = psutil.Process()
-        self._process.cpu_percent(interval=None)
         self._sensor_link_stats: Optional[LinkStats] = None
-        self._cpu_samples: list[float] = []
 
         self._active_anomalies: set[tuple[int, str]] = set()
         self._resolved_anomalies: int = 0
-        self._anomaly_flags: dict[int, int] = {}
         self._cumulative_flags: dict[int, int] = {}
         self._quarantine: set[int] = set()
         self._quarantine_clean_ticks: dict[int, int] = {}
         self._quarantine_valid_events: dict[int, int] = {}
-        self._anomaly_log: list[dict] = []
         self._last_arrival_virtual: dict[int, float] = {}
 
         if self._active_arch == "edge_aggregated":
@@ -169,66 +163,61 @@ class EdgeNode:
         if event.state.value == "occupied" and not event.is_initial:
             last_arr = self._last_arrival_virtual.get(sid)
             if last_arr is not None and (now_virtual - last_arr) < _RAPID_ARRIVAL_S:
-                self._flag_anomaly(sid, "R3_rapid_arrival", now_virtual)
+                self._flag_anomaly(sid, "R3_rapid_arrival")
             else:
-                self._resolve_anomaly(sid, "R3_rapid_arrival", now_virtual)
+                self._resolve_anomaly(sid, "R3_rapid_arrival")
             self._last_arrival_virtual[sid] = now_virtual
         else:
-            self._resolve_anomaly(sid, "R3_rapid_arrival", now_virtual)
+            self._resolve_anomaly(sid, "R3_rapid_arrival")
 
         if cached.last_event_seq > 0 and event.sequence < cached.last_event_seq:
-            self._flag_anomaly(sid, "R4_stale_seq", now_virtual)
+            self._flag_anomaly(sid, "R4_stale_seq")
         else:
-            self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
+            self._resolve_anomaly(sid, "R4_stale_seq")
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
         if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
             last_change_virtual = cached.last_state_change_timestamp - self._epoch
             if (now_virtual - last_change_virtual) < _MIN_DWELL_S:
-                self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+                self._flag_anomaly(event.spot_id, "R5_rapid_state_flip")
                 return
-        self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+        self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip")
 
     def _check_anomalies(self) -> None:
         now_virtual = self.clock.now
         silent_thr_s = self.edge_cfg.silent_threshold_s
-        stuck_thr_s = 12.0 * 3600.0
 
         for spot_id, state in self._cache.items():
             if state.last_state_change_timestamp > 0.0:
                 last_change_virtual = state.last_state_change_timestamp - self._epoch
                 same_state_age = now_virtual - last_change_virtual
 
-                if state.state.value == "occupied" and same_state_age > stuck_thr_s:
-                    self._flag_anomaly(spot_id, "R1_stuck_at", now_virtual)
+                if state.state.value == "occupied" and same_state_age > _STUCK_THRESHOLD_S:
+                    self._flag_anomaly(spot_id, "R1_stuck_at")
                 else:
-                    self._resolve_anomaly(spot_id, "R1_stuck_at", now_virtual)
+                    self._resolve_anomaly(spot_id, "R1_stuck_at")
             else:
-                self._resolve_anomaly(spot_id, "R1_stuck_at", now_virtual)
+                self._resolve_anomaly(spot_id, "R1_stuck_at")
 
             if state.last_updated == 0.0:
                 continue
             last_virtual = state.last_updated - self._epoch
             if (now_virtual - last_virtual) > silent_thr_s:
-                self._flag_anomaly(spot_id, "R2_silent", now_virtual)
+                self._flag_anomaly(spot_id, "R2_silent")
             else:
-                self._resolve_anomaly(spot_id, "R2_silent", now_virtual)
+                self._resolve_anomaly(spot_id, "R2_silent")
 
-    def _flag_anomaly(self, spot_id: int, rule: str, virtual_time: float) -> None:
+    def _flag_anomaly(self, spot_id: int, rule: str) -> None:
         key = (spot_id, rule)
         if key in self._active_anomalies:
             return
 
         self._active_anomalies.add(key)
-        self._anomaly_flags[spot_id] = self._anomaly_flags.get(spot_id, 0) + 1
         self._cumulative_flags[spot_id] = self._cumulative_flags.get(spot_id, 0) + 1
         self.anomaly_count += 1
         self._quarantine_valid_events[spot_id] = 0
 
-        if len(self._anomaly_log) < 10_000:
-            self._anomaly_log.append({"spot_id": spot_id, "rule": rule, "virtual_time": round(virtual_time, 2), "event": "started"})
-
-        threshold = getattr(self.edge_cfg, "quarantine_threshold", 3)
+        threshold = self.edge_cfg.quarantine_threshold
         if self._cumulative_flags[spot_id] >= threshold and spot_id not in self._quarantine:
             self._quarantine.add(spot_id)
             self._quarantine_clean_ticks[spot_id] = 0
@@ -237,15 +226,13 @@ class EdgeNode:
                 f"(cumulative_flags={self._cumulative_flags[spot_id]})"
             )
 
-    def _resolve_anomaly(self, spot_id: int, rule: str, virtual_time: float) -> None:
+    def _resolve_anomaly(self, spot_id: int, rule: str) -> None:
         key = (spot_id, rule)
         if key not in self._active_anomalies:
             return
 
         self._active_anomalies.remove(key)
         self._resolved_anomalies += 1
-        if len(self._anomaly_log) < 10_000:
-            self._anomaly_log.append({"spot_id": spot_id, "rule": rule, "virtual_time": round(virtual_time, 2), "event": "resolved"})
 
     def _mark_valid_event_for_recovery(self, spot_id: int) -> None:
         if spot_id not in self._quarantine:
@@ -256,7 +243,7 @@ class EdgeNode:
 
         valid = self._quarantine_valid_events.get(spot_id, 0) + 1
         self._quarantine_valid_events[spot_id] = valid
-        required = getattr(self.edge_cfg, "quarantine_recovery_events", 3)
+        required = self.edge_cfg.quarantine_recovery_events
         if valid >= required:
             self._release_quarantine(spot_id, reason=f"{valid} valid events")
 
@@ -309,7 +296,6 @@ class EdgeNode:
             else:
                 self._quarantine_clean_ticks[spot_id] = 0
 
-        self._anomaly_flags.clear()
         self.clock.schedule(self.ANOMALY_INTERVAL_S, self._anomaly_tick)
 
     def _check_adaptive_mode(self) -> None:
@@ -340,27 +326,8 @@ class EdgeNode:
     @staticmethod
     def _serialize_batch(batch: BatchUpdate) -> bytes:
         return json.dumps(batch.to_dict()).encode()
-    
-    def sample_cpu(self) -> None:
-        try:
-            v = self._process.cpu_percent(interval=None)
-            if v > 0.0 or self._cpu_samples:
-                self._cpu_samples.append(v)
-        except Exception:
-            pass
 
-    def resource_usage(self, include_cpu: bool = False) -> dict:
-        if self._cpu_samples:
-            cpu = sum(self._cpu_samples) / len(self._cpu_samples)
-        elif include_cpu:
-            cpu = self._process.cpu_percent(interval=0.1)
-        else:
-            cpu = -1.0
-        mem = self._process.memory_info().rss / (1024 * 1024)
-        return {"cpu_pct": round(cpu, 1), "mem_mb": round(mem, 2)}
-
-    def summary(self, include_cpu: bool = False) -> dict:
-        res = self.resource_usage(include_cpu=include_cpu)
+    def summary(self) -> dict:
         return {
             "received": self.received_count,
             "filtered": self.filtered_count,
@@ -373,7 +340,5 @@ class EdgeNode:
             "link_stats": self.stats.to_dict(),
             "quarantined": sorted(self._quarantine),
             "quarantined_count": len(self._quarantine),
-            "detected_spots": len(self._cumulative_flags),
-            "anomaly_log": self._anomaly_log[-200:],
-            **res
+            "detected_spots": len(self._cumulative_flags)
         }

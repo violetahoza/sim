@@ -421,7 +421,6 @@ scenarios:
     mqtt_qos: 1
     aggregation_interval: 5.0
     max_event_age_s: 10.0
-    sim_duration_s: 3600.0
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0

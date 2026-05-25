@@ -13,7 +13,6 @@ ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
 
 
 class TokenBucket:
-
     def __init__(self, rate: float) -> None:
         self.rate = rate
         self.tokens: float = 1.0
@@ -37,7 +36,6 @@ class TokenBucket:
 
 
 class GilbertElliotModel:
-
     def __init__(self, base_loss_rate: float, burst_enabled: bool = True, p_loss_bad: float = 0.50, burst_mean_length: float = 4.0, rng: random.Random | None = None) -> None:
         self.rng = rng or random.Random()
         self.burst_enabled = burst_enabled
@@ -83,24 +81,7 @@ class GilbertElliotModel:
         return self.rng.random() < threshold
 
 
-class DutyCycleEnforcer:
-
-    DUTY_CYCLE: float = 0.01 
-
-    def __init__(self, airtime_ms: float = 41.0) -> None:
-        self._airtime_s = airtime_ms / 1000.0
-        self._period_s = self._airtime_s / self.DUTY_CYCLE
-        self._next_free: dict[int, float] = {}
-
-    def consume(self, clock: SimClock, spot_id: int) -> float:
-        now = clock.now
-        nf = self._next_free.get(spot_id, 0.0)
-        wait_s = max(0.0, nf - now)
-        self._next_free[spot_id] = max(now, nf) + self._period_s
-        return wait_s
-
 class QueueOverflowModel:
-
     def __init__(self, capacity: int = 500) -> None:
         self._capacity = capacity
         self._depth: int = 0
@@ -125,13 +106,15 @@ class QueueOverflowModel:
 
 
 class LinkEmulator:
-
     DEFAULT_QUEUE_CAPACITY: int = 500
 
-    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: Optional[ForwardCallback] = None, rng: random.Random | None = None, queue_capacity: int | None = None,
-                wall_clock: bool = False) -> None:
+    def __init__(self, config: LinkConfig, clock: SimClock,
+                 forward_cb: Optional[ForwardCallback] = None,
+                 rng: random.Random | None = None,
+                 queue_capacity: int | None = None,
+                 wall_clock: bool = False) -> None:
         self.config = config
-        self.clock  = clock
+        self.clock = clock
         self._callback = forward_cb
         self._batch_cb: Optional[ForwardBatchCallback] = None
         self.on_drop: Optional[Callable[[], None]] = None
@@ -145,12 +128,7 @@ class LinkEmulator:
         self._queue = QueueOverflowModel(capacity=cap)
 
         self.stats = LinkStats(name="sensor_to_edge")
-        if config.lorawan_duty_cycle:
-            self._duty_cycle: DutyCycleEnforcer | None = DutyCycleEnforcer(config.sf_airtime_ms)
-            self._bucket: TokenBucket | None = None
-        else:
-            self._duty_cycle = None
-            self._bucket = TokenBucket(config.rate_limit_msgs_per_sec)
+        self._bucket = TokenBucket(config.rate_limit_msgs_per_sec)
 
     def set_batch_callback(self, cb: ForwardBatchCallback) -> None:
         self._batch_cb = cb
@@ -189,12 +167,8 @@ class LinkEmulator:
                 self.on_drop()
             return
 
-        if self._duty_cycle is not None:
-            token_delay = self._duty_cycle.consume(self.clock, event.spot_id)
-        else:
-            token_delay = self._bucket.consume(self.clock)  
-            
-        prop_delay  = self._compute_delay()
+        token_delay = self._bucket.consume(self.clock)
+        prop_delay = self._compute_delay()
         total_delay = token_delay + prop_delay
 
         def deliver() -> None:
@@ -232,8 +206,8 @@ class LinkEmulator:
                 self.on_drop()
             return
 
-        token_delay = self._bucket.consume(self.clock) if self._bucket is not None else 0.0
-        prop_delay  = self._compute_delay()
+        token_delay = self._bucket.consume(self.clock)
+        prop_delay = self._compute_delay()
         total_delay = token_delay + prop_delay
 
         def deliver() -> None:
@@ -252,5 +226,3 @@ class LinkEmulator:
     @property
     def overflow_drops(self) -> int:
         return self._queue.overflow_drops
-
-

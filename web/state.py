@@ -69,6 +69,7 @@ def make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
     num_spots = max(5, min(5000, int(body.get("num_spots", 50))))
     rate_limit = max(1.0, float(body.get("rate_limit", max(5.0, num_spots / 10.0))))
     initial_occ_raw = body.get("initial_occupancy")
+    heartbeat_interval_s = max(0.0, min(3600.0, float(body.get("heartbeat_interval_s", 60.0))))
 
     return make_scenario(
         name = name,
@@ -100,7 +101,8 @@ def make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         time_scale = float(body.get("time_scale", 60.0)),
         use_time_of_day = bool(body.get("use_time_of_day", False)),
         start_hour = float(body.get("start_hour", 8.0)),
-        initial_occupancy = float(initial_occ_raw) if initial_occ_raw is not None else None
+        initial_occupancy = float(initial_occ_raw) if initial_occ_raw is not None else None,
+        heartbeat_interval_s=heartbeat_interval_s,
     )
 
 async def run_simulation(cfg: ScenarioConfig) -> None:

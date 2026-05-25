@@ -3,8 +3,8 @@ import asyncio
 from typing import Callable
 import simpy
 
-class SimClock:
 
+class SimClock:
     def __init__(self) -> None:
         self.env: simpy.Environment = simpy.Environment()
 
@@ -20,13 +20,6 @@ class SimClock:
 
     def schedule_at(self, t: float, cb: Callable[[], None]) -> None:
         self.schedule(max(0.0, t - self.env.now), cb)
-
-    @property
-    def pending(self) -> bool:
-        return self.env.peek() < simpy.core.Infinity
-
-    def run_until(self, end_time: float) -> None:
-        self.env.run(until=end_time)
 
     async def run_until_async(self, end_time: float, progress_cb=None, cancelled_cb=None, steps: int = 50, real_mode: bool = False, time_scale: float = 1.0) -> None:
         slice_size = end_time / max(steps, 1)
