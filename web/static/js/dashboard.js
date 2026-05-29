@@ -318,6 +318,9 @@ function metricsRowsCloudOnly(r) {
       l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
     { l1: 'Wireless delivery', v1: _fmtPct(r.sensor_to_edge_delivery_ratio),
       l2: 'Survived to broker', v2: _fmtInt(survivedWireless) },
+    { l1: 'Link loss rate',
+      v1: r.sensor_to_edge_delivery_ratio != null ? ((1 - r.sensor_to_edge_delivery_ratio) * 100).toFixed(2) + ' %' : '-',
+      l2: 'Broker-layer delivery', v2: _fmtPct(r.edge_to_cloud_delivery_ratio) },
 
     { group: 'Broker layer (MQTT/AMQP/CoAP)' },
     { l1: 'Reached cloud', v1: _fmtInt(r.events_reflected_in_cloud),
@@ -338,7 +341,7 @@ function metricsRowsCloudOnly(r) {
     { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
 
     { group: 'Bandwidth' },
-    { l1: 'Sent by sensors', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Received by cloud', v2: _fmtKB(r.edge_to_cloud_bytes) },
+    { l1: 'Sent by sensors', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Reached broker', v2: _fmtKB(r.edge_to_cloud_bytes) },
 
   ];
 }
@@ -384,6 +387,8 @@ function metricsRowsEdge(r) {
     { group: 'Wireless link (sensor → edge gateway)' },
     { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs), l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
     { l1: 'Wireless delivery', v1: _fmtPct(r.sensor_to_edge_delivery_ratio), l2: 'Reached the gateway', v2: _fmtInt(survivedWireless) },
+    { l1: 'Sensor link loss rate', v1: r.sensor_to_edge_delivery_ratio != null ? ((1 - r.sensor_to_edge_delivery_ratio) * 100).toFixed(2) + ' %' : '-',
+      l2: '', v2: '' },
 
     { group: 'Edge processing' },
     ...edgeRows,
@@ -565,7 +570,7 @@ function initCharts() {
       plugins: { legend: { display: false } },
       scales: {
         x: { title: { display: true, text: 'Latency (ms)', color: C.dim, font: { size: 9 } } },
-        y: { title: { display: true, text: 'Count',        color: C.dim, font: { size: 9 } } },
+        y: { title: { display: true, text: 'Count', color: C.dim, font: { size: 9 } } },
       } },
   });
 

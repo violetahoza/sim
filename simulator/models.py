@@ -138,6 +138,7 @@ class ExperimentMetrics:
     duplicate_sends_generated: int = 0
     heartbeat_interval_s: float = 0.0
     sensor_link_dropped: int = 0
+    heartbeats_forwarded: int = 0 
 
     latency_samples: list[float] = field(default_factory=list)
 

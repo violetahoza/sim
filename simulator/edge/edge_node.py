@@ -32,6 +32,7 @@ class EdgeNode:
         self._epoch = epoch
         self.edge_id = "edge_01"
 
+        self._backhaul_encoding_ratio: float = getattr(config.backhaul_link, "payload_encoding_ratio", 1.0)
         self._active_arch = config.architecture
         self._cache: dict[int, SensorState] = {}
         self._pending: list[ParkingEvent] = []
@@ -284,8 +285,9 @@ class EdgeNode:
     def _forward_single(self, event: ParkingEvent) -> None:
         batch = BatchUpdate(edge_id=self.edge_id, events=[event])
         payload = self._serialize_batch(batch)
+        wire_bytes = max(1, int(len(payload) * self._backhaul_encoding_ratio))
         self.stats.sent += 1
-        self.stats.total_bytes_sent += len(payload)
+        self.stats.total_bytes_sent += wire_bytes
         self.forwarded_events += 1
         self._cloud_cb(batch, payload)
 
@@ -296,8 +298,9 @@ class EdgeNode:
         self._pending.clear()
         batch = BatchUpdate(edge_id=self.edge_id, events=events)
         payload = self._serialize_batch(batch)
+        wire_bytes = max(1, int(len(payload) * self._backhaul_encoding_ratio))
         self.stats.sent += 1
-        self.stats.total_bytes_sent += len(payload)
+        self.stats.total_bytes_sent += wire_bytes
         self.forwarded_events += len(events)
         self._cloud_cb(batch, payload)
 

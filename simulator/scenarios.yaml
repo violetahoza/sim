@@ -3,17 +3,18 @@ scenarios:
   - name: A1_cloud_only
     description: >
       Cloud-Only Baseline |
-      Every sensor state change goes straight to the cloud. Represents the upper bound on cloud bandwidth and the lowest
-      possible added latency, at the cost of maximum message volume.
+      Every sensor state change goes straight to the cloud via MQTT QoS 0 (fire-and-forget, no retransmits). 
+      Represents the upper bound on cloud bandwidth and the lowest possible added latency, at the cost of maximum message volume.
     protocol: mqtt
     architecture: cloud_only
     traffic_level: peak
     num_spots: 500
     seed: 1001
-    mqtt_qos: 1
+    mqtt_qos: 0
     sim_duration_s: 10800.0 
     use_time_of_day: false
     backhaul_loss_rate: 0.02
+    anomaly_detection: false
     group: "A - Architecture Comparison"
     group_order: 1
     is_builtin: true
@@ -33,6 +34,7 @@ scenarios:
     sim_duration_s: 10800.0
     use_time_of_day: false
     backhaul_loss_rate: 0.02
+    anomaly_detection: false
     group: "A - Architecture Comparison"
     group_order: 2
     is_builtin: true
@@ -40,7 +42,7 @@ scenarios:
   - name: A3_edge_agg_5s
     description: >
       Edge Aggregated - 5 s window |
-      Events are buffered briefly at the gateway and flushed by interval. Reduces cloud connections while keeping
+      Events are buffered briefly at the gateway and flushed every 5s. Reduces cloud connections while keeping
       live availability latency bounded.
     protocol: mqtt
     architecture: edge_aggregated
@@ -54,6 +56,7 @@ scenarios:
     sim_duration_s: 10800.0
     use_time_of_day: false
     backhaul_loss_rate: 0.02
+    anomaly_detection: false
     group: "A - Architecture Comparison"
     group_order: 3
     is_builtin: true
@@ -76,8 +79,63 @@ scenarios:
     sim_duration_s: 10800.0
     use_time_of_day: false
     backhaul_loss_rate: 0.02
+    anomaly_detection: false
     group: "A - Architecture Comparison"
     group_order: 4
+    is_builtin: true
+
+  - name: A5_edge_anomaly
+    description: >
+      Edge Filtered + Anomaly Detection |
+      Identical link and traffic to A2, but with all five anomaly rules active
+      (R1 stuck sensor, R2 silent sensor, R3 rapid arrivals, R4 stale sequence,
+      R5 rapid state flip). Anomalous spots are flagged and eventually
+      quarantined; their events are suppressed until a recovery sequence is
+      seen. Shows the additional traffic reduction and coverage impact of
+      anomaly-aware filtering vs pure dedup (A2).
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    backhaul_loss_rate: 0.02
+    anomaly_detection: true
+    quarantine_threshold: 3
+    silent_threshold_s: 1200.0
+    group: "A - Architecture Comparison"
+    group_order: 5
+    is_builtin: true
+ 
+  - name: A6_adaptive_edge
+    description: >
+      Adaptive Edge |
+      Starts in edge_aggregated mode (5 s window). When the sensor-link
+      delivery ratio drops below 85% the gateway switches to edge_filtered
+      to avoid batch losses; it switches back when DR recovers above 95%.
+      A 24 h time-of-day curve combined with 12% sensor-link loss creates
+      repeated busy/quiet cycles that cross both thresholds, producing at
+      least 3 mode switches. 
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 1001
+    mqtt_qos: 1
+    aggregation_interval: 5.0
+    max_event_age_s: 10.0
+    max_batch_size: 500
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 0.0
+    loss_rate: 0.18
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    adaptive_edge: true
+    group: "A - Architecture Comparison"
+    group_order: 6
     is_builtin: true
 
 

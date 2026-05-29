@@ -173,19 +173,18 @@ class ExperimentRunner:
         s2e_dr = ls.delivery_ratio
 
         if arch == "cloud_only":
-            e2c_msgs = s2e_msgs
-            e2c_bytes = s2e_bytes
-            e2c_dr = 1.0
-            e2c_dropped = 0
-            physical_delivery_ratio = s2e_dr
+            e2c_msgs = ls.received
+            e2c_bytes = int(s2e_bytes * s2e_dr) 
+            e2c_dr = (cloud_events / e2c_msgs) if e2c_msgs > 0 else 1.0
+            e2c_dropped = ls.dropped
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
             e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
-            physical_delivery_ratio = s2e_dr * e2c_dr
 
+        physical_delivery_ratio = s2e_dr * e2c_dr
         filtered_events = es.get("filtered", 0)
         events_reflected = cloud_events
         valid_state_changes = state_changes_generated
@@ -378,19 +377,18 @@ class ExperimentRunner:
         s2e_dr = ls.delivery_ratio
 
         if arch == "cloud_only":
-            e2c_msgs = s2e_msgs
-            e2c_bytes = s2e_bytes
-            e2c_dr = 1.0
-            e2c_dropped = 0
-            physical_delivery_ratio = s2e_dr
+            e2c_msgs = ls.received
+            e2c_bytes = int(s2e_bytes * s2e_dr) 
+            e2c_dr = (cloud_events / e2c_msgs) if e2c_msgs > 0 else 1.0
+            e2c_dropped = ls.dropped
         else:
             e2c_msgs = es.get("link_stats", {}).get("sent", 0)
             e2c_bytes = es.get("link_stats", {}).get("total_bytes_sent", 0)
             forwarded = es.get("forwarded_events", 0)
             e2c_dr = (cloud_events / forwarded) if forwarded > 0 else 1.0
             e2c_dropped = es.get("link_stats", {}).get("dropped", 0)
-            physical_delivery_ratio = s2e_dr * e2c_dr
-
+            
+        physical_delivery_ratio = s2e_dr * e2c_dr
         filtered_events = es.get("filtered", 0)
         valid_state_changes = state_changes_generated
         events_reflected = cloud_events
