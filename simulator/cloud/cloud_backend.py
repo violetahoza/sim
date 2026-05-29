@@ -170,8 +170,8 @@ class CloudBackend:
                 run.sensor_to_edge_msgs = metrics.sensor_to_edge_msgs
                 run.edge_to_cloud_msgs = metrics.edge_to_cloud_msgs
                 run.sensor_to_edge_delivery_ratio = metrics.sensor_to_edge_delivery_ratio
-                run.edge_to_cloud_delivery_ratio = metrics.edge_to_cloud_delivery_ratio
-                run.end_to_end_delivery_ratio = metrics.end_to_end_delivery_ratio
+                run.edge_to_cloud_delivery_ratio = metrics.backhaul_delivery_ratio   
+                run.end_to_end_delivery_ratio = metrics.cloud_reflection_ratio     
                 run.aggregation_ratio = metrics.aggregation_ratio
                 run.filtered_events = metrics.filtered_events
                 run.anomalies_detected = metrics.anomalies_detected

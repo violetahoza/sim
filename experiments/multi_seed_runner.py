@@ -22,9 +22,10 @@ OUTPUT_DIR = Path("results")
 
 _T_CRIT: dict[int, float] = {
     1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
-    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+    6: 2.447,  7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
     15: 2.131, 20: 2.086, 30: 2.042, 60: 2.000, 120: 1.980,
 }
+
 
 def _t_critical(df: int) -> float:
     if df in _T_CRIT:
@@ -66,26 +67,29 @@ class MultiSeedResult:
     latency_p95_mean: float = 0.0
     latency_p99_mean: float = 0.0
     latency_p99_std: float = 0.0
-
-    delivery_ratio_mean: float = 0.0
-    delivery_ratio_std: float = 0.0
-    delivery_ratio_min: float = 0.0
-
-    physical_delivery_ratio_mean: float = 0.0
-    cloud_reflection_ratio_mean: float = 0.0
-    message_reduction_ratio_mean: float = 0.0
-    events_per_cloud_message_mean: float = 0.0
-
-    aggregation_ratio_mean: float = 0.0
-    filtered_mean: float = 0.0
-    retransmissions_mean: float = 0.0
-
     latency_mean_ci95_ms: float = 0.0
     latency_p99_ci95_ms: float = 0.0
-    delivery_ratio_ci95: float = 0.0
+
+    cloud_reflection_ratio_mean: float = 0.0
+    cloud_reflection_ratio_std: float = 0.0
+    cloud_reflection_ratio_min: float = 0.0
+    cloud_reflection_ratio_ci95: float = 0.0
+    physical_delivery_ratio_mean: float = 0.0
+
+    message_reduction_ratio_mean: float = 0.0
+    events_per_cloud_message_mean: float = 0.0
+    aggregation_ratio_mean: float = 0.0
+    filtered_mean: float = 0.0
+
+    anomalies_detected_mean: float = 0.0
+    mode_switches_mean: float = 0.0
+
+    retransmissions_mean: float = 0.0
 
     conservation_ok: bool = True
-    conservation_violations: int = 0
+    conservation_violations: int  = 0
+
+    merged_event_log: list[dict] = dataclasses.field(default_factory=list)
 
     def aggregate(self) -> None:
         if not self.reps:
@@ -99,35 +103,51 @@ class MultiSeedResult:
         lat_p50 = _arr("latency_p50_ms")
         lat_p95 = _arr("latency_p95_ms")
         lat_p99 = _arr("latency_p99_ms")
-        dr = _arr("cloud_reflection_ratio")
-        physical_dr = _arr("physical_delivery_ratio")
+        cr = _arr("cloud_reflection_ratio")
+        phys = _arr("physical_delivery_ratio")
         reduction = _arr("message_reduction_ratio")
-        events_per_msg = _arr("events_per_cloud_message")
+        epcm = _arr("events_per_cloud_message")
         agg = _arr("aggregation_ratio")
         filt = _arr("filtered_events")
+        anom = _arr("anomalies_detected")
+        switches = _arr("adaptive_mode_switches")
+        retrans = _arr("retransmissions_total")
 
         self.latency_mean_mean = float(np.mean(lat_means))
         self.latency_mean_std = float(np.std(lat_means))
         self.latency_p50_mean = float(np.mean(lat_p50))
         self.latency_p95_mean = float(np.mean(lat_p95))
         self.latency_p99_mean = float(np.mean(lat_p99))
-        self.latency_p99_std = float(np.std(lat_p99))
-        self.delivery_ratio_mean = float(np.mean(dr))
-        self.delivery_ratio_std = float(np.std(dr))
-        self.delivery_ratio_min = float(np.min(dr))
-        self.physical_delivery_ratio_mean = float(np.mean(physical_dr))
-        self.cloud_reflection_ratio_mean = float(np.mean(dr))
+        self.latency_p99_std  = float(np.std(lat_p99))
+
+        self.cloud_reflection_ratio_mean = float(np.mean(cr))
+        self.cloud_reflection_ratio_std = float(np.std(cr))
+        self.cloud_reflection_ratio_min = float(np.min(cr))
+        self.physical_delivery_ratio_mean = float(np.mean(phys))
+
         self.message_reduction_ratio_mean = float(np.mean(reduction))
-        self.events_per_cloud_message_mean = float(np.mean(events_per_msg))
+        self.events_per_cloud_message_mean = float(np.mean(epcm))
         self.aggregation_ratio_mean = float(np.mean(agg))
         self.filtered_mean = float(np.mean(filt))
 
+        self.anomalies_detected_mean = float(np.mean(anom))
+        self.mode_switches_mean = float(np.mean(switches))
+        self.retransmissions_mean = float(np.mean(retrans))
+
         self.latency_mean_ci95_ms = _ci95(lat_means)
         self.latency_p99_ci95_ms = _ci95(lat_p99)
-        self.delivery_ratio_ci95 = _ci95(dr)
+        self.cloud_reflection_ratio_ci95 = _ci95(cr)
+
+        self.merged_event_log = []
+        for i, rep in enumerate(self.reps):
+            for entry in rep.scenario_log:
+                self.merged_event_log.append({**entry, "rep": i + 1, "seed": self.seeds[i]})
+        self.merged_event_log.sort(key=lambda e: (e.get("rep", 0), e.get("t_virtual", 0)))
 
     def summary_dict(self) -> dict:
-        return {
+        is_edge = self.architecture != "cloud_only"
+        is_agg = self.architecture == "edge_aggregated"
+        d = {
             "scenario_name": self.scenario_name,
             "group": self.group,
             "protocol": self.protocol,
@@ -135,6 +155,7 @@ class MultiSeedResult:
             "traffic_level": self.traffic_level,
             "n_reps": self.n_reps,
             "seeds": self.seeds,
+
             "latency_mean_ms_mean": round(self.latency_mean_mean, 2),
             "latency_mean_ms_std": round(self.latency_mean_std, 2),
             "latency_mean_ms_ci95": round(self.latency_mean_ci95_ms, 2),
@@ -143,19 +164,28 @@ class MultiSeedResult:
             "latency_p99_ms_mean": round(self.latency_p99_mean, 2),
             "latency_p99_ms_std": round(self.latency_p99_std, 2),
             "latency_p99_ms_ci95": round(self.latency_p99_ci95_ms, 2),
-            "delivery_ratio_mean": round(self.delivery_ratio_mean, 4),
-            "delivery_ratio_std": round(self.delivery_ratio_std, 4),
-            "delivery_ratio_ci95": round(self.delivery_ratio_ci95, 4),
-            "delivery_ratio_min": round(self.delivery_ratio_min, 4),
-            "physical_delivery_ratio_mean": round(self.physical_delivery_ratio_mean, 4),
+
             "cloud_reflection_ratio_mean": round(self.cloud_reflection_ratio_mean, 4),
-            "message_reduction_ratio_mean": round(self.message_reduction_ratio_mean, 4),
-            "events_per_cloud_message_mean": round(self.events_per_cloud_message_mean, 2),
-            "aggregation_ratio_mean": round(self.aggregation_ratio_mean, 4),
-            "filtered_mean": round(self.filtered_mean, 1),
+            "cloud_reflection_ratio_std":  round(self.cloud_reflection_ratio_std, 4),
+            "cloud_reflection_ratio_ci95": round(self.cloud_reflection_ratio_ci95, 4),
+            "cloud_reflection_ratio_min": round(self.cloud_reflection_ratio_min, 4),
+            "physical_delivery_ratio_mean": round(self.physical_delivery_ratio_mean, 4),
+
+            "retransmissions_mean": round(self.retransmissions_mean, 1),
             "conservation_ok": self.conservation_ok,
             "conservation_violations": self.conservation_violations,
         }
+        if is_edge:
+            d.update({
+                "message_reduction_ratio_mean": round(self.message_reduction_ratio_mean, 4),
+                "aggregation_ratio_mean": round(self.aggregation_ratio_mean, 4),
+                "filtered_mean": round(self.filtered_mean, 1),
+                "anomalies_detected_mean": round(self.anomalies_detected_mean, 1),
+                "mode_switches_mean": round(self.mode_switches_mean, 2),
+            })
+        if is_agg:
+            d["events_per_cloud_message_mean"] = round(self.events_per_cloud_message_mean, 2)
+        return d
 
 
 def check_conservation(metrics: ExperimentMetrics, tolerance: float = 0.02) -> tuple[bool, str]:
@@ -163,18 +193,19 @@ def check_conservation(metrics: ExperimentMetrics, tolerance: float = 0.02) -> t
     if generated == 0:
         return True, "no events generated"
 
-    valid = metrics.valid_state_changes or max(generated - metrics.filtered_events, 0)
-    reflected = metrics.events_reflected_in_cloud or metrics.cloud_only_msgs
-    physical_drop_est = int(round(generated * (1.0 - metrics.physical_delivery_ratio)))
+    reflected = metrics.events_reflected_in_cloud
+    filtered = metrics.filtered_events
+    physical_drop = int(round(generated * (1.0 - metrics.physical_delivery_ratio)))
+    backhaul_drop = metrics.edge_to_cloud_dropped
 
-    accounted = reflected + metrics.filtered_events + physical_drop_est
+    accounted = reflected + filtered + physical_drop + backhaul_drop
     ratio = accounted / generated if generated > 0 else 1.0
 
     if ratio > (1.0 + tolerance) or ratio < (1.0 - tolerance):
         return False, (
-            f"accounting warning: generated={generated} valid={valid} "
-            f"reflected={reflected} filtered={metrics.filtered_events} "
-            f"physical_drop_est={physical_drop_est} ratio={ratio:.3f} "
+            f"accounting warning: generated={generated} reflected={reflected} "
+            f"filtered={filtered} physical_drop_est={physical_drop} "
+            f"backhaul_drop={backhaul_drop} ratio={ratio:.3f} "
             f"(tolerance ±{tolerance:.0%})"
         )
     return True, f"ok (ratio={ratio:.3f})"
@@ -191,14 +222,8 @@ class MultiSeedRunner:
         base_seed = self._base.random_seed
         seeds = [base_seed + i * self.seed_step for i in range(self.n_reps)]
 
-        result = MultiSeedResult(
-            scenario_name=self._base.name,
-            group=self._base.group,
-            protocol=self._base.protocol,
-            architecture=self._base.architecture,
-            traffic_level=self._base.traffic_level,
-            n_reps=self.n_reps,
-            seeds=seeds
+        result = MultiSeedResult(scenario_name=self._base.name, group=self._base.group, protocol=self._base.protocol,
+            architecture=self._base.architecture, traffic_level=self._base.traffic_level, n_reps=self.n_reps, seeds=seeds,
         )
 
         for i, seed in enumerate(seeds):
@@ -208,11 +233,10 @@ class MultiSeedRunner:
             import copy, dataclasses as _dc
             cfg = copy.copy(self._base)
             cfg = _dc.replace(cfg, random_seed=seed, name=rep_name)
-            import dataclasses as _dc2
-            cfg.traffic = _dc2.replace(cfg.traffic, random_seed=seed)
+            cfg.traffic = _dc.replace(cfg.traffic, random_seed=seed)
 
             try:
-                runner  = ExperimentRunner(cfg)
+                runner = ExperimentRunner(cfg)
                 metrics = await runner.run()
                 save_results(metrics, str(OUTPUT_DIR))
             except Exception:
@@ -232,6 +256,8 @@ class MultiSeedRunner:
                 f"p99={metrics.latency_p99_ms:.1f}ms "
                 f"cloud_reflection={metrics.cloud_reflection_ratio:.1%} "
                 f"msg_reduction={metrics.message_reduction_ratio:.1%} "
+                f"anomalies={metrics.anomalies_detected} "
+                f"mode_switches={metrics.adaptive_mode_switches} "
                 f"conservation={explanation}"
             )
 
@@ -266,13 +292,17 @@ async def main(scenario_names: list[str] | None = None, n_reps: int = 5) -> None
         logger.info(
             f"  lat_mean={summary['latency_mean_ms_mean']:.1f} ± {summary['latency_mean_ms_std']:.1f} ms"
             f"  p99={summary['latency_p99_ms_mean']:.1f} ± {summary['latency_p99_ms_std']:.1f} ms"
-            f"  cloud_reflection={summary['cloud_reflection_ratio_mean']:.1%} ± {summary['delivery_ratio_std']:.1%}"
-            f"  msg_reduction={summary['message_reduction_ratio_mean']:.1%}"
+            f"  cloud_reflection={summary['cloud_reflection_ratio_mean']:.1%}"
             f"  conservation={'✓' if summary['conservation_ok'] else '✗'}"
         )
 
-        path = OUTPUT_DIR / f"{scenario.name}_multiseed.json"
-        path.write_text(json.dumps(summary, indent=2))
+        json_path = OUTPUT_DIR / f"{scenario.name}_multiseed.json"
+        json_path.write_text(json.dumps(summary, indent=2))
+
+        if result.merged_event_log and scenario.architecture != "cloud_only":
+            log_path = OUTPUT_DIR / f"{scenario.name}_multiseed.log"
+            _write_multiseed_log(scenario.name, result, log_path)
+            logger.info(f"  Multiseed log → {log_path}")
 
     if all_summaries:
         csv_path = OUTPUT_DIR / "multiseed_summary.csv"
@@ -285,12 +315,43 @@ async def main(scenario_names: list[str] | None = None, n_reps: int = 5) -> None
         logger.info(f"\nMulti-seed summary → {csv_path}  ({len(all_summaries)} scenarios)")
 
 
+def _write_multiseed_log(scenario_name: str, result: MultiSeedResult, path: Path) -> None:
+    s = result.summary_dict()
+    lines = [
+        f"Multi-Seed Event Log: {scenario_name}",
+        f"Architecture: {result.architecture}   Protocol: {result.protocol}",
+        f"Reps: {result.n_reps}   Seeds: {result.seeds}",
+        "=" * 72,
+        "",
+        "AGGREGATE SUMMARY",
+        f"  Anomalies detected (mean)    : {s.get('anomalies_detected_mean', 0):.1f}",
+        f"  Adaptive mode switches (mean): {s.get('mode_switches_mean', 0):.2f}",
+        f"  Cloud reflection ratio (mean): {s.get('cloud_reflection_ratio_mean', 0):.4f}",
+        f"  Conservation OK              : {s['conservation_ok']}",
+        "",
+        "ALL EVENTS (across all reps)",
+        f"{'rep':>5}  {'t_virtual(s)':>14}  {'event':<22}  detail",
+        "-" * 72,
+    ]
+    for entry in result.merged_event_log:
+        rep = entry.get("rep", "?")
+        t = entry.get("t_virtual", 0)
+        ev = entry.get("event", "")
+        detail = entry.get("detail", "")
+        lines.append(f"{rep:>5}  {t:>14.1f}  {ev:<22}  {detail}")
+
+    if not result.merged_event_log:
+        lines.append("  (no events recorded across any rep)")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Multi-seed experiment runner")
-    parser.add_argument("scenarios", nargs="*", help="Scenario name(s) to run (default: all)")
-    parser.add_argument("--reps", type=int, default=5, help="Repetitions per scenario (default 5)")
+    parser.add_argument("scenarios", nargs="*", help="Scenario name(s) (default: all)")
+    parser.add_argument("--reps", type=int, default=5, help="Repetitions per scenario")
     args = parser.parse_args()
 
     asyncio.run(main(args.scenarios or None, n_reps=args.reps))

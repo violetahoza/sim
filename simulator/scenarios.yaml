@@ -2,16 +2,15 @@ scenarios:
 
   - name: A1_cloud_only
     description: >
-      Cloud-Only Baseline |
-      Every sensor state change goes straight to the cloud via MQTT QoS 0 (fire-and-forget, no retransmits). 
-      Represents the upper bound on cloud bandwidth and the lowest possible added latency, at the cost of maximum message volume.
+      Cloud-Only Baseline | Every sensor event goes straight to the cloud broker via MQTT QoS 0 (fire-and-forget, no retransmits). Maximum cloud bandwidth and lowest
+      added latency - the reference ceiling for comparisons.
     protocol: mqtt
     architecture: cloud_only
     traffic_level: peak
     num_spots: 500
     seed: 1001
     mqtt_qos: 0
-    sim_duration_s: 10800.0 
+    sim_duration_s: 10800.0
     use_time_of_day: false
     backhaul_loss_rate: 0.02
     anomaly_detection: false
@@ -21,10 +20,8 @@ scenarios:
 
   - name: A2_edge_filtered
     description: >
-      Edge Filtered |
-      Duplicate state-change events and heartbeats are dropped at the
-      gateway. No batching, so no added latency. Reduces cloud traffic with no added batching
-      latency.
+      Edge Filtered (dedup only) | Redundant same-state events and heartbeat repeats are suppressed at the gateway; each real state change is forwarded immediately as a singleton.
+      No anomaly detection, no quarantine - pure duplicate-window filtering.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -41,9 +38,7 @@ scenarios:
 
   - name: A3_edge_agg_5s
     description: >
-      Edge Aggregated - 5 s window |
-      Events are buffered briefly at the gateway and flushed every 5s. Reduces cloud connections while keeping
-      live availability latency bounded.
+      Edge Aggregated - 5 s window | Events are buffered for up to 5 s and flushed as batches, reducing cloud message count substantially while keeping latency bounded.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -63,10 +58,7 @@ scenarios:
 
   - name: A4_edge_agg_15s
     description: >
-      Edge Aggregated - 15 s window |
-      Same setup as A3 with a 3x wider window: ~5-6 events per batch.
-      Cleaner aggregation effect, larger latency penalty. The latency vs
-      bandwidth trade-off is the headline result of this group.
+      Edge Aggregated - 15 s window | Wider window ≈ 3x more events per batch vs A3. Clearer bandwidth saving, larger latency penalty. The headline latency-vs-bandwidth trade-off.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -86,13 +78,9 @@ scenarios:
 
   - name: A5_edge_anomaly
     description: >
-      Edge Filtered + Anomaly Detection |
-      Identical link and traffic to A2, but with all five anomaly rules active
-      (R1 stuck sensor, R2 silent sensor, R3 rapid arrivals, R4 stale sequence,
-      R5 rapid state flip). Anomalous spots are flagged and eventually
-      quarantined; their events are suppressed until a recovery sequence is
-      seen. Shows the additional traffic reduction and coverage impact of
-      anomaly-aware filtering vs pure dedup (A2).
+      Edge Filtered + Anomaly Detection | Same link/traffic as A2, but all five anomaly rules active (R1 stuck, R2 silent, R3 rapid arrivals, R4 stale sequence, R5 rapid state flip).
+      Low quarantine_threshold (2 flags) and shorter silent_threshold (600 s) ensure quarantine visibly fires in the 3-hour window. Quarantined spots have their events 
+      suppressed, reducing cloud traffic below A2 while protecting cloud state from noisy sensors.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -103,17 +91,18 @@ scenarios:
     use_time_of_day: false
     backhaul_loss_rate: 0.02
     anomaly_detection: true
-    quarantine_threshold: 3
-    silent_threshold_s: 1200.0
+    quarantine_threshold: 2
+    quarantine_recovery_events: 5
+    silent_threshold_s: 600.0
     group: "A - Architecture Comparison"
     group_order: 5
     is_builtin: true
- 
+
   - name: A6_adaptive_edge
     description: >
-      Adaptive Edge |
-      Starts in edge_aggregated mode (5 s window). The gateway evaluates a per-interval (30 s window) delivery ratio: when it drops below 85%
-      it switches to edge_filtered to avoid batch losses; it recovers back when the interval DR exceeds 95%.
+      Adaptive Edge | Starts in edge_aggregated (5 s window). The gateway evaluates backhaul delivery in a rolling 30 s window: when it drops below 85%
+      it switches to edge_filtered to limit retransmit amplification; it recovers when the window DR climbs back above 95%. High backhaul loss
+      (20%) with time-of-day variation guarantees multiple switches per day.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -126,8 +115,8 @@ scenarios:
     sim_duration_s: 86400.0
     use_time_of_day: true
     start_hour: 0.0
-    loss_rate: 0.18
-    backhaul_loss_rate: 0.02
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.22
     anomaly_detection: false
     adaptive_edge: true
     group: "A - Architecture Comparison"
@@ -137,9 +126,7 @@ scenarios:
 
   - name: B1_mqtt_qos0
     description: >
-      MQTT QoS 0 - Fire & forget |
-      No ACK, no retransmit. Minimal overhead but lost packets
-      are never recovered; acceptable only where occasional data gaps are tolerable.
+      MQTT QoS 0 - Fire & forget | No ACK, no retransmit. Minimal overhead; lost packets are gone forever. Acceptable only where occasional gaps in occupancy data are tolerable.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -156,9 +143,7 @@ scenarios:
 
   - name: B2_mqtt_qos1
     description: >
-      MQTT QoS 1 - At-least-once with PUBACK |
-      One ACK round-trip; lost ACK triggers a retransmit (subscriber
-      detects the duplicate). 
+      MQTT QoS 1 - At-least-once | One PUBACK round-trip; a lost ACK triggers a retransmit (duplicate suppressed at subscriber). Reliable under moderate loss.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -175,10 +160,7 @@ scenarios:
 
   - name: B3_mqtt_qos2
     description: >
-      MQTT QoS 2 - Exactly-once via 4-way handshake |
-      Three ACK legs (PUBREC, PUBREL, PUBCOMP) each can lose its ACK,
-      compounding to ≈9 % chance of needing retransmit. Highest byte
-      overhead of the MQTT family; ≈16 % more bytes than QoS 0.
+      MQTT QoS 2 - Exactly-once (4-way handshake) | Three ACK legs; highest byte overhead of the MQTT family. ~9% chance of a retransmit per message at 3% backhaul loss.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -195,10 +177,7 @@ scenarios:
 
   - name: B4_coap_non
     description: >
-      CoAP Non-Confirmable (NON) |
-      Fire-and-forget UDP — lowest overhead of all protocols. No retransmit;
-      delivery degrades linearly with link loss. Suitable only where sporadic
-      gaps in occupancy state are acceptable.
+      CoAP Non-Confirmable (NON) | Fire-and-forget UDP - lowest byte overhead of all protocols. Delivery degrades linearly with link loss; no retransmit.
     protocol: coap
     architecture: edge_filtered
     traffic_level: peak
@@ -215,10 +194,7 @@ scenarios:
 
   - name: B5_coap_con
     description: >
-      CoAP Confirmable (CON) |
-      ACK round-trip per RFC 7252; up to 4 retransmits with exponential
-      backoff. Comparable retransmit count to MQTT QoS 1 but on roughly
-      half the byte volume thanks to CBOR.
+      CoAP Confirmable (CON) | ACK round-trip per RFC 7252; up to 4 retransmits with exponential backoff. Comparable delivery to MQTT QoS 1 on roughly half the bytes (CBOR encoding).
     protocol: coap
     architecture: edge_filtered
     traffic_level: peak
@@ -235,10 +211,7 @@ scenarios:
 
   - name: B6_amqp_auto
     description: >
-      AMQP direct exchange - auto ACK, non-durable |
-      The broker acknowledges messages automatically on dispatch, with
-      no consumer-side confirmation. No retransmits. Equivalent to QoS 0
-      semantics but with AMQP's heavier frame overhead.
+      AMQP direct exchange - auto ACK, non-durable | Broker ACKs on dispatch; no consumer confirmation. Equivalent to QoS 0 semantics with AMQP's heavier per-frame overhead.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -257,10 +230,8 @@ scenarios:
 
   - name: B7_amqp_manual_durable
     description: >
-      AMQP direct exchange - manual ACK, durable |
-      Consumer ACK travels back over the lossy backhaul; lost ACKs cause
-      the broker to requeue. Equivalent to MQTT QoS 1 semantics but with
-      stronger persistence guarantees. Highest byte overhead overall.
+      AMQP direct exchange - manual ACK, durable | Consumer ACK travels back over the lossy backhaul; lost ACKs cause requeue. Equivalent to MQTT QoS 1 with stronger persistence.
+      Highest byte overhead overall.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -279,10 +250,7 @@ scenarios:
 
   - name: B8_amqp_topic
     description: >
-      AMQP topic exchange - manual ACK, durable |
-      Pattern-routed exchange (parking.<edge>.update). Slightly higher
-      broker overhead than B7 (pattern matching), otherwise identical.
-      Useful when subscribers want per-zone or per-floor filtering.
+      AMQP topic exchange - manual ACK, durable | Pattern-routed (parking.<edge>.update). Slightly higher broker overhead than B7; useful for per-zone subscriber filtering.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -302,10 +270,7 @@ scenarios:
 
   - name: C1_traffic_low
     description: >
-      Low Traffic |
-      Aggregation finds very few events per batch (<1 on average).
-      Most batches are singletons; bandwidth saving is modest, latency
-      penalty approaches the full window width.
+      Low Traffic | Very few events per aggregation window (<1 on average). Most batches are singletons; bandwidth saving is modest.
     protocol: amqp
     architecture: edge_aggregated
     traffic_level: low
@@ -327,9 +292,7 @@ scenarios:
 
   - name: C2_traffic_medium
     description: >
-      Medium Traffic |
-      ~3 events per batch on average. Aggregation begins to pay off
-      visibly; the latency penalty is still bounded by the window.
+      Medium Traffic | ~3 events per batch. Aggregation begins to pay off; latency penalty bounded by window.
     protocol: amqp
     architecture: edge_aggregated
     traffic_level: medium
@@ -351,10 +314,7 @@ scenarios:
 
   - name: C3_traffic_peak
     description: >
-      Peak Traffic |
-      ~5-6 events per batch. Aggregation provides its strongest
-      bandwidth saving in this group; first signs of token-bucket
-      pressure on the sensor-edge link.
+      Peak Traffic | ~5-6 events per batch. Strongest bandwidth saving in the group; first signs of token-bucket pressure on the sensor link.
     protocol: amqp
     architecture: edge_aggregated
     traffic_level: peak
@@ -377,9 +337,7 @@ scenarios:
 
   - name: D1_scale_50
     description: >
-      50 spots @ peak - small lot baseline |
-      ~0.04 events/s post-filter. Almost every batch is a singleton.
-      Aggregation actively hurts bandwidth here (overhead > savings).
+      50 spots @ peak - small lot baseline | ~0.04 events/s post-filter. Nearly all batches are singletons.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -398,9 +356,7 @@ scenarios:
 
   - name: D2_scale_200
     description: >
-      200 spots @ peak - medium structure |
-      ~0.15 events/s post-filter. Aggregation begins to find batches
-      of 2-3 events. Reasonable break-even point.
+      200 spots @ peak - medium structure | ~0.15 events/s post-filter. Aggregation starts finding 2-3 per batch.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -419,9 +375,7 @@ scenarios:
 
   - name: D3_scale_500
     description: >
-      500 spots @ peak - large structure |
-      ~5 events per batch. Clear aggregation savings, low queue depth.
-      Cloud-side broker queue stays shallow.
+      500 spots @ peak - large structure | ~5 events per batch. Clear aggregation savings, low queue depth.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -440,10 +394,7 @@ scenarios:
 
   - name: D4_scale_2000
     description: >
-      2000 spots @ peak - airport/stadium |
-      ~22 events per batch. Sensor link's token bucket and queue
-      capacity start to bind; some link-layer drops appear before
-      events even reach the gateway.
+      2000 spots @ peak - airport/stadium | ~22 events per batch. Sensor link token-bucket starts binding; some link-layer drops appear.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -464,9 +415,7 @@ scenarios:
 
   - name: E1_qos1_loss1pct
     description: >
-      MQTT QoS 1 at 1 % backhaul loss |
-      Near-ideal conditions; ≈1 % retransmits, delivery near 100 %,
-      tail latency only marginally elevated.
+      MQTT QoS 1 at 1% backhaul loss | Near-ideal conditions; ~1% retransmits, delivery near 100%.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -484,9 +433,7 @@ scenarios:
 
   - name: E2_qos1_loss5pct
     description: >
-      MQTT QoS 1 at 5 % backhaul loss |
-      ≈5 % retransmits; delivery stays above 99 % thanks to recovery;
-      P99 latency rises by the first retry backoff (~1 s).
+      MQTT QoS 1 at 5% backhaul loss | ~5% retransmits; delivery stays above 99%; P99 rises by ~1 s.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -505,10 +452,7 @@ scenarios:
 
   - name: E3_qos1_loss15pct
     description: >
-      MQTT QoS 1 at 15 % backhaul loss |
-      Heavy retransmit load; some messages exhaust the retry budget
-      and are permanently lost. P99 substantially elevated. This is
-      the threshold where adaptive edge mode would switch to filtered.
+      MQTT QoS 1 at 15% backhaul loss | Heavy retransmit load; some messages exhaust the retry budget. P99 substantially elevated - adaptive threshold boundary.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -527,10 +471,7 @@ scenarios:
 
   - name: E4_coap_con_loss5pct
     description: >
-      CoAP CON at 5 % backhaul loss |
-      Direct comparison to E2. CBOR encoding keeps bytes much lower;
-      RFC 7252 backoff is slower than MQTT (initial 2 s vs 1 s) so
-      latency tail can be longer.
+      CoAP CON at 5% backhaul loss | Direct comparison to E2. CBOR keeps bytes lower; RFC 7252 backoff (2 s initial) is slower than MQTT (1 s), so P99 tail can be longer.
     protocol: coap
     architecture: edge_aggregated
     traffic_level: peak
@@ -549,9 +490,7 @@ scenarios:
 
   - name: E5_qos0_loss5pct
     description: >
-      MQTT QoS 0 at 5 % backhaul loss |
-      No retransmit, no recovery. Delivery ratio ≈ 95 %. This is the
-      "what you give up for the lowest overhead" reference point.
+      MQTT QoS 0 at 5% backhaul loss | No retransmit. Delivery ~95%. Lowest overhead; reference baseline for "what you give up for simplicity".
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -571,9 +510,7 @@ scenarios:
 
   - name: F0_filter_only
     description: >
-      No aggregation, just edge filtering |
-      Baseline for the curve: minimum latency, maximum cloud message
-      count (one per real state change after dedup).
+      No aggregation, just edge filtering | Minimum latency, maximum cloud message count (one per real state change after dedup). Baseline for the sweep.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -590,10 +527,7 @@ scenarios:
 
   - name: F1_agg_1s
     description: >
-      1 s aggregation window |
-      Too short relative to event rate (0.36 ev/s) — most batches are
-      singletons. Demonstrates that aggregation can ADD overhead when
-      mistuned.
+      1 s aggregation window | Too short for the event rate - most batches are singletons. Demonstrates aggregation adding overhead when mistuned.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -612,8 +546,7 @@ scenarios:
 
   - name: F2_agg_5s
     description: >
-      5 s aggregation window |
-      ~1.8 events per batch. Modest savings, modest latency cost.
+      5 s aggregation window | ~1.8 events per batch. Modest savings, modest latency cost.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -632,9 +565,7 @@ scenarios:
 
   - name: F3_agg_15s
     description: >
-      15 s aggregation window |
-      ~5-6 events per batch. Significant cloud message reduction with
-      a bounded latency penalty (half the window on average).
+      15 s aggregation window | ~5-6 events per batch. Significant cloud message reduction with bounded latency penalty (~ half window on average).
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -654,10 +585,7 @@ scenarios:
 
   - name: F4_agg_60s
     description: >
-      60 s aggregation window |
-      ~22 events per batch — near-maximum cloud bandwidth saving.
-      Latency penalty approaches 30 s for the average event;
-      unsuitable for real-time guidance displays.
+      60 s aggregation window | ~22 events per batch - near-maximum cloud bandwidth saving. Average latency penalty  ~30 s; unsuitable for real-time guidance.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -678,10 +606,8 @@ scenarios:
 
   - name: G1_adaptive_harsh_15pct
     description: >
-      Adaptive Edge at 15 % loss |
-      Direct comparison to E3. When sensor-edge delivery dips below
-      85%, the gateway flips from aggregated to filtered to limit the
-      retransmit amplification. Look for adaptive_mode_switches > 0.
+      Adaptive Edge at 15% backhaul loss | Direct comparison to E3. When backhaul delivery in the rolling 30 s window dips below 85%, the gateway flips to edge_filtered. Expect
+      multiple mode_switches; compare cloud_reflection_ratio to E3.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -701,10 +627,7 @@ scenarios:
 
   - name: G2_adaptive_benign_2pct
     description: >
-      Adaptive Edge at 2 % loss |
-      Sanity check: with benign link conditions, the gateway should
-      stay in aggregated mode the entire time (mode_switches == 0).
-      Confirms that adaptation does not misfire under normal conditions.
+      Adaptive Edge at 2% backhaul loss | Sanity check: gateway should remain in aggregated mode throughout (mode_switches == 0). Confirms adaptation does not misfire.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -725,11 +648,7 @@ scenarios:
 
   - name: H1_street_lora
     description: >
-      On-Street LoRa Deployment |
-      120 spots, LoRa SF7 link (80 ms ± 30 ms one-way, 2 % loss), 4G
-      backhaul (30 ms ± 10 ms, 1 % loss). AMQP topic exchange enables
-      per-block subscriptions. 30 s aggregation matches navigation-app
-      refresh cadence. Standard SFpark-style profile.
+      On-Street LoRa Deployment | 120 spots, LoRa SF7 link (80 ms ± 30 ms, 2% loss), 4G backhaul (30 ms ± 10 ms, 1% loss). AMQP topic exchange, 30 s aggregation.
     protocol: amqp
     architecture: edge_aggregated
     traffic_level: peak
@@ -756,11 +675,7 @@ scenarios:
 
   - name: H2_mall_wifi
     description: >
-      Indoor Mall WiFi Deployment |
-      400 spots, WiFi 802.11ac access link (15 ms ± 8 ms, 1 % loss),
-      fibre backhaul (5 ms ± 3 ms, 0.1 % loss). MQTT QoS 1 with a 60 s
-      aggregation window aligned to guidance-sign refresh. Custom TOD
-      reflecting mall opening hours.
+      Indoor Mall WiFi Deployment | 400 spots, WiFi 802.11ac (15 ms ± 8 ms, 1% loss), fibre backhaul (5 ms ± 3 ms, 0.1% loss). MQTT QoS 1, 60 s aggregation.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -791,11 +706,7 @@ scenarios:
 
   - name: H3_airport_nbiot
     description: >
-      Airport NB-IoT Deployment |
-      1500 spots, NB-IoT connected-mode access link (250 ms ± 80 ms,
-      0.5 % loss), fibre backhaul. CoAP CON for mission-critical
-      reliability with CBOR compression. 30 s aggregation. Time-of-day
-      reflects flight schedules.
+      Airport NB-IoT Deployment | 1500 spots, NB-IoT (250 ms ± 80 ms, 0.5% loss), fibre backhaul. CoAP CON for reliability; CBOR compression. 30 s aggregation.
     protocol: coap
     architecture: edge_aggregated
     traffic_level: peak

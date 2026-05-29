@@ -719,3 +719,20 @@ label {
   text-transform: uppercase;
   padding: .55rem .6rem .3rem;
 }
+
+.scenario-log-section { margin-top: .75rem; }
+.scenario-log-toggle {
+  cursor: pointer; font-size: .72rem; color: var(--purple);
+  letter-spacing: .08em; text-transform: uppercase; margin-top: .35rem;
+  padding: .3rem .5rem; user-select: none; font-family: var(--mono);
+  display: flex; align-items: center; gap: .4rem;
+}
+.scenario-log-toggle:hover { color: var(--text); }
+.scenario-log-wrap { display: none; overflow-x: auto; margin-top: .25rem; }
+.scenario-log-wrap.open { display: block; }
+.scenario-log-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
+.scenario-log-table td {
+  padding: .22rem .55rem; border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.scenario-log-table tr:hover td { background: var(--bg-hover); }
