@@ -307,8 +307,7 @@ def make_scenario(
     if rate_limit is None:
         rate_limit = max(2.0, num_spots / 10.0)
 
-    occ_map = {"low": 0.12, "medium": 0.45, "peak": 0.80}
-    occ = initial_occupancy if initial_occupancy is not None else occ_map[traffic_level]
+    occ = initial_occupancy if initial_occupancy is not None else 0.0
 
     link = LinkConfig(
         packet_loss_rate=loss_rate,

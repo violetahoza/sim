@@ -126,7 +126,6 @@ class ExperimentMetrics:
     edge_to_cloud_dropped: int = 0
 
     broker_overhead_score: float = 0.0
-    warmup_excluded_samples: int = 0
 
     fault_injected_count: int = 0
     quarantined_spots_final: int = 0
@@ -145,4 +144,16 @@ class ExperimentMetrics:
     def to_dict(self) -> dict:
         d = asdict(self)
         d.pop("latency_samples", None)
+        arch = d.get("architecture", "")
+ 
+        d.pop("end_to_end_delivery_ratio", None)  
+        d.pop("physical_delivery_ratio", None)  
+        d.pop("cloud_only_msgs", None)    
+        d.pop("transport_msgs_total", None) 
+        d.pop("initial_snapshots_generated", None)  
+ 
+        if arch != "edge_aggregated":
+            d.pop("aggregation_ratio", None)
+            d.pop("events_per_cloud_message", None)
+ 
         return d

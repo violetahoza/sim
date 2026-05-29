@@ -22,8 +22,6 @@ _BROKER_SERVICE_RATE: dict[str, float] = {
     "coap_CON": 18_000.0
 }
 
-_WARMUP_S: float = 300.0
-
 
 def compute_broker_overhead_score(cfg: ScenarioConfig, received_events: int) -> float:
     proto = cfg.protocol
@@ -60,8 +58,6 @@ class CloudBackend:
         self.transitions_received = 0
 
         self._latency_ms: list[float] = []
-        self._post_warmup_ms: list[float] = []
-        self.warmup_excluded: int = 0
         self._event_rows: list[tuple] = []
 
         self._total_bytes_received = 0
@@ -105,12 +101,6 @@ class CloudBackend:
 
         latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
         self._latency_ms.append(latency_ms)
-
-        virtual_time = event.timestamp - self.epoch
-        if virtual_time >= _WARMUP_S:
-            self._post_warmup_ms.append(latency_ms)
-        else:
-            self.warmup_excluded += 1
 
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
         self._snapshot_cache = None
@@ -239,7 +229,7 @@ class CloudBackend:
         return snapshot
 
     def get_all_latency_samples(self) -> list[float]:
-        return self._post_warmup_ms if self._post_warmup_ms else self._latency_ms
-
+        return self._latency_ms
+    
     def compute_broker_overhead_score(self) -> float:
         return compute_broker_overhead_score(self.config, self.received_events)

@@ -112,12 +112,8 @@ scenarios:
   - name: A6_adaptive_edge
     description: >
       Adaptive Edge |
-      Starts in edge_aggregated mode (5 s window). When the sensor-link
-      delivery ratio drops below 85% the gateway switches to edge_filtered
-      to avoid batch losses; it switches back when DR recovers above 95%.
-      A 24 h time-of-day curve combined with 12% sensor-link loss creates
-      repeated busy/quiet cycles that cross both thresholds, producing at
-      least 3 mode switches. 
+      Starts in edge_aggregated mode (5 s window). The gateway evaluates a per-interval (30 s window) delivery ratio: when it drops below 85%
+      it switches to edge_filtered to avoid batch losses; it recovers back when the interval DR exceeds 95%.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak

@@ -243,7 +243,6 @@ class ExperimentRunner:
             edge_to_cloud_dropped=e2c_dropped,
 
             broker_overhead_score=cloud.compute_broker_overhead_score(),
-            warmup_excluded_samples=cloud.warmup_excluded,
 
             fault_injected_count=fi.injected_count if fi is not None else 0,
             quarantined_spots_final=es.get("quarantined_count", 0),
@@ -251,7 +250,8 @@ class ExperimentRunner:
 
             events_generated=sensor_events,
             heartbeats_generated=sensors.heartbeats_generated,
-            initial_snapshots_generated=sensors.initial_snapshots_generated,
+            heartbeats_forwarded=es.get("heartbeats_forwarded", 0),
+            initial_snapshots_generated=0,
             duplicate_sends_generated=sensors.duplicate_sends_generated,
             heartbeat_interval_s=cfg.traffic.heartbeat_interval_s,
             sensor_link_dropped=ls.dropped,
@@ -445,13 +445,13 @@ class ExperimentRunner:
             edge_to_cloud_dropped=e2c_dropped,
 
             broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
-
             quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
 
             events_generated=sensor_events,
             heartbeats_generated=sensors.heartbeats_generated,
-            initial_snapshots_generated=sensors.initial_snapshots_generated,
+            heartbeats_forwarded=es.get("heartbeats_forwarded", 0),
+            initial_snapshots_generated=0,
             duplicate_sends_generated=sensors.duplicate_sends_generated,
             heartbeat_interval_s=cfg.traffic.heartbeat_interval_s,
             sensor_link_dropped=ls.dropped,

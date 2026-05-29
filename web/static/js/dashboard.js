@@ -284,12 +284,17 @@ function renderKpiStrip(r) {
     { label: 'Sensor Drops', val: _fmtInt(r.sensor_link_dropped), unit: 'pkts lost' },
     { label: 'Sensor Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '-', unit: 'KB sent' },
     { label: 'Cloud Bytes', val: r.edge_to_cloud_bytes ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '-', unit: 'KB recv' },
-  ] : [
-    { label: 'Agg Ratio', val: (r.aggregation_ratio > 0 ? (1 / r.aggregation_ratio).toFixed(1) : '-'), unit: 'x saved' },
-    { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
-    { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '-', unit: 'KB' },
-    { label: 'E→C Bytes', val: r.edge_to_cloud_bytes  ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '-', unit: 'KB' },
-  ];
+  ] : (() => {
+    const isAgg = r.architecture === 'edge_aggregated';
+    return [
+      isAgg
+        ? { label: 'Batch Size', val: r.events_per_cloud_message != null ? (+r.events_per_cloud_message).toFixed(1) : '-', unit: 'ev/msg' }
+        : { label: 'Msg Saved', val: r.message_reduction_ratio != null ? (r.message_reduction_ratio * 100).toFixed(1) : '-', unit: '% saved' },
+      { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
+      { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '-', unit: 'KB' },
+      { label: 'E→C Bytes', val: r.edge_to_cloud_bytes  ? (r.edge_to_cloud_bytes  / 1024).toFixed(1) : '-', unit: 'KB' },
+    ];
+  })();
 
   slots.forEach((s, i) => {
     const idx = 4 + i;
@@ -311,7 +316,7 @@ function metricsRowsCloudOnly(r) {
     { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
     { l1: 'Heartbeats emitted', v1: _fmtInt(r.heartbeats_generated),
       l2: 'Heartbeat interval', v2: (r.heartbeat_interval_s && r.heartbeat_interval_s > 0) ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled' },
-    { l1: 'Startup occupancy snapshots', v1: _fmtInt(r.initial_snapshots_generated), l2: 'Duplicate retransmits', v2: _fmtInt(r.duplicate_sends_generated) },
+    { l1: 'Duplicates generated', v1: _fmtInt(r.duplicate_sends_generated), l2: '', v2: '' },
 
     { group: 'Wireless link (sensor → broker)' },
     { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs),
@@ -338,7 +343,6 @@ function metricsRowsCloudOnly(r) {
       l2: 'P95', v2: _fmt(r.latency_p95_ms, ' ms') },
     { l1: 'P99', v1: _fmt(r.latency_p99_ms, ' ms'),
       l2: 'Max', v2: _fmt(r.latency_max_ms, ' ms') },
-    { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
 
     { group: 'Bandwidth' },
     { l1: 'Sent by sensors', v1: _fmtKB(r.sensor_to_edge_bytes), l2: 'Reached broker', v2: _fmtKB(r.edge_to_cloud_bytes) },
@@ -364,7 +368,8 @@ function metricsRowsEdge(r) {
     edgeRows[1].v2 = _fmt(r.events_per_cloud_message, '', 2);
   }
 
-  const anomalyRows = [
+  const hasAnomaly = (r.anomalies_detected ?? 0) > 0 || (r.adaptive_mode_switches ?? 0) > 0 || (r.quarantined_spots_final ?? 0) > 0;
+  const anomalyRows = hasAnomaly ? [
     { group: 'Anomaly Detection' },
     { l1: 'Detected', v1: _fmtInt(r.anomalies_detected),
       l2: 'Resolved', v2: _fmtInt(r.anomalies_resolved) },
@@ -372,7 +377,8 @@ function metricsRowsEdge(r) {
       l2: 'Affected spots', v2: _fmtInt(r.anomaly_detected_spots) },
     { l1: 'Quarantined at end', v1: _fmtInt(r.quarantined_spots_final),
       l2: 'Mode switches', v2: _fmtInt(r.adaptive_mode_switches) },
-  ];
+    ...((r.fault_injected_count ?? 0) > 0 ? [{ l1: 'Faults injected', v1: _fmtInt(r.fault_injected_count), l2: '', v2: '' }] : []),
+  ] : [];
   if ((r.fault_injected_count ?? 0) > 0) {
     anomalyRows.push({ l1: 'Faults injected', v1: _fmtInt(r.fault_injected_count), l2: '', v2: '' });
   }
@@ -380,15 +386,13 @@ function metricsRowsEdge(r) {
   return [
     { group: 'Sensor activity' },
     { l1: 'Sensor messages emitted', v1: _fmtInt(r.events_generated), l2: 'Real arrivals & departures', v2: _fmtInt(r.valid_state_changes) },
-    { l1: 'Heartbeats emitted', v1: _fmtInt(r.heartbeats_generated),
-      l2: 'Heartbeat interval', v2: (r.heartbeat_interval_s && r.heartbeat_interval_s > 0) ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled' },
-    { l1: 'Startup occupancy snapshots', v1: _fmtInt(r.initial_snapshots_generated), l2: 'Duplicate retransmits', v2: _fmtInt(r.duplicate_sends_generated) },
+    { l1: 'Heartbeats emitted', v1: _fmtInt(r.heartbeats_generated), l2: 'Heartbeat interval', v2: (r.heartbeat_interval_s && r.heartbeat_interval_s > 0) ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled' },
+    { l1: 'Heartbeats forwarded', v1: _fmtInt(r.heartbeats_forwarded), l2: 'Duplicates generated', v2: _fmtInt(r.duplicate_sends_generated) },
 
     { group: 'Wireless link (sensor → edge gateway)' },
     { l1: 'Unique messages sent', v1: _fmtInt(r.sensor_to_edge_msgs), l2: 'Lost on the radio', v2: _fmtInt(r.sensor_link_dropped) },
     { l1: 'Wireless delivery', v1: _fmtPct(r.sensor_to_edge_delivery_ratio), l2: 'Reached the gateway', v2: _fmtInt(survivedWireless) },
-    { l1: 'Sensor link loss rate', v1: r.sensor_to_edge_delivery_ratio != null ? ((1 - r.sensor_to_edge_delivery_ratio) * 100).toFixed(2) + ' %' : '-',
-      l2: '', v2: '' },
+    { l1: 'Sensor link loss', v1: r.sensor_to_edge_delivery_ratio != null ? ((1 - r.sensor_to_edge_delivery_ratio) * 100).toFixed(2) + ' %' : '-', l2: '', v2: '' },
 
     { group: 'Edge processing' },
     ...edgeRows,
@@ -404,7 +408,6 @@ function metricsRowsEdge(r) {
     { l1: 'Mean', v1: _fmt(r.latency_mean_ms, ' ms'), l2: 'Min', v2: _fmt(r.latency_min_ms, ' ms') },
     { l1: 'P50', v1: _fmt(r.latency_p50_ms, ' ms'), l2: 'P95', v2: _fmt(r.latency_p95_ms, ' ms') },
     { l1: 'P99', v1: _fmt(r.latency_p99_ms, ' ms'), l2: 'Max', v2: _fmt(r.latency_max_ms, ' ms') },
-    { l1: 'Startup samples discarded', v1: _fmtInt(r.warmup_excluded_samples), l2: '', v2: '' },
 
     ...anomalyRows,
 

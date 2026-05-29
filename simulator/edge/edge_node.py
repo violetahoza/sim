@@ -21,6 +21,7 @@ _STUCK_THRESHOLD_S: float = 12.0 * 3600.0
 class EdgeNode:
 
     ANOMALY_INTERVAL_S = 30.0
+    ADAPTIVE_INTERVAL_S = 30.0
     ADAPTIVE_DEGRADE_THRESHOLD = 0.85
     ADAPTIVE_RECOVER_THRESHOLD = 0.95
 
@@ -45,6 +46,10 @@ class EdgeNode:
 
         self._sensor_link_stats: Optional[LinkStats] = None
 
+        self.heartbeats_forwarded: int = 0
+        self._adaptive_prev_sent: int = 0
+        self._adaptive_prev_recv: int = 0
+
         self._active_anomalies: set[tuple[int, str]] = set()
         self._resolved_anomalies: int = 0
         self._cumulative_flags: dict[int, int] = {}
@@ -57,6 +62,8 @@ class EdgeNode:
             self.clock.schedule(self.edge_cfg.aggregation_interval_s, self._aggregation_tick)
         if self.edge_cfg.anomaly_detection:
             self.clock.schedule(self.ANOMALY_INTERVAL_S, self._anomaly_tick)
+        elif self.edge_cfg.adaptive_edge:
+            self.clock.schedule(self.ADAPTIVE_INTERVAL_S, self._standalone_adaptive_tick)
 
     def set_sensor_link_stats(self, stats: LinkStats) -> None:
         self._sensor_link_stats = stats
@@ -92,8 +99,10 @@ class EdgeNode:
 
             if self._active_arch == "edge_filtered":
                 self._forward_single(event)
+                self.heartbeats_forwarded += 1
             elif self._active_arch == "edge_aggregated":
                 self._pending.append(event)
+                self.heartbeats_forwarded += 1
                 self._flush_if_needed()
             cached.last_forwarded_timestamp = event.timestamp
             return
@@ -324,26 +333,41 @@ class EdgeNode:
 
         self.clock.schedule(self.ANOMALY_INTERVAL_S, self._anomaly_tick)
 
+    def _standalone_adaptive_tick(self) -> None:
+        self._check_adaptive_mode()
+        self.clock.schedule(self.ADAPTIVE_INTERVAL_S, self._standalone_adaptive_tick)
+
     def _check_adaptive_mode(self) -> None:
         if self.config.architecture != "edge_aggregated":
             return
-        if self._sensor_link_stats is None or self._sensor_link_stats.sent == 0:
+        if not self.edge_cfg.adaptive_edge:
             return
-
-        dr = self._sensor_link_stats.delivery_ratio
-
+        if self._sensor_link_stats is None:
+            return
+ 
+        ls = self._sensor_link_stats
+        delta_sent = ls.sent - self._adaptive_prev_sent
+        delta_recv = ls.received - self._adaptive_prev_recv
+        self._adaptive_prev_sent = ls.sent
+        self._adaptive_prev_recv = ls.received
+ 
+        if delta_sent < 5:
+            return
+ 
+        dr = delta_recv / delta_sent  
+ 
         if self._active_arch == "edge_aggregated" and dr < self.ADAPTIVE_DEGRADE_THRESHOLD:
             logger.info(
-                f"[ADAPTIVE] DR={dr:.2%} < {self.ADAPTIVE_DEGRADE_THRESHOLD:.0%} "
+                f"[ADAPTIVE] window DR={dr:.2%} < {self.ADAPTIVE_DEGRADE_THRESHOLD:.0%} "
                 f"— edge_aggregated → edge_filtered"
             )
             self._flush_batch()
             self._active_arch = "edge_filtered"
             self.mode_switches += 1
-
+ 
         elif self._active_arch == "edge_filtered" and dr >= self.ADAPTIVE_RECOVER_THRESHOLD:
             logger.info(
-                f"[ADAPTIVE] DR={dr:.2%} >= {self.ADAPTIVE_RECOVER_THRESHOLD:.0%} "
+                f"[ADAPTIVE] window DR={dr:.2%} >= {self.ADAPTIVE_RECOVER_THRESHOLD:.0%} "
                 f"— edge_filtered → edge_aggregated"
             )
             self._active_arch = "edge_aggregated"
@@ -358,6 +382,7 @@ class EdgeNode:
             "received": self.received_count,
             "filtered": self.filtered_count,
             "forwarded_events": self.forwarded_events,
+            "heartbeats_forwarded": self.heartbeats_forwarded,
             "anomalies": self.anomaly_count,
             "active_anomalies": len(self._active_anomalies),
             "resolved_anomalies": self._resolved_anomalies,
