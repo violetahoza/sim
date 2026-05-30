@@ -54,8 +54,6 @@ class ScenarioRun(Base):
     anomalies_detected = Column(Integer)
     adaptive_mode_switches = Column(Integer)
 
-    broker_overhead_score = Column(Float)
-
 
 class ParkingSpot(Base):
     __tablename__ = "parking_spots"

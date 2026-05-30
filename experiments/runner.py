@@ -363,8 +363,6 @@ class ExperimentRunner:
             quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
 
-            broker_overhead_score=cloud.compute_broker_overhead_score(),
-
             latency_samples=post_samples[-50_000:],
             scenario_log=es.get("event_log", [])
         )
@@ -494,8 +492,6 @@ class ExperimentRunner:
             adaptive_mode_switches=es.get("mode_switches", 0),
             quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
-
-            broker_overhead_score=cloud_proc.compute_broker_overhead_score(),
 
             latency_samples=post_samples[-50_000:],
             scenario_log=es.get("event_log", [])

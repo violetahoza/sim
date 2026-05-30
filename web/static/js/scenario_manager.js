@@ -411,8 +411,6 @@ function _metricsList() {
     { label: 'Sensor → first hop (KB)', value: r => r.sensor_to_edge_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
     { label: 'To cloud (KB)', value: r => r.edge_to_cloud_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
     { label: 'Protocol overhead (KB)', value: r => r.protocol_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
-    { label: 'Broker score', value: r => r.broker_overhead_score ?? null, applies: _always, fmt: _f3, better: 'low' },
-
   ];
 }
 

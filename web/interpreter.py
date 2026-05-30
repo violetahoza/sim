@@ -29,8 +29,7 @@ Edge → broker link. A separate backhaul link with its own delay/jitter/loss, g
 
 Protocols. MQTT (QoS 0 fire-and-forget, QoS 1 with PUBACK retransmit, QoS 2 four-way handshake), CoAP (NON fire-and-forget, CON with ACK retransmit and exponential backoff per RFC 7252, with a CBOR encoding
 ratio of 0.65 applied to bytes), AMQP (direct/topic/fanout exchanges, auto or manual ACK, optional durable). For each, the simulator tracks bytes_sent on the wire, 
-retransmissions, and duplicate deliveries. Broker overhead is modelled as a small per-message service time (sub-millisecond at low load) plus an M/M/1
-queueing approximation captured by broker_overhead_score (estimated mean wait in ms - higher = more queueing).
+retransmissions, and duplicate deliveries. 
 
 What the latency numbers mean. End-to-end latency is sensor-emit timestamp to cloud-arrival timestamp, measured in virtual simulated time. It includes the 
 link propagation + jitter, the token-bucket wait under rate limiting, any aggregation window wait at the edge, and any protocol retransmit backoff. It does NOT include application-level processing on the cloud side.
@@ -57,7 +56,7 @@ FOCUS_PROMPTS: dict[str, str] = {
     "latency": "Examine latency closely: what the spread between mean, P50, P95, and P99 tells you about tail behaviour and scheduling jitter. Where P99 is much larger than mean, attribute it to a specific mechanism the simulator models (jitter, token-bucket queueing, aggregation window wait, retransmit backoff) using the configuration details visible in the summaries.",
     "reliability": "Work through delivery: compare measured cloud_reflection_ratio and physical_delivery_ratio against the configured loss rates. Identify where retransmits visibly compensated for loss (look at retransmissions_total vs delivery), and where they did not (cloud_state_changes_reflected vs valid_state_changes). Say which configuration you would stake availability on, based on the data.",
     "bandwidth": "Calculate the byte savings of edge architectures vs cloud-only from the provided sensor_to_edge_bytes_kb / edge_to_cloud_bytes_kb / protocol_bytes_kb. Explain what aggregation_ratio and events_per_cloud_message imply about event burstiness. Where bytes differ between protocols, attribute the gap to the encoding/framing details the simulator models.",
-    "protocol": "Compare protocols directly using the numbers in the data - latency tails, retransmissions_total, duplicate_deliveries, protocol_bytes_kb, broker_overhead_score_ms. Flag anything that contradicts the expected ordering and reason about why the simulator produced that result.",
+    "protocol": "Compare protocols directly using the numbers in the data - latency tails, retransmissions_total, duplicate_deliveries, protocol_bytes_kb. Flag anything that contradicts the expected ordering and reason about why the simulator produced that result.",
     "architecture": "Quantify the trade-offs from the data: the latency cost of aggregation vs cloud_only, the message_reduction_ratio achieved by edge_filtered and edge_aggregated, and which architecture the numbers favour for the scenarios shown. Be explicit about which architecture each comparison is using.",
     "recommendation": "Based strictly on the runs provided, name the configuration that best balances the measured axes and explain why using its numbers. List the failure modes visible in the data (high P99, low cloud_reflection_ratio, retransmit storms) and what would mitigate them. Be explicit about what the simulator does not model.",
     "scale": "Focus on how latency, delivery, and message counts shift as num_spots grows. Identify which protocol or architecture degrades most gracefully according to the data. Avoid extrapolating to scales not represented in the provided runs.",
@@ -116,7 +115,6 @@ def build_summaries(results: list[dict]) -> list[dict]:
             "sensor_to_edge_bytes_kb": round(r.get("sensor_to_edge_bytes", 0) / 1024, 2),
             "edge_to_cloud_bytes_kb": round(r.get("edge_to_cloud_bytes", 0) / 1024, 2),
             "protocol_bytes_kb": round(r.get("protocol_bytes", 0) / 1024, 2),
-            "broker_overhead_score_ms": r.get("broker_overhead_score"),
         }
         for r in results
     ]

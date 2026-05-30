@@ -11,34 +11,6 @@ from ..des.engine import SimClock
 
 logger = logging.getLogger(__name__)
 
-_BROKER_SERVICE_RATE: dict[str, float] = {
-    "mqtt_qos0": 50_000.0,
-    "mqtt_qos1": 20_000.0,
-    "mqtt_qos2": 8_000.0,
-    "amqp_direct/auto": 25_000.0,
-    "amqp_direct/manual": 10_000.0,
-    "amqp_topic/manual": 8_000.0,
-    "coap_NON": 45_000.0,
-    "coap_CON": 18_000.0
-}
-
-
-def compute_broker_overhead_score(cfg: ScenarioConfig, received_events: int) -> float:
-    proto = cfg.protocol
-    if proto == "mqtt":
-        key = f"mqtt_qos{cfg.mqtt.qos}"
-    elif proto == "amqp":
-        key = f"amqp_{cfg.amqp.exchange_type}/{cfg.amqp.ack_mode}"
-    elif proto == "coap":
-        key = f"coap_{cfg.coap.mode}"
-    else:
-        key = ""
-    mu = _BROKER_SERVICE_RATE.get(key, 20_000.0)
-    lam = received_events / max(cfg.sim_duration_s, 1.0)
-    rho = min(lam / mu, 0.999)
-    e_w_ms = 1000.0 / (mu * (1.0 - rho))
-    return round(e_w_ms, 6)
-
 
 class CloudBackend:
 
@@ -170,7 +142,6 @@ class CloudBackend:
                 run.filtered_events = metrics.filtered_events
                 run.anomalies_detected = metrics.anomalies_detected
                 run.adaptive_mode_switches = metrics.adaptive_mode_switches
-                run.broker_overhead_score = metrics.broker_overhead_score
 
             session.commit()
             logger.info(f"[DB] Run {self._run_id} committed.")
@@ -224,6 +195,3 @@ class CloudBackend:
 
     def get_all_latency_samples(self) -> list[float]:
         return self._latency_ms
-
-    def compute_broker_overhead_score(self) -> float:
-        return compute_broker_overhead_score(self.config, self.received_events)

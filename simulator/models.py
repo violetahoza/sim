@@ -124,7 +124,6 @@ class ExperimentMetrics:
     protocol_bytes: int = 0
     retransmissions_total: int = 0
     duplicate_deliveries: int = 0
-    broker_overhead_score: float = 0.0
 
     cloud_msgs_received_total: int = 0
     cloud_state_changes_reflected: int = 0
@@ -180,7 +179,6 @@ class ExperimentMetrics:
             "protocol_bytes": self.protocol_bytes,
             "retransmissions_total": self.retransmissions_total,
             "duplicate_deliveries": self.duplicate_deliveries,
-            "broker_overhead_score": self.broker_overhead_score,
 
             "cloud_msgs_received_total": self.cloud_msgs_received_total,
             "cloud_state_changes_reflected": self.cloud_state_changes_reflected,

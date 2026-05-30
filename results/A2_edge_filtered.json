@@ -19,7 +19,6 @@
   "protocol_bytes": 1103591,
   "retransmissions_total": 148,
   "duplicate_deliveries": 148,
-  "broker_overhead_score": 0.050001,
   "cloud_msgs_received_total": 6201,
   "cloud_state_changes_reflected": 3268,
   "cloud_reflection_ratio": 0.947,
