@@ -4,11 +4,13 @@ Traffic: peak   Spots: 500   Duration: 10800s
 ========================================================================
 
 SUMMARY
-  Anomalies detected    : 110
-  Anomalies resolved    : 89
-  Active at end         : 21
-  Affected spots        : 103
-  Quarantined at end    : 3
+  Anomalies detected    : 100
+  Anomalies resolved    : 82
+  Active at end         : 18
+  Affected spots        : 95
+  Quarantined at end    : 2
+  Quarantine suppressed : 0
+  Heartbeats suppressed : 69830
   Adaptive mode switches: 0
 
 EVENT LOG
@@ -23,11 +25,11 @@ EVENT LOG
         1116.5  ANOMALY_FLAG            spot=10 rule=R3_rapid_arrival cumulative_flags=1
         1259.0  ANOMALY_FLAG            spot=351 rule=R3_rapid_arrival cumulative_flags=1
         1299.8  ANOMALY_FLAG            spot=396 rule=R3_rapid_arrival cumulative_flags=1
-        1320.3  ANOMALY_FLAG            spot=56 rule=R5_rapid_state_flip cumulative_flags=1
         1369.5  ANOMALY_FLAG            spot=14 rule=R3_rapid_arrival cumulative_flags=1
         1369.8  ANOMALY_FLAG            spot=422 rule=R3_rapid_arrival cumulative_flags=1
         1513.8  ANOMALY_FLAG            spot=115 rule=R3_rapid_arrival cumulative_flags=1
         1523.7  ANOMALY_FLAG            spot=243 rule=R3_rapid_arrival cumulative_flags=1
+        1667.7  ANOMALY_FLAG            spot=437 rule=R3_rapid_arrival cumulative_flags=1
         1683.1  ANOMALY_FLAG            spot=91 rule=R3_rapid_arrival cumulative_flags=1
         1744.1  ANOMALY_RESOLVE         spot=161 rule=R3_rapid_arrival
         1766.0  ANOMALY_FLAG            spot=397 rule=R3_rapid_arrival cumulative_flags=1
@@ -45,6 +47,8 @@ EVENT LOG
         2165.9  ANOMALY_FLAG            spot=427 rule=R3_rapid_arrival cumulative_flags=1
         2203.8  ANOMALY_RESOLVE         spot=459 rule=R3_rapid_arrival
         2276.5  ANOMALY_RESOLVE         spot=478 rule=R3_rapid_arrival
+        2277.7  ANOMALY_RESOLVE         spot=437 rule=R3_rapid_arrival
+        2320.3  ANOMALY_FLAG            spot=337 rule=R5_rapid_state_flip cumulative_flags=1
         2350.1  ANOMALY_FLAG            spot=377 rule=R3_rapid_arrival cumulative_flags=1
         2465.6  ANOMALY_FLAG            spot=487 rule=R5_rapid_state_flip cumulative_flags=1
         2487.3  ANOMALY_RESOLVE         spot=10 rule=R3_rapid_arrival
@@ -53,25 +57,24 @@ EVENT LOG
         2591.9  ANOMALY_RESOLVE         spot=496 rule=R3_rapid_arrival
         2652.2  ANOMALY_FLAG            spot=227 rule=R3_rapid_arrival cumulative_flags=1
         2652.9  ANOMALY_RESOLVE         spot=427 rule=R3_rapid_arrival
-        2662.7  ANOMALY_RESOLVE         spot=56 rule=R5_rapid_state_flip
+        2784.3  ANOMALY_RESOLVE         spot=377 rule=R3_rapid_arrival
+        2792.3  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
         2908.5  ANOMALY_FLAG            spot=63 rule=R3_rapid_arrival cumulative_flags=1
-        2921.3  ANOMALY_FLAG            spot=407 rule=R3_rapid_arrival cumulative_flags=1
         2943.6  ANOMALY_FLAG            spot=360 rule=R3_rapid_arrival cumulative_flags=1
-        2967.8  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
         2997.6  ANOMALY_FLAG            spot=36 rule=R3_rapid_arrival cumulative_flags=1
         3011.6  ANOMALY_FLAG            spot=79 rule=R3_rapid_arrival cumulative_flags=1
+        3038.7  ANOMALY_RESOLVE         spot=337 rule=R5_rapid_state_flip
         3197.8  ANOMALY_FLAG            spot=196 rule=R3_rapid_arrival cumulative_flags=1
         3207.0  ANOMALY_FLAG            spot=343 rule=R5_rapid_state_flip cumulative_flags=1
         3212.7  ANOMALY_RESOLVE         spot=426 rule=R3_rapid_arrival
         3302.3  ANOMALY_FLAG            spot=283 rule=R3_rapid_arrival cumulative_flags=1
         3325.7  ANOMALY_RESOLVE         spot=282 rule=R3_rapid_arrival
         3370.2  ANOMALY_FLAG            spot=173 rule=R5_rapid_state_flip cumulative_flags=1
-        3382.8  ANOMALY_FLAG            spot=279 rule=R3_rapid_arrival cumulative_flags=1
         3385.8  ANOMALY_FLAG            spot=388 rule=R3_rapid_arrival cumulative_flags=1
         3398.7  ANOMALY_RESOLVE         spot=12 rule=R3_rapid_arrival
         3412.9  ANOMALY_RESOLVE         spot=487 rule=R5_rapid_state_flip
         3493.9  ANOMALY_FLAG            spot=116 rule=R3_rapid_arrival cumulative_flags=1
-        3564.2  ANOMALY_FLAG            spot=372 rule=R5_rapid_state_flip cumulative_flags=1
+        3571.3  ANOMALY_FLAG            spot=347 rule=R3_rapid_arrival cumulative_flags=1
         3659.1  ANOMALY_FLAG            spot=438 rule=R3_rapid_arrival cumulative_flags=1
         3685.1  ANOMALY_RESOLVE         spot=196 rule=R3_rapid_arrival
         3706.0  ANOMALY_RESOLVE         spot=14 rule=R3_rapid_arrival
@@ -81,20 +84,18 @@ EVENT LOG
         3958.5  ANOMALY_RESOLVE         spot=116 rule=R3_rapid_arrival
         4042.1  ANOMALY_FLAG            spot=125 rule=R3_rapid_arrival cumulative_flags=1
         4180.0  ANOMALY_RESOLVE         spot=173 rule=R5_rapid_state_flip
-        4217.2  ANOMALY_RESOLVE         spot=407 rule=R3_rapid_arrival
-        4352.5  ANOMALY_FLAG            spot=32 rule=R3_rapid_arrival cumulative_flags=1
         4392.3  ANOMALY_FLAG            spot=385 rule=R3_rapid_arrival cumulative_flags=1
         4466.1  ANOMALY_FLAG            spot=233 rule=R3_rapid_arrival cumulative_flags=1
         4468.3  ANOMALY_FLAG            spot=449 rule=R3_rapid_arrival cumulative_flags=1
         4526.5  ANOMALY_RESOLVE         spot=343 rule=R5_rapid_state_flip
         4544.3  ANOMALY_FLAG            spot=431 rule=R3_rapid_arrival cumulative_flags=1
-        4566.3  ANOMALY_RESOLVE         spot=372 rule=R5_rapid_state_flip
         4579.9  ANOMALY_FLAG            spot=361 rule=R3_rapid_arrival cumulative_flags=1
         4609.1  ANOMALY_RESOLVE         spot=397 rule=R3_rapid_arrival
         4619.0  ANOMALY_RESOLVE         spot=36 rule=R3_rapid_arrival
         4641.6  ANOMALY_FLAG            spot=310 rule=R5_rapid_state_flip cumulative_flags=1
         4698.7  ANOMALY_FLAG            spot=122 rule=R3_rapid_arrival cumulative_flags=1
         4736.8  ANOMALY_FLAG            spot=224 rule=R3_rapid_arrival cumulative_flags=1
+        4748.0  ANOMALY_RESOLVE         spot=347 rule=R3_rapid_arrival
         4784.8  ANOMALY_FLAG            spot=177 rule=R3_rapid_arrival cumulative_flags=1
         4805.3  ANOMALY_RESOLVE         spot=91 rule=R3_rapid_arrival
         4843.5  ANOMALY_FLAG            spot=266 rule=R5_rapid_state_flip cumulative_flags=1
@@ -102,23 +103,18 @@ EVENT LOG
         4857.6  QUARANTINE_ADD          spot=36 cumulative_flags=2 threshold=2
         4864.1  ANOMALY_RESOLVE         spot=361 rule=R3_rapid_arrival
         4917.6  ANOMALY_RESOLVE         spot=449 rule=R3_rapid_arrival
-        5001.4  ANOMALY_RESOLVE         spot=279 rule=R3_rapid_arrival
-        5031.7  ANOMALY_RESOLVE         spot=377 rule=R3_rapid_arrival
-        5031.7  ANOMALY_FLAG            spot=377 rule=R3_rapid_arrival cumulative_flags=2
-        5031.7  QUARANTINE_ADD          spot=377 cumulative_flags=2 threshold=2
         5036.5  ANOMALY_FLAG            spot=208 rule=R3_rapid_arrival cumulative_flags=1
         5111.9  ANOMALY_FLAG            spot=103 rule=R3_rapid_arrival cumulative_flags=1
-        5135.4  ANOMALY_RESOLVE         spot=32 rule=R3_rapid_arrival
         5209.5  ANOMALY_FLAG            spot=498 rule=R3_rapid_arrival cumulative_flags=1
-        5220.2  ANOMALY_FLAG            spot=482 rule=R3_rapid_arrival cumulative_flags=1
         5238.0  ANOMALY_RESOLVE         spot=63 rule=R3_rapid_arrival
         5312.9  ANOMALY_RESOLVE         spot=422 rule=R3_rapid_arrival
-        5335.3  ANOMALY_FLAG            spot=337 rule=R3_rapid_arrival cumulative_flags=1
+        5335.3  ANOMALY_FLAG            spot=337 rule=R3_rapid_arrival cumulative_flags=2
+        5335.3  QUARANTINE_ADD          spot=337 cumulative_flags=2 threshold=2
         5366.0  ANOMALY_RESOLVE         spot=438 rule=R3_rapid_arrival
-        5466.3  ANOMALY_FLAG            spot=374 rule=R3_rapid_arrival cumulative_flags=1
         5502.6  ANOMALY_RESOLVE         spot=385 rule=R3_rapid_arrival
         5522.8  ANOMALY_RESOLVE         spot=177 rule=R3_rapid_arrival
         5666.5  ANOMALY_RESOLVE         spot=337 rule=R3_rapid_arrival
+        5790.0  QUARANTINE_RELEASE      spot=337 reason=5 clean anomaly ticks
         5839.6  ANOMALY_FLAG            spot=42 rule=R3_rapid_arrival cumulative_flags=1
         5905.3  ANOMALY_RESOLVE         spot=122 rule=R3_rapid_arrival
         5909.9  ANOMALY_FLAG            spot=190 rule=R3_rapid_arrival cumulative_flags=1
@@ -128,62 +124,55 @@ EVENT LOG
         6213.3  ANOMALY_RESOLVE         spot=233 rule=R3_rapid_arrival
         6242.4  ANOMALY_RESOLVE         spot=36 rule=R3_rapid_arrival
         6258.9  ANOMALY_RESOLVE         spot=266 rule=R5_rapid_state_flip
-        6302.0  ANOMALY_RESOLVE         spot=224 rule=R3_rapid_arrival
         6319.6  ANOMALY_FLAG            spot=118 rule=R3_rapid_arrival cumulative_flags=1
-        6342.0  ANOMALY_FLAG            spot=89 rule=R3_rapid_arrival cumulative_flags=1
+        6353.6  ANOMALY_RESOLVE         spot=42 rule=R3_rapid_arrival
         6390.0  QUARANTINE_RELEASE      spot=36 reason=5 clean anomaly ticks
         6453.3  ANOMALY_FLAG            spot=71 rule=R3_rapid_arrival cumulative_flags=1
         6476.2  ANOMALY_RESOLVE         spot=388 rule=R3_rapid_arrival
-        6483.7  ANOMALY_RESOLVE         spot=482 rule=R3_rapid_arrival
         6486.4  ANOMALY_FLAG            spot=198 rule=R3_rapid_arrival cumulative_flags=1
         6498.3  ANOMALY_RESOLVE         spot=338 rule=R3_rapid_arrival
         6524.2  ANOMALY_RESOLVE         spot=498 rule=R3_rapid_arrival
-        6551.3  ANOMALY_RESOLVE         spot=42 rule=R3_rapid_arrival
         6561.4  ANOMALY_RESOLVE         spot=108 rule=R3_rapid_arrival
         6575.8  ANOMALY_FLAG            spot=331 rule=R3_rapid_arrival cumulative_flags=1
         6598.3  ANOMALY_FLAG            spot=12 rule=R5_rapid_state_flip cumulative_flags=2
         6598.3  QUARANTINE_ADD          spot=12 cumulative_flags=2 threshold=2
         6774.8  ANOMALY_FLAG            spot=143 rule=R5_rapid_state_flip cumulative_flags=1
         6829.6  ANOMALY_RESOLVE         spot=431 rule=R3_rapid_arrival
-        6913.2  ANOMALY_RESOLVE         spot=377 rule=R3_rapid_arrival
         6957.5  ANOMALY_FLAG            spot=402 rule=R3_rapid_arrival cumulative_flags=1
         7011.8  ANOMALY_RESOLVE         spot=127 rule=R3_rapid_arrival
-        7050.0  QUARANTINE_RELEASE      spot=377 reason=5 clean anomaly ticks
         7077.4  ANOMALY_RESOLVE         spot=79 rule=R3_rapid_arrival
         7080.4  ANOMALY_FLAG            spot=47 rule=R3_rapid_arrival cumulative_flags=1
         7150.2  ANOMALY_RESOLVE         spot=143 rule=R5_rapid_state_flip
         7187.1  ANOMALY_FLAG            spot=484 rule=R3_rapid_arrival cumulative_flags=1
         7199.2  ANOMALY_RESOLVE         spot=198 rule=R3_rapid_arrival
         7201.8  ANOMALY_RESOLVE         spot=208 rule=R3_rapid_arrival
-        7225.4  ANOMALY_RESOLVE         spot=118 rule=R3_rapid_arrival
+        7344.0  ANOMALY_FLAG            spot=19 rule=R3_rapid_arrival cumulative_flags=1
+        7347.7  ANOMALY_RESOLVE         spot=224 rule=R3_rapid_arrival
         7396.5  ANOMALY_RESOLVE         spot=190 rule=R3_rapid_arrival
         7462.0  ANOMALY_FLAG            spot=451 rule=R3_rapid_arrival cumulative_flags=1
+        7715.1  ANOMALY_FLAG            spot=76 rule=R3_rapid_arrival cumulative_flags=1
         7744.6  ANOMALY_FLAG            spot=487 rule=R5_rapid_state_flip cumulative_flags=2
         7744.6  QUARANTINE_ADD          spot=487 cumulative_flags=2 threshold=2
+        8021.6  ANOMALY_RESOLVE         spot=76 rule=R3_rapid_arrival
         8050.1  ANOMALY_RESOLVE         spot=484 rule=R3_rapid_arrival
         8134.2  ANOMALY_FLAG            spot=319 rule=R3_rapid_arrival cumulative_flags=1
         8186.3  ANOMALY_RESOLVE         spot=47 rule=R3_rapid_arrival
         8197.7  ANOMALY_FLAG            spot=340 rule=R5_rapid_state_flip cumulative_flags=1
-        8197.7  ANOMALY_FLAG            spot=340 rule=R3_rapid_arrival cumulative_flags=2
-        8197.7  QUARANTINE_ADD          spot=340 cumulative_flags=2 threshold=2
-        8199.4  ANOMALY_FLAG            spot=420 rule=R3_rapid_arrival cumulative_flags=1
+        8241.6  ANOMALY_RESOLVE         spot=19 rule=R3_rapid_arrival
         8362.8  ANOMALY_RESOLVE         spot=71 rule=R3_rapid_arrival
+        8420.3  ANOMALY_RESOLVE         spot=118 rule=R3_rapid_arrival
         8442.5  ANOMALY_FLAG            spot=65 rule=R3_rapid_arrival cumulative_flags=1
         8446.8  ANOMALY_RESOLVE         spot=402 rule=R3_rapid_arrival
         8532.5  ANOMALY_RESOLVE         spot=331 rule=R3_rapid_arrival
-        8568.5  ANOMALY_FLAG            spot=386 rule=R3_rapid_arrival cumulative_flags=1
         8684.7  ANOMALY_FLAG            spot=492 rule=R3_rapid_arrival cumulative_flags=1
         8699.3  ANOMALY_FLAG            spot=243 rule=R5_rapid_state_flip cumulative_flags=2
         8699.3  QUARANTINE_ADD          spot=243 cumulative_flags=2 threshold=2
         8803.4  ANOMALY_FLAG            spot=150 rule=R3_rapid_arrival cumulative_flags=1
         8880.2  ANOMALY_FLAG            spot=189 rule=R3_rapid_arrival cumulative_flags=1
-        8883.7  ANOMALY_RESOLVE         spot=340 rule=R3_rapid_arrival
         8883.7  ANOMALY_RESOLVE         spot=340 rule=R5_rapid_state_flip
         8891.2  ANOMALY_FLAG            spot=329 rule=R5_rapid_state_flip cumulative_flags=1
         8959.9  ANOMALY_FLAG            spot=433 rule=R3_rapid_arrival cumulative_flags=1
-        8966.6  ANOMALY_FLAG            spot=241 rule=R5_rapid_state_flip cumulative_flags=1
         9026.7  ANOMALY_FLAG            spot=175 rule=R3_rapid_arrival cumulative_flags=1
-        9030.0  QUARANTINE_RELEASE      spot=340 reason=5 clean anomaly ticks
         9076.7  ANOMALY_RESOLVE         spot=65 rule=R3_rapid_arrival
         9238.1  ANOMALY_FLAG            spot=29 rule=R3_rapid_arrival cumulative_flags=1
         9297.1  ANOMALY_FLAG            spot=158 rule=R3_rapid_arrival cumulative_flags=1
@@ -192,28 +181,22 @@ EVENT LOG
         9455.7  ANOMALY_FLAG            spot=17 rule=R5_rapid_state_flip cumulative_flags=1
         9464.4  ANOMALY_RESOLVE         spot=189 rule=R3_rapid_arrival
         9500.7  ANOMALY_RESOLVE         spot=103 rule=R3_rapid_arrival
-        9502.7  ANOMALY_RESOLVE         spot=241 rule=R5_rapid_state_flip
         9604.7  ANOMALY_FLAG            spot=495 rule=R3_rapid_arrival cumulative_flags=1
         9681.9  ANOMALY_FLAG            spot=358 rule=R3_rapid_arrival cumulative_flags=1
         9691.0  ANOMALY_FLAG            spot=419 rule=R3_rapid_arrival cumulative_flags=1
-        9836.4  ANOMALY_FLAG            spot=330 rule=R3_rapid_arrival cumulative_flags=1
         9843.1  ANOMALY_FLAG            spot=59 rule=R3_rapid_arrival cumulative_flags=1
         9853.6  ANOMALY_RESOLVE         spot=495 rule=R3_rapid_arrival
         9884.3  ANOMALY_FLAG            spot=424 rule=R3_rapid_arrival cumulative_flags=1
         9907.4  ANOMALY_FLAG            spot=43 rule=R3_rapid_arrival cumulative_flags=1
         9995.7  ANOMALY_FLAG            spot=37 rule=R3_rapid_arrival cumulative_flags=1
-       10028.4  ANOMALY_RESOLVE         spot=420 rule=R3_rapid_arrival
        10056.2  ANOMALY_RESOLVE         spot=358 rule=R3_rapid_arrival
        10064.1  ANOMALY_RESOLVE         spot=243 rule=R5_rapid_state_flip
        10087.8  ANOMALY_RESOLVE         spot=175 rule=R3_rapid_arrival
        10114.5  ANOMALY_RESOLVE         spot=150 rule=R3_rapid_arrival
        10200.0  QUARANTINE_RELEASE      spot=243 reason=5 clean anomaly ticks
-       10229.5  ANOMALY_RESOLVE         spot=330 rule=R3_rapid_arrival
        10252.9  ANOMALY_RESOLVE         spot=37 rule=R3_rapid_arrival
        10300.7  ANOMALY_FLAG            spot=68 rule=R3_rapid_arrival cumulative_flags=1
        10338.0  ANOMALY_RESOLVE         spot=17 rule=R5_rapid_state_flip
-       10344.5  ANOMALY_FLAG            spot=17 rule=R5_rapid_state_flip cumulative_flags=2
-       10344.5  QUARANTINE_ADD          spot=17 cumulative_flags=2 threshold=2
        10380.6  ANOMALY_RESOLVE         spot=319 rule=R3_rapid_arrival
        10384.6  ANOMALY_FLAG            spot=74 rule=R3_rapid_arrival cumulative_flags=1
        10452.2  ANOMALY_FLAG            spot=286 rule=R5_rapid_state_flip cumulative_flags=1
@@ -222,5 +205,4 @@ EVENT LOG
        10559.2  ANOMALY_RESOLVE         spot=329 rule=R5_rapid_state_flip
        10565.7  ANOMALY_RESOLVE         spot=424 rule=R3_rapid_arrival
        10613.6  ANOMALY_FLAG            spot=78 rule=R5_rapid_state_flip cumulative_flags=1
-       10680.1  ANOMALY_RESOLVE         spot=17 rule=R5_rapid_state_flip
        10730.0  ANOMALY_FLAG            spot=5 rule=R3_rapid_arrival cumulative_flags=1

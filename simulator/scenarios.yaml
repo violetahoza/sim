@@ -20,7 +20,7 @@ scenarios:
 
   - name: A2_edge_filtered
     description: >
-      Edge Filtered (dedup only) | Redundant same-state events and heartbeat repeats are suppressed at the gateway; each real state change is forwarded immediately as a singleton.
+      Edge Filtered | Redundant same-state events and heartbeat repeats are suppressed at the gateway; each real state change is forwarded immediately as a singleton.
       No anomaly detection, no quarantine - pure duplicate-window filtering.
     protocol: mqtt
     architecture: edge_filtered
