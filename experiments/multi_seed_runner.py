@@ -87,7 +87,7 @@ class MultiSeedResult:
     retransmissions_mean: float = 0.0
 
     conservation_ok: bool = True
-    conservation_violations: int  = 0
+    conservation_violations: int = 0
 
     merged_event_log: list[dict] = dataclasses.field(default_factory=list)
 
@@ -193,7 +193,7 @@ def check_conservation(metrics: ExperimentMetrics, tolerance: float = 0.02) -> t
     if generated == 0:
         return True, "no events generated"
 
-    reflected = metrics.events_reflected_in_cloud
+    reflected = metrics.cloud_state_changes_reflected
     filtered = metrics.filtered_events
     physical_drop = int(round(generated * (1.0 - metrics.physical_delivery_ratio)))
     backhaul_drop = metrics.edge_to_cloud_dropped

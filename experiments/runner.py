@@ -13,7 +13,7 @@ from simulator.config import ScenarioConfig
 from simulator.sensors.sensor_emulator import SensorEmulator
 from simulator.edge.edge_node import EdgeNode
 from simulator.cloud.cloud_backend import CloudBackend
-from simulator.link.link_emulator import LinkEmulator  
+from simulator.link.link_emulator import LinkEmulator
 from simulator.des.engine import SimClock
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,6 @@ class ExperimentRunner:
         if use_real_brokers:
             return await self._run_real(cfg)
         return await self._run_simulated(cfg)
-
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
         from simulator.db import make_engine, init_schema
@@ -223,7 +222,6 @@ class ExperimentRunner:
         cloud.flush_to_db(engine, metrics)
         return metrics
 
-
     def _collect_metrics_simulated(self, cfg, sensors: SensorEmulator, link: LinkEmulator, edge: EdgeNode, cloud: CloudBackend, backhaul_link, protocol_bytes: int = 0,
         retransmits: int = 0, dup_deliveries: int = 0) -> ExperimentMetrics:
         post_samples = cloud.get_all_latency_samples()
@@ -243,7 +241,7 @@ class ExperimentRunner:
                 f"(diff={sensor_events - _identity_sum})"
             )
 
-        cloud_events = cloud.received_events
+        cloud_msgs_total = cloud.received_events
         cloud_transitions = cloud.transitions_received
         ls = link.stats
         es = self._edge_summary if self._edge_summary else edge.summary()
@@ -262,7 +260,7 @@ class ExperimentRunner:
             filtered_events = 0
             heartbeats_suppressed = 0
             quarantine_suppressed = 0
-            heartbeats_forwarded  = 0
+            heartbeats_forwarded = 0
         else:
             bhl = (backhaul_link.stats if backhaul_link is not None else es.get("link_stats", {}))
             if isinstance(bhl, dict):
@@ -285,18 +283,24 @@ class ExperimentRunner:
             heartbeats_forwarded = es.get("heartbeats_forwarded", 0)
 
         e2e_link_dr = s2e_dr * backhaul_dr
-        cloud_transitions_eff = cloud_transitions or cloud_events
-        cloud_reflection_ratio = (min(cloud_transitions_eff / state_changes_generated, 1.0) if state_changes_generated > 0 else 1.0)
+
+        cloud_reflection_ratio = (
+            min(cloud_transitions / state_changes_generated, 1.0)
+            if state_changes_generated > 0 and cloud_transitions > 0
+            else (0.0 if state_changes_generated > 0 else 1.0)
+        )
+
         s2e_received = ls.received
 
         if arch == "cloud_only":
-            aggregation_ratio = 0.0  
+            aggregation_ratio = 0.0
             message_reduction_ratio = 0.0
             events_per_cloud_message = 0.0
         elif arch == "edge_aggregated":
+            forwarded_events = es.get("forwarded_events", 0)
             aggregation_ratio = e2c_msgs / s2e_received if s2e_received > 0 else 1.0
             message_reduction_ratio = max(0.0, 1.0 - aggregation_ratio)
-            events_per_cloud_message = (cloud_events / e2c_msgs if e2c_msgs > 0 else 0.0)
+            events_per_cloud_message = forwarded_events / e2c_msgs if e2c_msgs > 0 else 0.0
         else:
             aggregation_ratio = 0.0
             message_reduction_ratio = max(0.0, 1.0 - (e2c_msgs / s2e_received if s2e_received > 0 else 1.0))
@@ -347,9 +351,10 @@ class ExperimentRunner:
             message_reduction_ratio=round(message_reduction_ratio, 4),
             events_per_cloud_message=round(events_per_cloud_message, 2),
 
-            events_reflected_in_cloud=cloud_events,
+            cloud_msgs_received_total=cloud_msgs_total,
+            cloud_state_changes_reflected=cloud_transitions,
             cloud_reflection_ratio=round(cloud_reflection_ratio, 4),
-            physical_delivery_ratio=round(e2e_link_dr, 4), 
+            physical_delivery_ratio=round(e2e_link_dr, 4),
 
             anomalies_detected=es.get("anomalies", 0),
             anomalies_resolved=es.get("resolved_anomalies", 0),
@@ -377,8 +382,8 @@ class ExperimentRunner:
         heartbeats_gen = sensors.heartbeats_generated
         dup_sends = sensors.duplicate_sends_generated
 
-        cloud_events = all_data.get("received_events", cloud_proc.received_events)
-        cloud_transitions = (cloud_snapshot.get("transitions_received") or all_data.get("transitions_received") or cloud_events)
+        cloud_msgs_total = all_data.get("received_events", cloud_proc.received_events)
+        cloud_transitions = (cloud_snapshot.get("transitions_received") or all_data.get("transitions_received") or 0)
         ls = link.stats
         es = edge_proc.summary()
         arch = cfg.architecture
@@ -412,18 +417,22 @@ class ExperimentRunner:
 
         e2e_link_dr = s2e_dr * backhaul_dr
 
-        cloud_transitions_eff = cloud_transitions or cloud_events
-        cloud_reflection_ratio = (min(cloud_transitions_eff / state_changes_generated, 1.0) if state_changes_generated > 0 else 1.0)
+        cloud_reflection_ratio = (
+            min(cloud_transitions / state_changes_generated, 1.0)
+            if state_changes_generated > 0 and cloud_transitions > 0
+            else (0.0 if state_changes_generated > 0 else 1.0)
+        )
 
         s2e_received = ls.received
         if arch == "cloud_only":
-            aggregation_ratio       = 0.0
+            aggregation_ratio = 0.0
             message_reduction_ratio = 0.0
             events_per_cloud_message = 0.0
         elif arch == "edge_aggregated":
+            forwarded_events = es.get("forwarded_events", 0)
             aggregation_ratio = e2c_msgs / s2e_received if s2e_received > 0 else 1.0
             message_reduction_ratio = max(0.0, 1.0 - aggregation_ratio)
-            events_per_cloud_message = cloud_events / e2c_msgs if e2c_msgs > 0 else 0.0
+            events_per_cloud_message = forwarded_events / e2c_msgs if e2c_msgs > 0 else 0.0
         else:
             aggregation_ratio = 0.0
             message_reduction_ratio = max(0.0, 1.0 - (e2c_msgs / s2e_received if s2e_received > 0 else 1.0))
@@ -474,9 +483,9 @@ class ExperimentRunner:
             message_reduction_ratio=round(message_reduction_ratio, 4),
             events_per_cloud_message=round(events_per_cloud_message, 2),
 
-            events_reflected_in_cloud=cloud_events,
+            cloud_msgs_received_total=cloud_msgs_total,
+            cloud_state_changes_reflected=cloud_transitions,
             cloud_reflection_ratio=round(cloud_reflection_ratio, 4),
-
             physical_delivery_ratio=round(e2e_link_dr, 4),
 
             anomalies_detected=es.get("anomalies", 0),
@@ -501,8 +510,8 @@ class ExperimentRunner:
                 f"sensor_sent={m.sensor_to_edge_msgs}  "
                 f"sensor_dropped={m.sensor_link_dropped}  "
                 f"wire_delivered={m.sensor_to_edge_msgs - m.sensor_link_dropped}  "
-                f"cloud_raw={cloud_events}  "
-                f"cloud_unique={cloud_events - m.duplicate_deliveries}  "
+                f"cloud_msgs_total={cloud_events}  "
+                f"cloud_transitions={m.cloud_state_changes_reflected}  "
                 f"cloud_coverage={m.cloud_reflection_ratio:.1%}  "
                 f"lat={m.latency_mean_ms:.1f}ms  p99={m.latency_p99_ms:.1f}ms"
             )
@@ -514,8 +523,8 @@ class ExperimentRunner:
                 f"  of which hb_suppressed={m.heartbeats_suppressed}"
                 f"  quar_suppressed={m.quarantine_suppressed}  "
                 f"forwarded={m.edge_to_cloud_msgs}  "
-                f"cloud_raw={cloud_events}  "
-                f"cloud_unique={cloud_events - m.duplicate_deliveries}  "
+                f"cloud_msgs_total={cloud_events}  "
+                f"cloud_transitions={m.cloud_state_changes_reflected}  "
                 f"backhaul_dropped={m.edge_to_cloud_dropped}  "
                 f"cloud_coverage={m.cloud_reflection_ratio:.1%}  "
                 f"msg_reduction={m.message_reduction_ratio:.1%}  "

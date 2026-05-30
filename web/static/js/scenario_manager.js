@@ -315,7 +315,7 @@ function _buildCmpCharts(sel) {
   const msgDatasets = [
     { label: 'Generated', data: sel.map(r => r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
     { label: 'Sensor Sent', data: sel.map(r => r.sensor_to_edge_msgs ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
-    { label: 'Reached Cloud', data: sel.map(r => r.events_reflected_in_cloud ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
+    { label: 'Reached Cloud', data: sel.map(r => r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
   ];
   if (anyEdge) {
     msgDatasets.push({
@@ -383,12 +383,13 @@ function _metricsList() {
 
     G('Broker layer (MQTT/AMQP/CoAP)'),
     { label: 'Broker retries (QoS)', value: r => r.retransmissions_total ?? null, applies: _always, fmt: _int, better: 'low' },
-    { label: 'Duplicates at cloud', value: r => r.duplicate_deliveries ?? null, applies: _always, fmt: _int, better: 'low' },
-
+    { label: 'Duplicates caught by protocol', value: r => r.duplicate_deliveries ?? null, applies: _always, fmt: _int },
+ 
     G('Cloud State'),
-    { label: 'Reached cloud (total)', value: r => r.events_reflected_in_cloud ?? null, applies: _always, fmt: _int },
+    { label: 'Total msgs received', value: r => r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? null, applies: _always, fmt: _int },
+    { label: 'State transitions reflected', value: r => r.cloud_state_changes_reflected ?? null, applies: _isEdge, fmt: _int },
     { label: 'Real events captured', value: r => r.cloud_reflection_ratio ?? null, applies: _always, fmt: _pct, better: 'high' },
-
+    
     G('Latency (sensor emits → cloud stores)'),
     { label: 'Mean', value: r => r.latency_mean_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
     { label: 'P50', value: r => r.latency_p50_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
@@ -396,7 +397,6 @@ function _metricsList() {
     { label: 'P99', value: r => r.latency_p99_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
     { label: 'Min', value: r => r.latency_min_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
     { label: 'Max', value: r => r.latency_max_ms ?? null, applies: _always, fmt: _ms, better: 'low' },
-    { label: 'Startup samples discarded', value: r => r.warmup_excluded_samples ?? null, applies: _always, fmt: _int },
 
     G('Anomaly Detection'),
     { label: 'Detected', value: r => r.anomalies_detected ?? null, applies: _isEdge, fmt: _int, better: 'low' },

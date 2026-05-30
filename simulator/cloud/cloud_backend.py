@@ -87,21 +87,17 @@ class CloudBackend:
         self.received_events += 1
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         spot = self._spots.get(event.spot_id)
-        is_transition = False
         if spot is not None:
-            if spot["state"] != state_val and spot["received_at"] > 0.0:
-                is_transition = True
-            elif spot["received_at"] == 0.0 and state_val != SpotState.FREE.value:
-                is_transition = False
+            prev_state = spot["state"]
+            prev_received = spot["received_at"]
             spot["state"] = state_val
             spot["last_updated"] = event.timestamp
             spot["received_at"] = arrival
-        if is_transition:
-            self.transitions_received += 1
+            if prev_received > 0.0 and prev_state != state_val:
+                self.transitions_received += 1
 
         latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
         self._latency_ms.append(latency_ms)
-
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
         self._snapshot_cache = None
 
@@ -143,8 +139,7 @@ class CloudBackend:
                 chunk = self._event_rows[i: i + CHUNK]
                 session.execute(
                     sa_insert(LatencyRecord),
-                    [{"run_id": self._run_id, "spot_id": row[0], "sequence": row[1],
-                      "protocol": proto, "architecture": arch, "sent_at": row[2],
+                    [{"run_id": self._run_id, "spot_id": row[0], "sequence": row[1], "protocol": proto, "architecture": arch, "sent_at": row[2],
                       "received_at": row[3], "latency_ms": round(row[4], 4)}
                      for row in chunk]
                 )
@@ -152,8 +147,7 @@ class CloudBackend:
 
             session.execute(
                 sa_insert(ParkingSpot),
-                [{"run_id": self._run_id, "spot_id": sid, "state": s["state"],
-                  "last_updated": s["last_updated"], "received_at": s["received_at"]}
+                [{"run_id": self._run_id, "spot_id": sid, "state": s["state"], "last_updated": s["last_updated"], "received_at": s["received_at"]}
                  for sid, s in self._spots.items()]
             )
             session.flush()
@@ -170,8 +164,8 @@ class CloudBackend:
                 run.sensor_to_edge_msgs = metrics.sensor_to_edge_msgs
                 run.edge_to_cloud_msgs = metrics.edge_to_cloud_msgs
                 run.sensor_to_edge_delivery_ratio = metrics.sensor_to_edge_delivery_ratio
-                run.edge_to_cloud_delivery_ratio = metrics.backhaul_delivery_ratio   
-                run.end_to_end_delivery_ratio = metrics.cloud_reflection_ratio     
+                run.edge_to_cloud_delivery_ratio = metrics.backhaul_delivery_ratio
+                run.end_to_end_delivery_ratio = metrics.cloud_reflection_ratio
                 run.aggregation_ratio = metrics.aggregation_ratio
                 run.filtered_events = metrics.filtered_events
                 run.anomalies_detected = metrics.anomalies_detected
@@ -230,6 +224,6 @@ class CloudBackend:
 
     def get_all_latency_samples(self) -> list[float]:
         return self._latency_ms
-    
+
     def compute_broker_overhead_score(self) -> float:
         return compute_broker_overhead_score(self.config, self.received_events)

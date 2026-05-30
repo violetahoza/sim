@@ -25,7 +25,6 @@ class SensorEmulator:
         self._duplicate_sends_generated: int = 0
         self._fault_injector = None
 
-
     def set_fault_injector(self, fi) -> None:
         self._fault_injector = fi
 
@@ -35,7 +34,6 @@ class SensorEmulator:
     def schedule_run(self, clock: SimClock, duration_s: float, epoch: float) -> None:
         traffic = TrafficModel(self.config, self.arrival_rate, clock, self._on_event, epoch, wall_clock=self._wall_clock)
         traffic.schedule_run(duration_s)
-
 
     @property
     def total_generated(self) -> int:
@@ -62,15 +60,13 @@ class SensorEmulator:
         occupied = sum(1 for s in self._sensor_states.values() if s.state == SpotState.OCCUPIED)
         return {"total": total, "occupied": occupied, "free": total - occupied, "occupancy_pct": round(occupied / total * 100, 1) if total else 0}
 
-
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
 
-        is_initial = event.is_initial
-        is_initial_snapshot = is_initial and event.sequence <= self.num_spots
-        is_heartbeat = is_initial and event.sequence > self.num_spots
-        is_transition = (not is_initial) and (state.state != event.state)
-        is_duplicate_send = (not is_initial) and (state.state == event.state)
+        is_initial_snapshot = event.is_initial and event.sequence <= self.num_spots
+        is_heartbeat = event.is_initial and event.sequence > self.num_spots
+        is_transition = (not event.is_initial) and (state.state != event.state)
+        is_duplicate_send = (not event.is_initial) and (state.state == event.state)
 
         if state.state == event.state:
             state.consecutive_same += 1

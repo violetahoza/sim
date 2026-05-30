@@ -23,7 +23,7 @@ token-bucket rate limit, and a payload encoding ratio that shrinks the serialise
 
 Edge processing. Three modes: cloud_only (no edge - events forwarded raw direct to broker), edge_filtered (drop redundant repeats inside a duplicate window, drop quarantined 
 spots, forward singletons), edge_aggregated (batch events over aggregation_interval_s with max_batch_size and max_event_age_s caps, flush as one message).
-Anomaly detection runs five rules (R1 stuck, R2 silent, R3 rapid arrival, R4 stale sequence, R5 rapid state flip), with a cumulative-flag quarantine and a recovery rule based on consecutive valid events.
+Anomaly detection runs five rules (R1 stuck, R2 silent, R3 rapid arrivals, R4 stale sequence, R5 rapid state flip), with a cumulative-flag quarantine and a recovery rule based on consecutive valid events.
 
 Edge → broker link. A separate backhaul link with its own delay/jitter/loss, generally faster and more reliable than the sensor link (default 30 ms ± 10 ms, 0.1 % loss).
 
@@ -38,8 +38,11 @@ link propagation + jitter, the token-bucket wait under rate limiting, any aggreg
 What aggregation_ratio means. It is edge_to_cloud_msgs / sensor_to_edge_msgs_received_at_edge. Below 1.0 means the edge reduces message count to the cloud; above 1.0 would mean the edge added overhead.
 message_reduction_ratio = 1 - aggregation_ratio, clamped at 0.
 
-What cloud_reflection_ratio means. The fraction of real state changes (arrivals + departures) that produced a corresponding transition in the cloud's view. 
+What cloud_reflection_ratio means. The fraction of real state changes (arrivals + departures) that produced a corresponding transition in the cloud's stored parking state, based on cloud_state_changes_reflected / valid_state_changes.
 Distinct from physical_delivery_ratio, which is the product of per-link delivery ratios and reflects packet-level survival.
+
+What cloud_msgs_received_total means. The raw count of all messages received by the cloud, including heartbeats forwarded by the edge, retransmit duplicates, and initial snapshots. It is not a coverage metric.
+cloud_state_changes_reflected is the count of actual occupancy state transitions recorded at the cloud.
 
 When you write your answer:
 - Quote numbers from the provided summaries. Do not invent figures.
@@ -52,9 +55,9 @@ When you write your answer:
 FOCUS_PROMPTS: dict[str, str] = {
     "general": "Give an end-to-end assessment grounded in the provided numbers: which configuration comes out ahead on which axis, how the latency/reliability/bandwidth numbers relate to each other, and where the first breaking point appears as conditions change.",
     "latency": "Examine latency closely: what the spread between mean, P50, P95, and P99 tells you about tail behaviour and scheduling jitter. Where P99 is much larger than mean, attribute it to a specific mechanism the simulator models (jitter, token-bucket queueing, aggregation window wait, retransmit backoff) using the configuration details visible in the summaries.",
-    "reliability": "Work through delivery: compare measured cloud_reflection_ratio and physical_delivery_ratio against the configured loss rates. Identify where retransmits visibly compensated for loss (look at retransmissions_total vs delivery), and where they did not (events_reflected_in_cloud vs valid_state_changes). Say which configuration you would stake availability on, based on the data.",
-    "bandwidth": "Calculate the byte savings of edge architectures vs cloud-only from the provided sensor_to_edge_bytes / edge_to_cloud_bytes / protocol_bytes. Explain what aggregation_ratio and events_per_cloud_message imply about event burstiness. Where bytes differ between protocols, attribute the gap to the encoding/framing details the simulator models.",
-    "protocol": "Compare protocols directly using the numbers in the data - latency tails, retransmissions_total, duplicate_deliveries, protocol_bytes, broker_overhead_score. Flag anything that contradicts the expected ordering and reason about why the simulator produced that result.",
+    "reliability": "Work through delivery: compare measured cloud_reflection_ratio and physical_delivery_ratio against the configured loss rates. Identify where retransmits visibly compensated for loss (look at retransmissions_total vs delivery), and where they did not (cloud_state_changes_reflected vs valid_state_changes). Say which configuration you would stake availability on, based on the data.",
+    "bandwidth": "Calculate the byte savings of edge architectures vs cloud-only from the provided sensor_to_edge_bytes_kb / edge_to_cloud_bytes_kb / protocol_bytes_kb. Explain what aggregation_ratio and events_per_cloud_message imply about event burstiness. Where bytes differ between protocols, attribute the gap to the encoding/framing details the simulator models.",
+    "protocol": "Compare protocols directly using the numbers in the data - latency tails, retransmissions_total, duplicate_deliveries, protocol_bytes_kb, broker_overhead_score_ms. Flag anything that contradicts the expected ordering and reason about why the simulator produced that result.",
     "architecture": "Quantify the trade-offs from the data: the latency cost of aggregation vs cloud_only, the message_reduction_ratio achieved by edge_filtered and edge_aggregated, and which architecture the numbers favour for the scenarios shown. Be explicit about which architecture each comparison is using.",
     "recommendation": "Based strictly on the runs provided, name the configuration that best balances the measured axes and explain why using its numbers. List the failure modes visible in the data (high P99, low cloud_reflection_ratio, retransmit storms) and what would mitigate them. Be explicit about what the simulator does not model.",
     "scale": "Focus on how latency, delivery, and message counts shift as num_spots grows. Identify which protocol or architecture degrades most gracefully according to the data. Avoid extrapolating to scales not represented in the provided runs.",
@@ -94,25 +97,26 @@ def build_summaries(results: list[dict]) -> list[dict]:
             "latency_p95_ms": r.get("latency_p95_ms"),
             "latency_p99_ms": r.get("latency_p99_ms"),
             "sensor_to_edge_delivery_ratio": r.get("sensor_to_edge_delivery_ratio"),
-            "edge_to_cloud_delivery_ratio": r.get("edge_to_cloud_delivery_ratio"),
+            "backhaul_delivery_ratio": r.get("backhaul_delivery_ratio"),
             "physical_delivery_ratio": r.get("physical_delivery_ratio"),
             "cloud_reflection_ratio": r.get("cloud_reflection_ratio"),
+            "cloud_state_changes_reflected": r.get("cloud_state_changes_reflected"),
+            "valid_state_changes": r.get("valid_state_changes"),
             "aggregation_ratio": r.get("aggregation_ratio"),
             "message_reduction_ratio": r.get("message_reduction_ratio"),
             "events_per_cloud_message": r.get("events_per_cloud_message"),
             "filtered_events": r.get("filtered_events"),
             "events_generated": r.get("events_generated"),
             "heartbeats_generated": r.get("heartbeats_generated"),
-            "valid_state_changes": r.get("valid_state_changes"),
             "sensor_to_edge_msgs": r.get("sensor_to_edge_msgs"),
             "edge_to_cloud_msgs": r.get("edge_to_cloud_msgs"),
-            "events_reflected_in_cloud": r.get("events_reflected_in_cloud"),
+            "cloud_msgs_received_total": r.get("cloud_msgs_received_total"),
             "retransmissions_total": r.get("retransmissions_total"),
             "duplicate_deliveries": r.get("duplicate_deliveries"),
             "sensor_to_edge_bytes_kb": round(r.get("sensor_to_edge_bytes", 0) / 1024, 2),
             "edge_to_cloud_bytes_kb": round(r.get("edge_to_cloud_bytes", 0) / 1024, 2),
             "protocol_bytes_kb": round(r.get("protocol_bytes", 0) / 1024, 2),
-            "broker_overhead_score_ms": r.get("broker_overhead_score")
+            "broker_overhead_score_ms": r.get("broker_overhead_score"),
         }
         for r in results
     ]

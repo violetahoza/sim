@@ -42,12 +42,12 @@ class EdgeNode:
         self._backhaul_link_stats: Optional[LinkStats] = None
 
         self.received_count: int = 0
-        self.filtered_count: int = 0  
+        self.filtered_count: int = 0
         self.forwarded_events: int = 0
         self.heartbeats_forwarded: int = 0
 
-        self.heartbeats_suppressed: int = 0 
-        self.quarantine_suppressed: int = 0  
+        self.heartbeats_suppressed: int = 0
+        self.quarantine_suppressed: int = 0
 
         self.anomaly_count: int = 0
         self.mode_switches: int = 0
@@ -88,14 +88,16 @@ class EdgeNode:
         now_virtual = event.timestamp - self._epoch
 
         if event.is_initial and event.sequence > self.config.num_spots:
-            resync_due = (
-                self.edge_cfg.resync_interval_s > 0 and cached.last_forwarded_timestamp > 0.0
-                and (event.timestamp - cached.last_forwarded_timestamp) >= self.edge_cfg.resync_interval_s
+            hb_forward_interval = self.edge_cfg.heartbeat_forward_interval_s
+            hb_due = (
+                hb_forward_interval <= 0
+                or cached.last_heartbeat_forwarded_timestamp == 0.0
+                or (event.timestamp - cached.last_heartbeat_forwarded_timestamp) >= hb_forward_interval
             )
-            if not resync_due:
+            if not hb_due:
                 cached.last_updated = event.timestamp
                 self.filtered_count += 1
-                self.heartbeats_suppressed += 1 
+                self.heartbeats_suppressed += 1
                 return
 
             previous_state = cached.state
@@ -115,7 +117,7 @@ class EdgeNode:
                 self._pending.append(event)
                 self.heartbeats_forwarded += 1
                 self._flush_if_needed()
-            cached.last_forwarded_timestamp = event.timestamp
+            cached.last_heartbeat_forwarded_timestamp = event.timestamp
             return
 
         if self.edge_cfg.anomaly_detection:
@@ -129,7 +131,7 @@ class EdgeNode:
         state_would_change = previous_state_pre != event.state
         if event.spot_id in self._quarantine and not state_would_change:
             self.filtered_count += 1
-            self.quarantine_suppressed += 1 
+            self.quarantine_suppressed += 1
             return
 
         if self.edge_cfg.anomaly_detection:
@@ -160,7 +162,6 @@ class EdgeNode:
             cached.last_forwarded_timestamp = event.timestamp
             self._flush_if_needed()
 
-
     def _should_filter(self, event: ParkingEvent, cached: SensorState) -> bool:
         if not self.edge_cfg.filter_no_change:
             return False
@@ -180,7 +181,6 @@ class EdgeNode:
 
         heartbeat_due = (cached.last_forwarded_timestamp == 0.0 or (event.timestamp - cached.last_forwarded_timestamp) >= self.edge_cfg.heartbeat_forward_interval_s)
         return not heartbeat_due
-
 
     def _flush_if_needed(self) -> None:
         if not self._pending:
@@ -375,7 +375,6 @@ class EdgeNode:
             self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "MODE_SWITCH", "detail": f"filtered→aggregated {detail}"})
             self._active_arch = "edge_aggregated"
             self.mode_switches += 1
-
 
     def summary(self) -> dict:
         return {

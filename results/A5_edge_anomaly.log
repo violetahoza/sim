@@ -4,13 +4,13 @@ Traffic: peak   Spots: 500   Duration: 10800s
 ========================================================================
 
 SUMMARY
-  Anomalies detected    : 100
-  Anomalies resolved    : 82
+  Anomalies detected    : 99
+  Anomalies resolved    : 81
   Active at end         : 18
   Affected spots        : 95
   Quarantined at end    : 2
   Quarantine suppressed : 0
-  Heartbeats suppressed : 69830
+  Heartbeats suppressed : 82667
   Adaptive mode switches: 0
 
 EVENT LOG
@@ -48,7 +48,6 @@ EVENT LOG
         2203.8  ANOMALY_RESOLVE         spot=459 rule=R3_rapid_arrival
         2276.5  ANOMALY_RESOLVE         spot=478 rule=R3_rapid_arrival
         2277.7  ANOMALY_RESOLVE         spot=437 rule=R3_rapid_arrival
-        2320.3  ANOMALY_FLAG            spot=337 rule=R5_rapid_state_flip cumulative_flags=1
         2350.1  ANOMALY_FLAG            spot=377 rule=R3_rapid_arrival cumulative_flags=1
         2465.6  ANOMALY_FLAG            spot=487 rule=R5_rapid_state_flip cumulative_flags=1
         2487.3  ANOMALY_RESOLVE         spot=10 rule=R3_rapid_arrival
@@ -63,7 +62,6 @@ EVENT LOG
         2943.6  ANOMALY_FLAG            spot=360 rule=R3_rapid_arrival cumulative_flags=1
         2997.6  ANOMALY_FLAG            spot=36 rule=R3_rapid_arrival cumulative_flags=1
         3011.6  ANOMALY_FLAG            spot=79 rule=R3_rapid_arrival cumulative_flags=1
-        3038.7  ANOMALY_RESOLVE         spot=337 rule=R5_rapid_state_flip
         3197.8  ANOMALY_FLAG            spot=196 rule=R3_rapid_arrival cumulative_flags=1
         3207.0  ANOMALY_FLAG            spot=343 rule=R5_rapid_state_flip cumulative_flags=1
         3212.7  ANOMALY_RESOLVE         spot=426 rule=R3_rapid_arrival
@@ -108,13 +106,11 @@ EVENT LOG
         5209.5  ANOMALY_FLAG            spot=498 rule=R3_rapid_arrival cumulative_flags=1
         5238.0  ANOMALY_RESOLVE         spot=63 rule=R3_rapid_arrival
         5312.9  ANOMALY_RESOLVE         spot=422 rule=R3_rapid_arrival
-        5335.3  ANOMALY_FLAG            spot=337 rule=R3_rapid_arrival cumulative_flags=2
-        5335.3  QUARANTINE_ADD          spot=337 cumulative_flags=2 threshold=2
+        5335.3  ANOMALY_FLAG            spot=337 rule=R3_rapid_arrival cumulative_flags=1
         5366.0  ANOMALY_RESOLVE         spot=438 rule=R3_rapid_arrival
         5502.6  ANOMALY_RESOLVE         spot=385 rule=R3_rapid_arrival
         5522.8  ANOMALY_RESOLVE         spot=177 rule=R3_rapid_arrival
         5666.5  ANOMALY_RESOLVE         spot=337 rule=R3_rapid_arrival
-        5790.0  QUARANTINE_RELEASE      spot=337 reason=5 clean anomaly ticks
         5839.6  ANOMALY_FLAG            spot=42 rule=R3_rapid_arrival cumulative_flags=1
         5905.3  ANOMALY_RESOLVE         spot=122 rule=R3_rapid_arrival
         5909.9  ANOMALY_FLAG            spot=190 rule=R3_rapid_arrival cumulative_flags=1

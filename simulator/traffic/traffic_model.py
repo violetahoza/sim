@@ -10,14 +10,14 @@ from ..des.engine import SimClock
 
 
 class TrafficModel:
-  
+
     MIN_DWELL_S: float = 30.0
-    MAX_DWELL_S: float = 43_200.0 
+    MAX_DWELL_S: float = 43_200.0
 
     def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None],
                 epoch: float, rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
         self.config = config
-        self.arrival_rate = arrival_rate  # arrivals/sec for whole lot
+        self.arrival_rate = arrival_rate
         self.num_spots = config.num_spots
         self.mean_duration = config.mean_parking_duration_s
         self.clock = clock
@@ -64,9 +64,9 @@ class TrafficModel:
     def _sample_dwell_mixture(self) -> float:
         P_SHORT = 0.90
         if self.rng.random() < P_SHORT:
-            mu, cv = 1500.0, 0.9    
+            mu, cv = 1500.0, 0.9
         else:
-            mu, cv = 14400.0, 0.5 
+            mu, cv = 14400.0, 0.5
 
         sigma_sq = math.log(1.0 + cv * cv)
         sigma = math.sqrt(sigma_sq)
@@ -92,15 +92,26 @@ class TrafficModel:
     def schedule_run(self, duration_s: float) -> None:
         self._end_time = duration_s
 
+        n_initial = 0
         for spot_id, is_occ in self.occupied.items():
             if is_occ:
+                n_initial += 1
                 ts = self._make_timestamp(0.0)
-                event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq(), is_initial=True)
+                event = ParkingEvent(
+                    sensor_id=f"sensor_{spot_id:04d}",
+                    spot_id=spot_id,
+                    state=SpotState.OCCUPIED,
+                    timestamp=ts,
+                    sequence=spot_id + 1,
+                    is_initial=True
+                )
                 self.event_cb(event)
                 residual = self.rng.uniform(0.0, self.mean_duration)
                 dep_t = min(residual, duration_s - 1.0)
                 if dep_t > 0:
                     self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
+
+        self._seq = self.num_spots
 
         self._schedule_next_arrival(0.0)
 
