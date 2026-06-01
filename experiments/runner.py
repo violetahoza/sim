@@ -37,7 +37,7 @@ def save_results(metrics: ExperimentMetrics, output_dir: str = "results") -> str
     json_path = out / f"{metrics.scenario_name}.json"
     import json
     data = metrics.to_dict()
-    data["latency_samples"] = metrics.latency_samples
+    #data["latency_samples"] = metrics.latency_samples
     with open(json_path, "w") as f:
         json.dump(data, f, indent=2)
     logger.info(f"Results saved to {json_path}")
