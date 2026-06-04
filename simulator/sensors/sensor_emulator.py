@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Callable
 
-from ..models import ParkingEvent, SensorState, SpotState
+from ..models.models import ParkingEvent, SensorState, SpotState
 from ..traffic.traffic_model import TrafficModel
-from ..config import TrafficConfig
+from ..config.config import TrafficConfig
 from ..des.engine import SimClock
 
 SensorCallback = Callable[[ParkingEvent], None]

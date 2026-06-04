@@ -3,8 +3,8 @@ import logging
 import random
 from typing import Callable, Optional
 
-from simulator.models import BatchUpdate
-from simulator.config import CoAPConfig
+from simulator.models.models import BatchUpdate
+from simulator.config.config import CoAPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
 

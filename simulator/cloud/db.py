@@ -2,7 +2,7 @@ from __future__ import annotations
 import ssl
 from sqlalchemy import Column, DateTime, Float, Integer, Text, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from .utils import read_env_file
+from ..utils import read_env_file
 
 
 def make_engine(db_url: str | None = None):

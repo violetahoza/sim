@@ -1,4 +1,4 @@
-from simulator.db import make_engine, init_schema
+from simulator.cloud.db import make_engine, init_schema
 
 engine = make_engine()
 if engine is None:

@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from simulator.config import PREDEFINED_SCENARIOS, ScenarioConfig, make_scenario, load_custom_scenarios
+from simulator.config.config import PREDEFINED_SCENARIOS, ScenarioConfig, make_scenario, load_custom_scenarios
 from experiments.runner import ExperimentRunner, save_results
 
 logger = logging.getLogger(__name__)

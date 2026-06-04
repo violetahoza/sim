@@ -3,8 +3,8 @@ import json
 import logging
 from typing import Callable, Optional
 
-from ..models import BatchUpdate, LinkStats, ParkingEvent, SensorState, SpotState
-from ..config import EdgeConfig, ScenarioConfig
+from ..models.models import BatchUpdate, LinkStats, ParkingEvent, SensorState, SpotState
+from ..config.config import EdgeConfig, ScenarioConfig
 from ..des.engine import SimClock
 
 logger = logging.getLogger(__name__)

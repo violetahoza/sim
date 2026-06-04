@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 import numpy as np
 from sqlalchemy import insert as sa_insert
 
-from ..db import LatencyRecord, ParkingSpot, ScenarioRun, make_session
-from ..models import BatchUpdate, ParkingEvent, SpotState
-from ..config import ScenarioConfig
+from .db import LatencyRecord, ParkingSpot, ScenarioRun, make_session
+from ..models.models import BatchUpdate, ParkingEvent, SpotState
+from ..config.config import ScenarioConfig
 from ..des.engine import SimClock
 
 logger = logging.getLogger(__name__)

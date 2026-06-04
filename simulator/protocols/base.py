@@ -2,7 +2,7 @@ from __future__ import annotations
 import abc
 from typing import Callable
 
-from simulator.models import BatchUpdate
+from simulator.models.models import BatchUpdate
 
 CloudRecvCallback = Callable[[BatchUpdate, bytes], None]
 

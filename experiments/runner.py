@@ -8,8 +8,8 @@ from typing import Optional, Callable
 
 import numpy as np
 
-from simulator.models import BatchUpdate, ExperimentMetrics, ParkingEvent, SpotState
-from simulator.config import ScenarioConfig
+from simulator.models.models import BatchUpdate, ExperimentMetrics, ParkingEvent, SpotState
+from simulator.config.config import ScenarioConfig
 from simulator.sensors.sensor_emulator import SensorEmulator
 from simulator.edge.edge_node import EdgeNode
 from simulator.cloud.cloud_backend import CloudBackend
@@ -107,7 +107,7 @@ class ExperimentRunner:
         return await self._run_simulated(cfg)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
-        from simulator.db import make_engine, init_schema
+        from simulator.cloud.db import make_engine, init_schema
 
         self._start_time = time.time()
         seed = cfg.random_seed or 42

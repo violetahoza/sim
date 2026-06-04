@@ -4,8 +4,8 @@ import random
 import time as _time_module
 from typing import Callable, Optional
 
-from ..models import ParkingEvent, SpotState
-from ..config import TrafficConfig
+from ..models.models import ParkingEvent, SpotState
+from ..config.config import TrafficConfig
 from ..des.engine import SimClock
 
 

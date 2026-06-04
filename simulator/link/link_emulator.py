@@ -4,8 +4,8 @@ import random
 import threading
 from typing import Callable, Optional
 
-from ..models import ParkingEvent, BatchUpdate, LinkStats
-from ..config import LinkConfig
+from ..models.models import ParkingEvent, BatchUpdate, LinkStats
+from ..config.config import LinkConfig
 from ..des.engine import SimClock
 
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
