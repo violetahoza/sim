@@ -88,6 +88,9 @@ class SimulatedMQTTBackend(ProtocolBackend):
         qos = self.config.qos
         broker_oh = _QOS_BROKER_OVERHEAD_S[qos]
 
+        if attempt > 0:
+            self.bytes_sent += len(payload) + self._topic_overhead(batch)
+
         def at_broker() -> None:
             if qos == 0:
                 self._deliver_to_subscriber(batch, payload, msg_id, qos)
@@ -120,4 +123,3 @@ class SimulatedMQTTBackend(ProtocolBackend):
                 return
 
         self.clock.schedule(broker_oh, at_broker)
-

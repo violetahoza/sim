@@ -16,6 +16,7 @@ class ParkingEvent:
     timestamp: float = 0.0
     sequence: int = 0
     is_initial: bool = False
+    is_heartbeat_event: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -214,7 +215,7 @@ class ExperimentMetrics:
             d["heartbeats_forwarded"] = self.heartbeats_forwarded
 
             d["message_reduction_ratio"] = self.message_reduction_ratio
-            d["aggregation_ratio"] = self.aggregation_ratio if is_edge_agg else None
+            d["aggregation_ratio"] = self.aggregation_ratio
 
             d["anomalies_detected"] = self.anomalies_detected
             d["anomalies_resolved"] = self.anomalies_resolved

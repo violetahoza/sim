@@ -87,7 +87,7 @@ class EdgeNode:
 
         now_virtual = event.timestamp - self._epoch
 
-        if event.is_initial and event.sequence > self.config.num_spots:
+        if event.is_heartbeat_event:
             hb_forward_interval = self.edge_cfg.heartbeat_forward_interval_s
             hb_due = (
                 hb_forward_interval <= 0

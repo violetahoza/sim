@@ -15,7 +15,7 @@ AMQP_EXCHANGE_OVERHEAD = 16
 
 _EXCHANGE_OVERHEAD_S: dict[str, float] = {"direct": 0.0005, "fanout": 0.0008, "topic": 0.0015}
 _DURABLE_OVERHEAD_S = 0.0010
-_CONFIRM_OVERHEAD_S = 0.0005  
+_CONFIRM_OVERHEAD_S = 0.0005
 
 _MAX_RETRIES = 3
 _RETRY_BASE_S = 1.0
@@ -57,10 +57,12 @@ class SimulatedAMQPBackend(ProtocolBackend):
             return f"parking.{batch.edge_id}.update"
         return f"parking.{batch.edge_id}"
 
-    def publish(self, batch: BatchUpdate, payload: bytes) -> None:
+    def _frame_bytes(self, batch: BatchUpdate, payload: bytes) -> int:
         rk = self._routing_key(batch)
-        total_bytes = (len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode()))
-        self.bytes_sent += total_bytes
+        return len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode())
+
+    def publish(self, batch: BatchUpdate, payload: bytes) -> None:
+        self.bytes_sent += self._frame_bytes(batch, payload)
         msg_id = self._next_id()
         self._do_publish(batch, payload, msg_id, attempt=0)
 
@@ -81,6 +83,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
                     if attempt < _MAX_RETRIES - 1:
                         backoff = _RETRY_BASE_S * (2 ** attempt)
                         self.retransmitted += 1
+                        self.bytes_sent += self._frame_bytes(batch, payload)
                         self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
                     else:
                         if self.on_drop:
@@ -89,4 +92,3 @@ class SimulatedAMQPBackend(ProtocolBackend):
             self.clock.schedule(self._ack_delay(), consumer_ack_arrives)
 
         self.clock.schedule(broker_oh, at_broker)
-

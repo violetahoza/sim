@@ -162,7 +162,8 @@ class TrafficModel:
             return
         state = SpotState.OCCUPIED if self.occupied.get(spot_id, False) else SpotState.FREE
         ts = self._make_timestamp(virtual_time)
-        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts, sequence=self._next_seq(), is_initial=True)
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts,
+                             sequence=self._next_seq(), is_initial=False, is_heartbeat_event=True)
         self.event_cb(event)
         next_t = virtual_time + self.config.heartbeat_interval_s
         if next_t < self._end_time:
@@ -176,9 +177,11 @@ class TrafficModel:
         dup_t = virtual_time + delay
         if dup_t >= self._end_time:
             return
-        ts = self._make_timestamp(virtual_time)
         seq = self._next_seq()
+        ts_dup = self._make_timestamp(dup_t)
         self.clock.schedule_at(
             dup_t,
-            lambda s=spot_id, st=state, t=ts, sq=seq: self.event_cb(ParkingEvent(sensor_id=f"sensor_{s:04d}", spot_id=s, state=st, timestamp=t, sequence=sq, is_initial=False))
+            lambda s=spot_id, st=state, t=ts_dup, sq=seq: self.event_cb(
+                ParkingEvent(sensor_id=f"sensor_{s:04d}", spot_id=s, state=st, timestamp=t, sequence=sq, is_initial=False)
+            )
         )

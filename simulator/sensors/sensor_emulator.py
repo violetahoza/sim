@@ -62,11 +62,11 @@ class SensorEmulator:
 
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
-
-        is_initial_snapshot = event.is_initial and event.sequence <= self.num_spots
-        is_heartbeat = event.is_initial and event.sequence > self.num_spots
-        is_transition = (not event.is_initial) and (state.state != event.state)
-        is_duplicate_send = (not event.is_initial) and (state.state == event.state)
+        is_heartbeat = event.is_heartbeat_event
+        is_initial_snapshot = event.is_initial and not event.is_heartbeat_event
+        is_real = (not event.is_initial) and (not event.is_heartbeat_event)
+        is_transition = is_real and (state.state != event.state)
+        is_duplicate_send = is_real and (state.state == event.state)
 
         if state.state == event.state:
             state.consecutive_same += 1

@@ -29,7 +29,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self.loss_rate = loss_rate
         self._rng = random.Random(seed)
         self.bytes_sent = 0
-        self.retransmissions = 0
+        self.retransmitted = 0
         self.duplicates_suppressed = 0
         self._delivered_ids: dict[int, bool] = {}
         self._non_delivered_ids: set[int] = set()
@@ -50,9 +50,11 @@ class SimulatedCoAPBackend(ProtocolBackend):
     def _initial_timeout(self) -> float:
         return self._rng.uniform(COAP_ACK_TIMEOUT_S, COAP_ACK_TIMEOUT_S * COAP_ACK_RANDOM_FACTOR)
 
+    def _con_frame_bytes(self, payload: bytes) -> int:
+        return int(len(payload) * CBOR_RATIO) + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
+
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
-        coap_bytes = int(len(payload) * CBOR_RATIO)
-        self.bytes_sent += coap_bytes + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
+        self.bytes_sent += self._con_frame_bytes(payload)
         msg_id = self._next_msg_id()
         if self.config.mode == "NON":
             self._send_non(batch, payload, msg_id)
@@ -84,7 +86,8 @@ class SimulatedCoAPBackend(ProtocolBackend):
             def ack_arrives() -> None:
                 if self._rng.random() < self.loss_rate:
                     if attempt < COAP_MAX_RETRANSMIT:
-                        self.retransmissions += 1
+                        self.retransmitted += 1
+                        self.bytes_sent += self._con_frame_bytes(payload)
                         next_timeout = timeout * 2.0
                         self.clock.schedule(timeout, lambda a=attempt + 1, t=next_timeout: self._send_con(batch, payload, msg_id, a, t))
                     else:
@@ -94,5 +97,3 @@ class SimulatedCoAPBackend(ProtocolBackend):
             self.clock.schedule(self._ack_delay(), ack_arrives)
 
         self.clock.schedule(overhead, at_server)
-
-

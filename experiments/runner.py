@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import logging
 import random
 import time
@@ -208,7 +207,7 @@ class ExperimentRunner:
         await clock.run_until_async(cfg.sim_duration_s, progress_cb=des_progress, cancelled_cb=lambda: self._cancelled)
         edge.flush_final()
 
-        retransmits = getattr(backend, "retransmitted", 0)
+        retransmits = getattr(backend, "retransmitted", 0) or getattr(backend, "retransmissions", 0)
         dup_deliveries = (getattr(backend, "duplicates_delivered", 0) or getattr(backend, "duplicates_suppressed", 0))
         protocol_bytes = backend.bytes_sent
 
@@ -302,8 +301,8 @@ class ExperimentRunner:
             message_reduction_ratio = max(0.0, 1.0 - aggregation_ratio)
             events_per_cloud_message = forwarded_events / e2c_msgs if e2c_msgs > 0 else 0.0
         else:
-            aggregation_ratio = 0.0
-            message_reduction_ratio = max(0.0, 1.0 - (e2c_msgs / s2e_received if s2e_received > 0 else 1.0))
+            aggregation_ratio = e2c_msgs / s2e_received if s2e_received > 0 else 1.0
+            message_reduction_ratio = max(0.0, 1.0 - aggregation_ratio)
             events_per_cloud_message = 1.0
 
         return ExperimentMetrics(
@@ -346,136 +345,6 @@ class ExperimentRunner:
             retransmissions_total=retransmits,
             duplicate_deliveries=dup_deliveries,
             protocol_bytes=protocol_bytes,
-
-            aggregation_ratio=round(aggregation_ratio, 4),
-            message_reduction_ratio=round(message_reduction_ratio, 4),
-            events_per_cloud_message=round(events_per_cloud_message, 2),
-
-            cloud_msgs_received_total=cloud_msgs_total,
-            cloud_state_changes_reflected=cloud_transitions,
-            cloud_reflection_ratio=round(cloud_reflection_ratio, 4),
-            physical_delivery_ratio=round(e2e_link_dr, 4),
-
-            anomalies_detected=es.get("anomalies", 0),
-            anomalies_resolved=es.get("resolved_anomalies", 0),
-            active_anomalies=es.get("active_anomalies", 0),
-            adaptive_mode_switches=es.get("mode_switches", 0),
-            quarantined_spots_final=es.get("quarantined_count", 0),
-            anomaly_detected_spots=es.get("detected_spots", 0),
-
-            latency_samples=post_samples[-50_000:],
-            scenario_log=es.get("event_log", [])
-        )
-
-    async def _collect_metrics_real(self, cfg, sensors, link, edge_proc, cloud_proc, backend, retransmits: int = 0, dup_deliveries: int = 0) -> ExperimentMetrics:
-        all_data = cloud_proc.get_all_data()
-        post_samples: list[float] = all_data.get("samples", [])
-        cloud_snapshot: dict = all_data.get("snapshot", {})
-
-        lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
-
-        sensor_events = sensors.total_generated
-        state_changes_generated = sensors.state_changes_generated
-        initial_snapshots = sensors.initial_snapshots_generated
-        heartbeats_gen = sensors.heartbeats_generated
-        dup_sends = sensors.duplicate_sends_generated
-
-        cloud_msgs_total = all_data.get("received_events", cloud_proc.received_events)
-        cloud_transitions = (cloud_snapshot.get("transitions_received") or all_data.get("transitions_received") or 0)
-        ls = link.stats
-        es = edge_proc.summary()
-        arch = cfg.architecture
-
-        s2e_msgs = ls.sent
-        s2e_bytes = ls.total_bytes_sent
-        s2e_dr = ls.delivery_ratio
-        s2e_dropped = ls.dropped
-
-        if arch == "cloud_only":
-            e2c_msgs = 0
-            e2c_bytes = 0
-            e2c_dropped = 0
-            backhaul_dr = 1.0
-            filtered_events = 0
-            heartbeats_suppressed = 0
-            quarantine_suppressed = 0
-            heartbeats_forwarded = 0
-        else:
-            bhl = es.get("link_stats", {})
-            e2c_msgs = bhl.get("sent", 0)
-            e2c_bytes = bhl.get("total_bytes_sent", 0)
-            e2c_dropped = bhl.get("dropped", 0)
-            bhl_sent = bhl.get("sent", 0)
-            bhl_recv = bhl.get("received", 0)
-            backhaul_dr = bhl_recv / bhl_sent if bhl_sent > 0 else 1.0
-            filtered_events = es.get("filtered", 0)
-            heartbeats_suppressed = es.get("heartbeats_suppressed", 0)
-            quarantine_suppressed = es.get("quarantine_suppressed", 0)
-            heartbeats_forwarded = es.get("heartbeats_forwarded", 0)
-
-        e2e_link_dr = s2e_dr * backhaul_dr
-
-        cloud_reflection_ratio = (
-            min(cloud_transitions / state_changes_generated, 1.0)
-            if state_changes_generated > 0 and cloud_transitions > 0
-            else (0.0 if state_changes_generated > 0 else 1.0)
-        )
-
-        s2e_received = ls.received
-        if arch == "cloud_only":
-            aggregation_ratio = 0.0
-            message_reduction_ratio = 0.0
-            events_per_cloud_message = 0.0
-        elif arch == "edge_aggregated":
-            forwarded_events = es.get("forwarded_events", 0)
-            aggregation_ratio = e2c_msgs / s2e_received if s2e_received > 0 else 1.0
-            message_reduction_ratio = max(0.0, 1.0 - aggregation_ratio)
-            events_per_cloud_message = forwarded_events / e2c_msgs if e2c_msgs > 0 else 0.0
-        else:
-            aggregation_ratio = 0.0
-            message_reduction_ratio = max(0.0, 1.0 - (e2c_msgs / s2e_received if s2e_received > 0 else 1.0))
-            events_per_cloud_message = 1.0
-
-        return ExperimentMetrics(
-            scenario_name=cfg.name,
-            protocol=cfg.protocol,
-            architecture=cfg.architecture,
-            traffic_level=cfg.traffic_level,
-            num_spots=cfg.num_spots,
-            sim_duration_s=cfg.sim_duration_s,
-
-            latency_mean_ms=round(lat_mean, 2),
-            latency_p50_ms=round(lat_p50, 2),
-            latency_p95_ms=round(lat_p95, 2),
-            latency_p99_ms=round(lat_p99, 2),
-            latency_min_ms=round(lat_min, 2),
-            latency_max_ms=round(lat_max, 2),
-
-            events_generated=sensor_events,
-            valid_state_changes=state_changes_generated,
-            initial_snapshots_generated=initial_snapshots,
-            heartbeats_generated=heartbeats_gen,
-            duplicate_sends_generated=dup_sends,
-            heartbeat_interval_s=cfg.traffic.heartbeat_interval_s,
-
-            sensor_to_edge_msgs=s2e_msgs,
-            sensor_link_dropped=s2e_dropped,
-            sensor_to_edge_delivery_ratio=round(s2e_dr, 4),
-            sensor_to_edge_bytes=s2e_bytes,
-
-            filtered_events=filtered_events,
-            heartbeats_suppressed=heartbeats_suppressed,
-            quarantine_suppressed=quarantine_suppressed,
-            heartbeats_forwarded=heartbeats_forwarded,
-
-            edge_to_cloud_msgs=e2c_msgs,
-            edge_to_cloud_bytes=e2c_bytes,
-            edge_to_cloud_dropped=e2c_dropped,
-            backhaul_delivery_ratio=round(backhaul_dr, 4),
-
-            retransmissions_total=retransmits,
-            duplicate_deliveries=dup_deliveries,
-            protocol_bytes=backend.bytes_sent,
 
             aggregation_ratio=round(aggregation_ratio, 4),
             message_reduction_ratio=round(message_reduction_ratio, 4),
