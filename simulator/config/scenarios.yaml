@@ -27,7 +27,7 @@ scenarios:
     traffic_level: peak
     num_spots: 500
     seed: 1001
-    mqtt_qos: 1
+    mqtt_qos: 0
     sim_duration_s: 10800.0
     use_time_of_day: false
     backhaul_loss_rate: 0.02
@@ -44,7 +44,7 @@ scenarios:
     traffic_level: peak
     num_spots: 500
     seed: 1001
-    mqtt_qos: 1
+    mqtt_qos: 0
     aggregation_interval: 5.0
     max_event_age_s: 10.0
     max_batch_size: 500
@@ -64,7 +64,7 @@ scenarios:
     traffic_level: peak
     num_spots: 500
     seed: 1001
-    mqtt_qos: 1
+    mqtt_qos: 0
     aggregation_interval: 15.0
     max_event_age_s: 30.0
     max_batch_size: 2000

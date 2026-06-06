@@ -139,7 +139,6 @@ class ExperimentMetrics:
     anomaly_detected_spots: int = 0
 
     fault_injected_count: int = 0
-    warmup_excluded_samples: int = 0
 
     cloud_only_msgs: int = 0
     transport_msgs_total: int = 0
@@ -188,7 +187,6 @@ class ExperimentMetrics:
             "physical_delivery_ratio": self.physical_delivery_ratio,
 
             "fault_injected_count": self.fault_injected_count,
-            "warmup_excluded_samples": self.warmup_excluded_samples,
 
             "latency_mean_ms": self.latency_mean_ms,
             "latency_p50_ms": self.latency_p50_ms,

@@ -72,7 +72,7 @@ class EdgeConfig:
 
     filter_no_change: bool = True
     duplicate_window_s: float = 5.0
-    heartbeat_forward_interval_s: float = 1800.0
+    heartbeat_forward_interval_s: float = 3600.0
     resync_interval_s: float = 300.0 
 
     anomaly_detection: bool = True
@@ -102,7 +102,7 @@ class AMQPConfig:
     ack_mode: AMQPAckMode = "manual"
     durable: bool = True
     prefetch_count: int = 10
-    heartbeat_s: int = 60
+    heartbeat_s: int = 900
     queue_prefix: str = "parking.edge"
 
 
@@ -218,7 +218,7 @@ class ScenarioConfig:
             max_event_age_s=d.get("max_event_age_s", 2.0),
             max_batch_size=d.get("max_batch_size", 50),
             duplicate_window_s=d.get("duplicate_window_s", 5.0),
-            heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 1800.0),
+            heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 3600.0),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
             silent_threshold_s=d.get("silent_threshold_s", 7200.0),
@@ -249,7 +249,7 @@ class ScenarioConfig:
             initial_occupancy=d.get("initial_occupancy"),
             tod_factors=d.get("tod_factors"),
             use_dwell_mixture=d.get("use_dwell_mixture", True),
-            heartbeat_interval_s=d.get("heartbeat_interval_s", 60.0),
+            heartbeat_interval_s=d.get("heartbeat_interval_s", 900.0),
             duplicate_send_prob=d.get("duplicate_send_prob", 0.05),
             is_builtin=d.get("is_builtin", False)
         )
@@ -267,7 +267,7 @@ def make_scenario(
     max_event_age_s: float = 2.0,
     max_batch_size: int = 50,
     duplicate_window_s: float = 5.0,
-    heartbeat_forward_interval_s: float = 1800.0,
+    heartbeat_forward_interval_s: float = 3600.0,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
     silent_threshold_s: float = 7200.0,
@@ -299,7 +299,7 @@ def make_scenario(
     initial_occupancy: Optional[float] = None,
     tod_factors: Optional[list[float]] = None,
     use_dwell_mixture: bool = True,
-    heartbeat_interval_s: float = 60.0,
+    heartbeat_interval_s: float = 900.0,
     duplicate_send_prob: float = 0.05
 ) -> ScenarioConfig:
     arrival = ARRIVAL_RATES[traffic_level] * (num_spots / 50)
