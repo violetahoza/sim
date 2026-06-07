@@ -29,10 +29,10 @@ class CloudBackend:
         self.received_events = 0
         self.transitions_received = 0
 
-        self._latency_state_change_ms: list[float] = []   
-        self._latency_heartbeat_ms: list[float] = []    
-        self._latency_other_ms: list[float] = []   
-        self._applied_ids: set[tuple[int, int]] = set() 
+        self._latency_state_change_ms: list[float] = []
+        self._latency_heartbeat_ms: list[float] = []
+        self._latency_other_ms: list[float] = []
+        self._applied_ids: set[tuple[int, int]] = set()
         self.duplicate_events_at_cloud: int = 0
         self._event_rows: list[tuple] = []
 
@@ -63,7 +63,7 @@ class CloudBackend:
         self.received_events += 1
 
         key = (event.spot_id, event.sequence)
-        latency_ms = (arrival - event.timestamp) * 1000  
+        latency_ms = (arrival - event.timestamp) * 1000
 
         if key in self._applied_ids:
             self.duplicate_events_at_cloud += 1
@@ -199,26 +199,26 @@ class CloudBackend:
 
         if samples:
             arr = np.array(samples)
-            mean = float(np.mean(arr))
-            p50 = float(np.percentile(arr, 50))
-            p95 = float(np.percentile(arr, 95))
-            p99 = float(np.percentile(arr, 99))
-            mn = float(np.min(arr))
-            mx = float(np.max(arr))
+            mean = round(float(np.mean(arr)), 2)
+            p50 = round(float(np.percentile(arr, 50)), 2)
+            p95 = round(float(np.percentile(arr, 95)), 2)
+            p99 = round(float(np.percentile(arr, 99)), 2)
+            mn = round(float(np.min(arr)), 2)
+            mx = round(float(np.max(arr)), 2)
         else:
-            mean = p50 = p95 = p99 = mn = mx = 0.0
+            mean = p50 = p95 = p99 = mn = mx = None
 
         snapshot = {
             "received_batches": self.received_batches,
             "received_events": self.received_events,
             "transitions_received": self.transitions_received,
             "total_bytes_received": self._total_bytes_received,
-            "latency_mean_ms": round(mean, 2),
-            "latency_p50_ms": round(p50, 2),
-            "latency_p95_ms": round(p95, 2),
-            "latency_p99_ms": round(p99, 2),
-            "latency_min_ms": round(mn, 2),
-            "latency_max_ms": round(mx, 2),
+            "latency_mean_ms": mean,
+            "latency_p50_ms": p50,
+            "latency_p95_ms": p95,
+            "latency_p99_ms": p99,
+            "latency_min_ms": mn,
+            "latency_max_ms": mx,
             "latency_samples": [round(v, 2) for v in samples[-200:]]
         }
 

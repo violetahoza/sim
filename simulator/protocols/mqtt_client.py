@@ -23,7 +23,7 @@ _RETRY_BASE_S = 1.0
 
 
 class SimulatedMQTTBackend(ProtocolBackend):
-
+    
     def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.0, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010) -> None:
         self.config = config
         self.clock = clock
@@ -89,8 +89,8 @@ class SimulatedMQTTBackend(ProtocolBackend):
             self.retransmitted += 1
             self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
         else:
+            self.frames_dropped += 1
             if self.on_drop:
-                self.frames_dropped += 1
                 self.on_drop()
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:

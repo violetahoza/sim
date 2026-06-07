@@ -95,12 +95,12 @@ class ExperimentMetrics:
     num_spots: int
     sim_duration_s: float
 
-    latency_mean_ms: Optional[float] = 0.0
-    latency_p50_ms: Optional[float] = 0.0
-    latency_p95_ms: Optional[float] = 0.0
-    latency_p99_ms: Optional[float] = 0.0
-    latency_max_ms: Optional[float] = 0.0
-    latency_min_ms: Optional[float] = 0.0
+    latency_mean_ms: Optional[float] = None
+    latency_p50_ms: Optional[float] = None
+    latency_p95_ms: Optional[float] = None
+    latency_p99_ms: Optional[float] = None
+    latency_max_ms: Optional[float] = None
+    latency_min_ms: Optional[float] = None
 
     events_generated: int = 0
     valid_state_changes: int = 0
@@ -111,7 +111,7 @@ class ExperimentMetrics:
 
     sensor_to_edge_msgs: int = 0
     sensor_link_dropped: int = 0
-    sensor_to_edge_delivery_ratio: Optional[float] = 0.0
+    sensor_to_edge_delivery_ratio: Optional[float] = None
     sensor_to_edge_bytes: int = 0
     bytes_s2e_received: int = 0
 
@@ -126,11 +126,11 @@ class ExperimentMetrics:
     edge_to_cloud_dropped: int = 0
     edge_to_cloud_delivered: int = 0
     bytes_e2c_received: int = 0
-    backhaul_delivery_ratio: Optional[float] = 1.0
+    backhaul_delivery_ratio: Optional[float] = None
 
-    aggregation_ratio: Optional[float] = 0.0
-    message_reduction_ratio: Optional[float] = 0.0
-    events_per_cloud_message: Optional[float] = 0.0
+    aggregation_ratio: Optional[float] = None
+    message_reduction_ratio: Optional[float] = None
+    events_per_cloud_message: Optional[float] = None
 
     protocol_bytes: int = 0
     retransmissions_total: int = 0
@@ -140,9 +140,8 @@ class ExperimentMetrics:
     cloud_state_changes_reflected: int = 0
     duplicate_events_at_cloud: int = 0
     e2e_unique_delivery_ratio: Optional[float] = None
-    cloud_reflection_ratio: Optional[float] = 0.0  
-    physical_delivery_ratio: Optional[float] = 0.0  
-    cloud_state_agreement_ratio: Optional[float] = 0.0   
+    cloud_reflection_ratio: Optional[float] = None
+    physical_delivery_ratio: Optional[float] = None
 
     anomalies_detected: int = 0
     anomalies_resolved: int = 0
@@ -152,11 +151,6 @@ class ExperimentMetrics:
     anomaly_detected_spots: int = 0
 
     fault_injected_count: int = 0
-
-    cloud_only_msgs: int = 0
-    transport_msgs_total: int = 0
-    edge_to_cloud_delivery_ratio: float = 1.0
-    end_to_end_delivery_ratio: float = 0.0
 
     seed: int = 0
     run_id: str = ""
@@ -245,11 +239,8 @@ class ExperimentMetrics:
         return self.cloud_state_changes_reflected
 
     def to_dict(self) -> dict:
-        arch = self.architecture
-        is_cloud_only = arch == "cloud_only"
-        is_edge_agg = arch == "edge_aggregated"
-
-        wire_frames_delivered = self.sensor_to_edge_msgs - self.sensor_link_dropped
+        is_cloud_only = self.architecture == "cloud_only"
+        frames_s2e_delivered = self.sensor_to_edge_msgs - self.sensor_link_dropped
 
         d: dict = {
             "scenario_name": self.scenario_name,
@@ -260,42 +251,8 @@ class ExperimentMetrics:
             "traffic_level": self.traffic_level,
             "num_spots": self.num_spots,
             "sim_duration_s": self.sim_duration_s,
-
-            "events_generated": self.events_generated,
-            "valid_state_changes": self.valid_state_changes,
-            "initial_snapshots_generated": self.initial_snapshots_generated,
-            "heartbeats_generated": self.heartbeats_generated,
-            "duplicate_sends_generated": self.duplicate_sends_generated,
             "heartbeat_interval_s": self.heartbeat_interval_s,
 
-            "sensor_to_edge_msgs": self.sensor_to_edge_msgs,
-            "sensor_link_dropped": self.sensor_link_dropped,
-            "wire_frames_delivered": wire_frames_delivered,
-            "sensor_to_edge_delivery_ratio": self.sensor_to_edge_delivery_ratio,
-            "sensor_to_edge_bytes": self.sensor_to_edge_bytes,
-
-            "protocol_bytes": self.protocol_bytes,
-            "retransmissions_total": self.retransmissions_total,
-            "duplicate_deliveries": self.duplicate_deliveries,
-
-            "cloud_msgs_received_total": self.cloud_msgs_received_total,
-            "cloud_state_changes_reflected": self.cloud_state_changes_reflected,
-            "cloud_reflection_ratio": self.cloud_reflection_ratio,
-
-            "physical_delivery_ratio": self.physical_delivery_ratio,
-            "cloud_state_agreement_ratio": self.cloud_state_agreement_ratio,
-
-            "fault_injected_count": self.fault_injected_count,
-
-            "latency_mean_ms": self.latency_mean_ms,
-            "latency_p50_ms": self.latency_p50_ms,
-            "latency_p95_ms": self.latency_p95_ms,
-            "latency_p99_ms": self.latency_p99_ms,
-            "latency_min_ms": self.latency_min_ms,
-            "latency_max_ms": self.latency_max_ms,
-        }
-
-        d.update({
             "events_generated_total": self.events_generated,
             "state_changes_generated_total": self.valid_state_changes,
             "heartbeats_generated_total": self.heartbeats_generated,
@@ -303,7 +260,7 @@ class ExperimentMetrics:
             "duplicate_sends_generated_total": self.duplicate_sends_generated,
 
             "frames_s2e_sent": self.sensor_to_edge_msgs,
-            "frames_s2e_delivered": wire_frames_delivered,
+            "frames_s2e_delivered": frames_s2e_delivered,
             "frames_s2e_dropped": self.sensor_link_dropped,
             "bytes_s2e_sent": self.sensor_to_edge_bytes,
             "bytes_s2e_received": self.bytes_s2e_received,
@@ -313,63 +270,53 @@ class ExperimentMetrics:
             "proto_retransmissions": self.retransmissions_total,
             "proto_duplicate_deliveries": self.duplicate_deliveries,
 
+            "cloud_msgs_received": self.cloud_msgs_received_total,
             "unique_state_changes_applied_at_cloud": self.cloud_state_changes_reflected,
             "duplicate_events_at_cloud": self.duplicate_events_at_cloud,
             "e2e_unique_delivery_ratio": self.e2e_unique_delivery_ratio,
-        })
+            "cloud_reflection_ratio": self.cloud_reflection_ratio,
+            "physical_delivery_ratio": self.physical_delivery_ratio,
+
+            "latency_mean_ms": self.latency_mean_ms,
+            "latency_p50_ms": self.latency_p50_ms,
+            "latency_p95_ms": self.latency_p95_ms,
+            "latency_p99_ms": self.latency_p99_ms,
+            "latency_min_ms": self.latency_min_ms,
+            "latency_max_ms": self.latency_max_ms,
+        }
 
         if is_cloud_only:
-            d["cloud_msgs_received"] = self.cloud_msgs_received_total
-            d["e2e_delivery_ratio"] = (
-                round(self.sensor_to_edge_delivery_ratio, 4)
-                if self.sensor_to_edge_delivery_ratio is not None else None
-            )
-            d["edge_to_cloud_dropped"] = 0
-            d["backhaul_delivery_ratio"] = 1.0
-            d.update({
-                "frames_e2c_sent": 0,
-                "frames_e2c_delivered": 0,
-                "frames_e2c_dropped": 0,
-                "bytes_e2c_sent": 0,
-                "bytes_e2c_received": 0,
-                "events_forwarded_total": 0,
-                "aggregation_ratio": None,
-                "message_reduction_ratio": None,
-            })
+            d.update({k: None for k in (
+                "frames_e2c_sent", "frames_e2c_delivered", "frames_e2c_dropped",
+                "bytes_e2c_sent", "bytes_e2c_received", "backhaul_delivery_ratio",
+                "events_filtered_total", "events_forwarded_total",
+                "aggregation_ratio", "message_reduction_ratio",
+                "heartbeats_suppressed", "heartbeats_forwarded", "quarantine_suppressed",
+                "anomalies_detected", "anomalies_resolved", "active_anomalies",
+                "adaptive_mode_switches", "quarantined_spots_final",
+                "anomaly_detected_spots", "fault_injected_count",
+            )})
         else:
-            d["edge_to_cloud_msgs"] = self.edge_to_cloud_msgs
-            d["edge_to_cloud_bytes"] = self.edge_to_cloud_bytes
-            d["edge_to_cloud_dropped"] = self.edge_to_cloud_dropped
-            d["backhaul_delivery_ratio"] = self.backhaul_delivery_ratio
-
-            d["filtered_events"] = self.filtered_events
-            d["heartbeats_suppressed"] = self.heartbeats_suppressed
-            d["quarantine_suppressed"] = self.quarantine_suppressed
-            d["heartbeats_forwarded"] = self.heartbeats_forwarded
-
-            d["message_reduction_ratio"] = self.message_reduction_ratio
-            d["aggregation_ratio"] = self.aggregation_ratio
-
-            d["anomalies_detected"] = self.anomalies_detected
-            d["anomalies_resolved"] = self.anomalies_resolved
-            d["active_anomalies"] = self.active_anomalies
-            d["adaptive_mode_switches"] = self.adaptive_mode_switches
-            d["quarantined_spots_final"] = self.quarantined_spots_final
-            d["anomaly_detected_spots"] = self.anomaly_detected_spots
-
-            if is_edge_agg:
-                d["events_per_cloud_message"] = self.events_per_cloud_message
-                d["aggregation_batches_created"] = self.edge_to_cloud_msgs
-
             d.update({
                 "frames_e2c_sent": self.edge_to_cloud_msgs,
                 "frames_e2c_delivered": self.edge_to_cloud_delivered,
                 "frames_e2c_dropped": self.edge_to_cloud_dropped,
                 "bytes_e2c_sent": self.edge_to_cloud_bytes,
                 "bytes_e2c_received": self.bytes_e2c_received,
+                "backhaul_delivery_ratio": self.backhaul_delivery_ratio,
                 "events_filtered_total": self.filtered_events,
                 "events_forwarded_total": self.events_forwarded_total,
-                "aggregation_batches_e2c": self.edge_to_cloud_msgs,
+                "aggregation_ratio": self.aggregation_ratio,
+                "message_reduction_ratio": self.message_reduction_ratio,
+                "heartbeats_suppressed": self.heartbeats_suppressed,
+                "heartbeats_forwarded": self.heartbeats_forwarded,
+                "quarantine_suppressed": self.quarantine_suppressed,
+                "anomalies_detected": self.anomalies_detected,
+                "anomalies_resolved": self.anomalies_resolved,
+                "active_anomalies": self.active_anomalies,
+                "adaptive_mode_switches": self.adaptive_mode_switches,
+                "quarantined_spots_final": self.quarantined_spots_final,
+                "anomaly_detected_spots": self.anomaly_detected_spots,
+                "fault_injected_count": self.fault_injected_count,
             })
-
         return d

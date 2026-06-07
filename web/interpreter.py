@@ -81,6 +81,7 @@ def build_prompt(summaries: list[dict], focus: str) -> str:
 
 
 def build_summaries(results: list[dict]) -> list[dict]:
+    def kb(v): return round((v or 0) / 1024, 2)
     return [
         {
             "scenario": r.get("scenario_name"),
@@ -93,26 +94,29 @@ def build_summaries(results: list[dict]) -> list[dict]:
             "latency_p50_ms": r.get("latency_p50_ms"),
             "latency_p95_ms": r.get("latency_p95_ms"),
             "latency_p99_ms": r.get("latency_p99_ms"),
-            "sensor_to_edge_delivery_ratio": r.get("sensor_to_edge_delivery_ratio"),
+            "s2e_delivery_ratio": r.get("s2e_delivery_ratio"),
             "backhaul_delivery_ratio": r.get("backhaul_delivery_ratio"),
             "physical_delivery_ratio": r.get("physical_delivery_ratio"),
+            "e2e_unique_delivery_ratio": r.get("e2e_unique_delivery_ratio"),
             "cloud_reflection_ratio": r.get("cloud_reflection_ratio"),
-            "cloud_state_changes_reflected": r.get("cloud_state_changes_reflected"),
-            "valid_state_changes": r.get("valid_state_changes"),
+            "unique_state_changes_applied_at_cloud": r.get("unique_state_changes_applied_at_cloud"),
+            "state_changes_generated_total": r.get("state_changes_generated_total"),
             "aggregation_ratio": r.get("aggregation_ratio"),
             "message_reduction_ratio": r.get("message_reduction_ratio"),
-            "events_per_cloud_message": r.get("events_per_cloud_message"),
-            "filtered_events": r.get("filtered_events"),
-            "events_generated": r.get("events_generated"),
-            "heartbeats_generated": r.get("heartbeats_generated"),
-            "sensor_to_edge_msgs": r.get("sensor_to_edge_msgs"),
-            "edge_to_cloud_msgs": r.get("edge_to_cloud_msgs"),
-            "cloud_msgs_received_total": r.get("cloud_msgs_received_total"),
-            "retransmissions_total": r.get("retransmissions_total"),
-            "duplicate_deliveries": r.get("duplicate_deliveries"),
-            "sensor_to_edge_bytes_kb": round(r.get("sensor_to_edge_bytes", 0) / 1024, 2),
-            "edge_to_cloud_bytes_kb": round(r.get("edge_to_cloud_bytes", 0) / 1024, 2),
-            "protocol_bytes_kb": round(r.get("protocol_bytes", 0) / 1024, 2),
+            "events_filtered_total": r.get("events_filtered_total"),
+            "events_forwarded_total": r.get("events_forwarded_total"),
+            "events_generated_total": r.get("events_generated_total"),
+            "heartbeats_generated_total": r.get("heartbeats_generated_total"),
+            "frames_s2e_sent": r.get("frames_s2e_sent"),
+            "frames_e2c_sent": r.get("frames_e2c_sent"),
+            "frames_e2c_delivered": r.get("frames_e2c_delivered"),
+            "frames_e2c_dropped": r.get("frames_e2c_dropped"),
+            "cloud_msgs_received": r.get("cloud_msgs_received"),
+            "proto_retransmissions": r.get("proto_retransmissions"),
+            "proto_duplicate_deliveries": r.get("proto_duplicate_deliveries"),
+            "bytes_s2e_sent_kb": kb(r.get("bytes_s2e_sent")),
+            "bytes_e2c_sent_kb": kb(r.get("bytes_e2c_sent")),
+            "proto_bytes_sent_kb": kb(r.get("proto_bytes_sent")),
         }
         for r in results
     ]
@@ -183,16 +187,14 @@ def rule_based_interpret(summaries: list[dict]) -> str:
     if by_del:
         top = by_del[0]
         lines.append(
-            f"- 📦 **Best cloud reflection**: `{top['scenario']}` "
-            f"at {top['cloud_reflection_ratio'] * 100:.2f}% of real state changes captured"
-        )
-        if by_del[-1]["cloud_reflection_ratio"] < 0.98:
+            f"- 📦 **Best event delivery**: `{top['scenario']}` "
+            f"at {top['e2e_unique_delivery_ratio'] * 100:.2f}% of generated state changes applied at cloud")
+        if by_del[-1]["e2e_unique_delivery_ratio"] < 0.98:
             tail = by_del[-1]
             lines.append(
-                f"- ⚠️ **Worst cloud reflection**: `{tail['scenario']}` - "
-                f"{tail['cloud_reflection_ratio'] * 100:.2f}% "
-                f"({(1 - tail['cloud_reflection_ratio']) * 100:.2f}% of state changes missed)"
-            )
+                f"- ⚠️ **Worst event delivery**: `{tail['scenario']}` - "
+                f"{tail['e2e_unique_delivery_ratio'] * 100:.2f}% "
+                f"({(1 - tail['e2e_unique_delivery_ratio']) * 100:.2f}% of state changes missed)")
     agg_list = [s for s in summaries if s.get("aggregation_ratio") and s["aggregation_ratio"] < 0.9]
     if agg_list:
         best_agg = min(agg_list, key=lambda x: x["aggregation_ratio"])

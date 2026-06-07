@@ -15,11 +15,15 @@ ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
 class TokenBucket:
     def __init__(self, rate: float) -> None:
         self.rate = rate
+        self._enabled = rate > 0.0
         self.tokens: float = 1.0
         self._last_virtual: float = 0.0
         self._next_free: float = 0.0
 
     def consume(self, clock: SimClock) -> float:
+        if not self._enabled:
+            return 0.0
+        
         now = clock.now
         elapsed = now - self._last_virtual
         self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
@@ -108,11 +112,8 @@ class QueueOverflowModel:
 class LinkEmulator:
     DEFAULT_QUEUE_CAPACITY: int = 500
 
-    def __init__(self, config: LinkConfig, clock: SimClock,
-                 forward_cb: Optional[ForwardCallback] = None,
-                 rng: random.Random | None = None,
-                 queue_capacity: int | None = None,
-                 wall_clock: bool = False) -> None:
+    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: Optional[ForwardCallback] = None, rng: random.Random | None = None,
+                 queue_capacity: int | None = None, wall_clock: bool = False) -> None:
         self.config = config
         self.clock = clock
         self._callback = forward_cb
@@ -139,8 +140,8 @@ class LinkEmulator:
     def _compute_delay(self) -> float:
         if self.config.jitter_ms <= 0:
             return self.config.base_delay_ms / 1000.0
-        jitter = max(0.0, self.rng.gauss(0, self.config.jitter_ms))
-        return (self.config.base_delay_ms + jitter) / 1000.0
+        jittered_ms = self.config.base_delay_ms + self.rng.gauss(0, self.config.jitter_ms)
+        return max(0.0, jittered_ms / 1000.0)
 
     def transmit(self, event: ParkingEvent) -> None:
         payload = self._serialize(event)

@@ -27,9 +27,6 @@ SIM_DURATION_S = 10_800.0
 DEFAULT_AGG_INTERVAL_S = 1.0
 DEFAULT_TIME_SCALE = 60.0
 
-DEFAULT_ACCESS_LOSS = 0.05     
-DEFAULT_BACKHAUL_LOSS = 0.02  
-
 _SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
 _CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
 
@@ -76,13 +73,24 @@ class EdgeConfig:
     filter_no_change: bool = True
     duplicate_window_s: float = 5.0
     heartbeat_forward_interval_s: float = 3600.0
-    resync_interval_s: float = 300.0 
+    resync_interval_s: float = 300.0
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False
     silent_threshold_s: float = 7200.0
     quarantine_threshold: int = 5
     quarantine_recovery_events: int = 3
+
+    stuck_threshold_s: float = 43200.0 
+    rapid_arrival_threshold_s: float = 0.5 
+    rapid_flip_min_dwell_s: float = 10.0  
+    quarantine_release_clean_ticks: int = 5 
+    anomaly_check_interval_s: float = 30.0  
+
+    adaptive_check_interval_s: float = 30.0 
+    adaptive_degrade_threshold: float = 0.85 
+    adaptive_recover_threshold: float = 0.95 
+    adaptive_min_window_samples: int = 3   
 
 
 @dataclass
@@ -115,6 +123,7 @@ class CoAPConfig:
     port: int = 5683
     mode: CoAPMode = "CON"
     resource: str = "parking/update"
+    payload_size_factor: float = 1.0
 
 
 @dataclass
@@ -190,8 +199,18 @@ class ScenarioConfig:
             "silent_threshold_s": edge["silent_threshold_s"],
             "quarantine_threshold": edge["quarantine_threshold"],
             "quarantine_recovery_events": edge["quarantine_recovery_events"],
+            "stuck_threshold_s": edge["stuck_threshold_s"],
+            "rapid_arrival_threshold_s": edge["rapid_arrival_threshold_s"],
+            "rapid_flip_min_dwell_s": edge["rapid_flip_min_dwell_s"],
+            "quarantine_release_clean_ticks": edge["quarantine_release_clean_ticks"],
+            "anomaly_check_interval_s": edge["anomaly_check_interval_s"],
+            "adaptive_check_interval_s": edge["adaptive_check_interval_s"],
+            "adaptive_degrade_threshold": edge["adaptive_degrade_threshold"],
+            "adaptive_recover_threshold": edge["adaptive_recover_threshold"],
+            "adaptive_min_window_samples": edge["adaptive_min_window_samples"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
+            "coap_payload_size_factor": coap["payload_size_factor"],   # Step 1 knob
             "amqp_exchange": amqp["exchange_type"],
             "amqp_ack": amqp["ack_mode"],
             "amqp_durable": amqp["durable"],
@@ -227,8 +246,18 @@ class ScenarioConfig:
             silent_threshold_s=d.get("silent_threshold_s", 7200.0),
             quarantine_threshold=d.get("quarantine_threshold", 5),
             quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
+            stuck_threshold_s=d.get("stuck_threshold_s", 43200.0),
+            rapid_arrival_threshold_s=d.get("rapid_arrival_threshold_s", 0.5),
+            rapid_flip_min_dwell_s=d.get("rapid_flip_min_dwell_s", 10.0),
+            quarantine_release_clean_ticks=d.get("quarantine_release_clean_ticks", 5),
+            anomaly_check_interval_s=d.get("anomaly_check_interval_s", 30.0),
+            adaptive_check_interval_s=d.get("adaptive_check_interval_s", 30.0),
+            adaptive_degrade_threshold=d.get("adaptive_degrade_threshold", 0.85),
+            adaptive_recover_threshold=d.get("adaptive_recover_threshold", 0.95),
+            adaptive_min_window_samples=d.get("adaptive_min_window_samples", 3),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
+            coap_payload_size_factor=d.get("coap_payload_size_factor", 1.0),   # Step 1 knob
             amqp_exchange=d.get("amqp_exchange", "direct"),
             amqp_ack=d.get("amqp_ack", "manual"),
             amqp_durable=d.get("amqp_durable", True),
@@ -276,8 +305,18 @@ def make_scenario(
     silent_threshold_s: float = 7200.0,
     quarantine_threshold: int = 5,
     quarantine_recovery_events: int = 3,
+    stuck_threshold_s: float = 43200.0,
+    rapid_arrival_threshold_s: float = 0.5,
+    rapid_flip_min_dwell_s: float = 10.0,
+    quarantine_release_clean_ticks: int = 5,
+    anomaly_check_interval_s: float = 30.0,
+    adaptive_check_interval_s: float = 30.0,
+    adaptive_degrade_threshold: float = 0.85,
+    adaptive_recover_threshold: float = 0.95,
+    adaptive_min_window_samples: int = 3,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
+    coap_payload_size_factor: float = 1.0,  
     amqp_exchange: AMQPExchange = "direct",
     amqp_ack: AMQPAckMode = "manual",
     amqp_durable: bool = True,
@@ -338,7 +377,16 @@ def make_scenario(
         adaptive_edge=adaptive_edge,
         silent_threshold_s=silent_threshold_s,
         quarantine_threshold=quarantine_threshold,
-        quarantine_recovery_events=quarantine_recovery_events
+        quarantine_recovery_events=quarantine_recovery_events,
+        stuck_threshold_s=stuck_threshold_s,
+        rapid_arrival_threshold_s=rapid_arrival_threshold_s,
+        rapid_flip_min_dwell_s=rapid_flip_min_dwell_s,
+        quarantine_release_clean_ticks=quarantine_release_clean_ticks,
+        anomaly_check_interval_s=anomaly_check_interval_s,
+        adaptive_check_interval_s=adaptive_check_interval_s,
+        adaptive_degrade_threshold=adaptive_degrade_threshold,
+        adaptive_recover_threshold=adaptive_recover_threshold,
+        adaptive_min_window_samples=adaptive_min_window_samples
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
@@ -362,7 +410,7 @@ def make_scenario(
         link=link, backhaul_link=backhaul, edge=edge,
         mqtt=MQTTConfig(qos=mqtt_qos),
         amqp=AMQPConfig(exchange_type=amqp_exchange, ack_mode=amqp_ack, durable=amqp_durable),
-        coap=CoAPConfig(mode=coap_mode),
+        coap=CoAPConfig(mode=coap_mode, payload_size_factor=coap_payload_size_factor),
         traffic=traffic, random_seed=seed,
         group=group, group_order=group_order, is_builtin=is_builtin
     )

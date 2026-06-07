@@ -16,12 +16,14 @@ COAP_ACK_RANDOM_FACTOR = 1.5
 COAP_MAX_RETRANSMIT = 4
 COAP_HEADER_BYTES = 4
 COAP_TOKEN_BYTES = 4
+
 CBOR_RATIO = 0.65
+
 _OVERHEAD_S = {"CON": 0.0005, "NON": 0.0002}
 
 
 class SimulatedCoAPBackend(ProtocolBackend):
-
+    
     def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010) -> None:
         self.config = config
         self.clock = clock
@@ -54,11 +56,12 @@ class SimulatedCoAPBackend(ProtocolBackend):
     def _initial_timeout(self) -> float:
         return self._rng.uniform(COAP_ACK_TIMEOUT_S, COAP_ACK_TIMEOUT_S * COAP_ACK_RANDOM_FACTOR)
 
-    def _con_frame_bytes(self, payload: bytes) -> int:
-        return int(len(payload) * CBOR_RATIO) + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
+    def _frame_bytes(self, payload: bytes) -> int:
+        factor = getattr(self.config, "payload_size_factor", 1.0)
+        return int(len(payload) * factor) + COAP_HEADER_BYTES + COAP_TOKEN_BYTES
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
-        self.bytes_sent += self._con_frame_bytes(payload)
+        self.bytes_sent += self._frame_bytes(payload)
         msg_id = self._next_msg_id()
         self.frames_offered += 1
         if self.config.mode == "NON":
@@ -69,7 +72,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
     def _retransmit_or_drop(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
         if attempt < COAP_MAX_RETRANSMIT:
             self.retransmitted += 1
-            self.bytes_sent += self._con_frame_bytes(payload)
+            self.bytes_sent += self._frame_bytes(payload)
             next_timeout = timeout * 2.0
             self.clock.schedule(timeout, lambda a=attempt + 1, t=next_timeout: self._send_con(batch, payload, msg_id, a, t))
         else:

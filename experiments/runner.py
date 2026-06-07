@@ -131,8 +131,9 @@ class ExperimentRunner:
             cloud.open_run(engine, config_json=_json.dumps(cfg.to_save_dict()))
 
         backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, seed)
-
         arch = cfg.architecture
+
+        _sensor_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol))
 
         if arch == "cloud_only":
             backhaul_link = None
@@ -142,6 +143,8 @@ class ExperimentRunner:
                 batch = BatchUpdate(edge_id="direct", events=[event])
                 payload = EdgeNode._serialize_batch(batch)
                 backend.publish(batch, payload)
+
+            link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng)
 
         else:
             _bh_link_cfg = cfg.backhaul_link.to_link_config()
@@ -159,18 +162,10 @@ class ExperimentRunner:
             backend.on_drop = lambda: edge.record_cloud_drop()
             edge.set_backhaul_link_stats(backhaul_link.stats)
 
-        _sensor_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol))
-
-        if arch == "cloud_only":
-            def _sensor_link_cb_co(event: ParkingEvent, raw: bytes) -> None:
-                batch = BatchUpdate(edge_id="direct", events=[event])
-                payload = EdgeNode._serialize_batch(batch)
-                backend.publish(batch, payload)
-            link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb_co, rng=_sensor_rng)
-        else:
-            def _sensor_link_cb_edge(event: ParkingEvent, raw: bytes) -> None:
+            def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
                 edge.receive(event, raw)
-            link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb_edge, rng=_sensor_rng)
+
+            link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng)
             edge.set_sensor_link_stats(link.stats)
 
         for i in range(cfg.num_spots):
@@ -283,8 +278,8 @@ class ExperimentRunner:
             e2c_bytes_recv = 0
             e2c_delivered = 0
             e2c_dropped = 0
-            backhaul_dr = None  
-            backhaul_first_pass = 1.0  
+            backhaul_dr = None
+            backhaul_first_pass = 1.0 
             filtered_events = 0
             heartbeats_suppressed = 0
             quarantine_suppressed = 0
@@ -303,7 +298,7 @@ class ExperimentRunner:
 
             e2c_delivered = frames_delivered_e2c
             e2c_dropped = frames_dropped_e2c
-            backhaul_dr = (e2c_delivered / frames_offered) if frames_offered > 0 else None  
+            backhaul_dr = (e2c_delivered / frames_offered) if frames_offered > 0 else None
             backhaul_first_pass = (first_pass_delivered / frames_offered) if frames_offered > 0 else None
 
             filtered_events = es.get("filtered", 0)
@@ -318,9 +313,7 @@ class ExperimentRunner:
             fp = backhaul_first_pass if backhaul_first_pass is not None else 1.0
             physical_delivery_ratio = s2e_dr * fp
 
-        e2e_unique = (min(cloud_transitions / state_changes_generated, 1.0)
-                      if state_changes_generated > 0 else None)
-
+        e2e_unique = (min(cloud_transitions / state_changes_generated, 1.0) if state_changes_generated > 0 else None)
         cloud_reflection_ratio = state_agreement
 
         if arch == "cloud_only":
@@ -329,8 +322,7 @@ class ExperimentRunner:
             events_per_cloud_message = None
         else:
             aggregation_ratio = (e2c_msgs / forwarded_events) if forwarded_events > 0 else None
-            message_reduction_ratio = (max(0.0, 1.0 - e2c_msgs / s2e_received)
-                                       if s2e_received > 0 else None)
+            message_reduction_ratio = (max(0.0, 1.0 - e2c_msgs / s2e_received) if s2e_received > 0 else None)
             events_per_cloud_message = (forwarded_events / e2c_msgs) if e2c_msgs > 0 else None
 
         return ExperimentMetrics(
@@ -390,7 +382,6 @@ class ExperimentRunner:
             e2e_unique_delivery_ratio=_r(e2e_unique, 4),
             cloud_reflection_ratio=_r(cloud_reflection_ratio, 4),
             physical_delivery_ratio=_r(physical_delivery_ratio, 4),
-            cloud_state_agreement_ratio=_r(cloud_reflection_ratio, 4),
 
             anomalies_detected=es.get("anomalies", 0),
             anomalies_resolved=es.get("resolved_anomalies", 0),

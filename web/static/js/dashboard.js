@@ -18,6 +18,87 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSavedResults();
 });
 
+function pick(raw, ...names) {
+  if (!raw) return null;
+  for (const n of names) {
+    const v = raw[n];
+    if (v !== undefined && v !== null) return v;
+  }
+  return null;
+}
+
+function normalizeMetrics(raw) {
+  if (!raw) return {};
+  const m = {
+    scenario_name: raw.scenario_name, seed: raw.seed, run_id: raw.run_id,
+    protocol: raw.protocol, architecture: raw.architecture,
+    traffic_level: raw.traffic_level, num_spots: raw.num_spots,
+    sim_duration_s: raw.sim_duration_s, heartbeat_interval_s: raw.heartbeat_interval_s,
+    source: raw.source, scenario_log: raw.scenario_log, latency_samples: raw.latency_samples,
+    fault_injected_count: pick(raw, 'fault_injected_count'),
+
+    events_generated_total: pick(raw, 'events_generated_total', 'events_generated'),
+    state_changes_generated_total: pick(raw, 'state_changes_generated_total', 'valid_state_changes'),
+    heartbeats_generated_total: pick(raw, 'heartbeats_generated_total', 'heartbeats_generated'),
+    initial_snapshots_generated_total: pick(raw, 'initial_snapshots_generated_total', 'initial_snapshots_generated'),
+    duplicate_sends_generated_total: pick(raw, 'duplicate_sends_generated_total', 'duplicate_sends_generated'),
+
+    frames_s2e_sent: pick(raw, 'frames_s2e_sent', 'sensor_to_edge_msgs'),
+    frames_s2e_delivered: pick(raw, 'frames_s2e_delivered', 'wire_frames_delivered'),
+    frames_s2e_dropped: pick(raw, 'frames_s2e_dropped', 'sensor_link_dropped'),
+    bytes_s2e_sent: pick(raw, 'bytes_s2e_sent', 'sensor_to_edge_bytes'),
+    bytes_s2e_received: pick(raw, 'bytes_s2e_received'),
+    s2e_delivery_ratio: pick(raw, 's2e_delivery_ratio', 'sensor_to_edge_delivery_ratio'),
+
+    frames_e2c_sent: pick(raw, 'frames_e2c_sent', 'edge_to_cloud_msgs'),
+    frames_e2c_delivered: pick(raw, 'frames_e2c_delivered'),
+    frames_e2c_dropped: pick(raw, 'frames_e2c_dropped', 'edge_to_cloud_dropped'),
+    bytes_e2c_sent: pick(raw, 'bytes_e2c_sent', 'edge_to_cloud_bytes'),
+    bytes_e2c_received: pick(raw, 'bytes_e2c_received'),
+    proto_bytes_sent: pick(raw, 'proto_bytes_sent', 'protocol_bytes'),
+    proto_retransmissions: pick(raw, 'proto_retransmissions', 'retransmissions_total'),
+    proto_duplicate_deliveries: pick(raw, 'proto_duplicate_deliveries', 'duplicate_deliveries'),
+    backhaul_delivery_ratio: pick(raw, 'backhaul_delivery_ratio'),
+
+    unique_state_changes_applied_at_cloud: pick(raw, 'unique_state_changes_applied_at_cloud', 'cloud_state_changes_reflected'),
+    duplicate_events_at_cloud: pick(raw, 'duplicate_events_at_cloud'),
+    e2e_unique_delivery_ratio: pick(raw, 'e2e_unique_delivery_ratio'),
+    cloud_reflection_ratio: pick(raw, 'cloud_reflection_ratio', 'cloud_state_agreement_ratio'),
+    cloud_msgs_received: pick(raw, 'cloud_msgs_received', 'cloud_msgs_received_total'),
+    physical_delivery_ratio: pick(raw, 'physical_delivery_ratio'),
+
+    latency_mean_ms: pick(raw, 'latency_mean_ms'),
+    latency_p50_ms: pick(raw, 'latency_p50_ms'),
+    latency_p95_ms: pick(raw, 'latency_p95_ms'),
+    latency_p99_ms: pick(raw, 'latency_p99_ms'),
+    latency_min_ms: pick(raw, 'latency_min_ms'),
+    latency_max_ms: pick(raw, 'latency_max_ms'),
+
+    events_filtered_total: pick(raw, 'events_filtered_total', 'filtered_events'),
+    events_forwarded_total: pick(raw, 'events_forwarded_total'),
+    aggregation_ratio: pick(raw, 'aggregation_ratio'),
+    message_reduction_ratio: pick(raw, 'message_reduction_ratio'),
+    heartbeats_suppressed: pick(raw, 'heartbeats_suppressed'),
+    heartbeats_forwarded: pick(raw, 'heartbeats_forwarded'),
+    quarantine_suppressed: pick(raw, 'quarantine_suppressed'),
+    anomalies_detected: pick(raw, 'anomalies_detected'),
+    anomalies_resolved: pick(raw, 'anomalies_resolved'),
+    active_anomalies: pick(raw, 'active_anomalies'),
+    adaptive_mode_switches: pick(raw, 'adaptive_mode_switches'),
+    quarantined_spots_final: pick(raw, 'quarantined_spots_final'),
+    anomaly_detected_spots: pick(raw, 'anomaly_detected_spots'),
+  };
+  m.events_per_cloud_message = (m.events_forwarded_total != null && m.frames_e2c_sent) ? m.events_forwarded_total / m.frames_e2c_sent : null;
+  return m;
+}
+
+const METRIC_DEFS = {
+  e2e_unique_delivery_ratio: { label: 'Event delivery', help: 'Unique state changes applied at cloud ÷ generated (event-flow completeness).' },
+  cloud_reflection_ratio:    { label: 'State agreement', help: 'Fraction of spots whose final cloud state matches sensor ground truth (NOT delivery).' },
+  physical_delivery_ratio:   { label: 'First-pass survival', help: 'Sensor-link × first-pass backhaul survival, before retransmission.' },
+  backhaul_delivery_ratio:   { label: 'Backhaul delivery', help: 'Backend delivered ÷ offered (after retransmission).' },
+};
+
 const isCloudOnly = r => r?.architecture === 'cloud_only';
 const isEdgeAgg = r => r?.architecture === 'edge_aggregated';
 const isEdge = r => !isCloudOnly(r);
@@ -313,22 +394,23 @@ function addResultRow(r, scrollIntoView) {
   const container = document.getElementById('resultsTable');
   if (!container) return;
   container.querySelector('.results-empty')?.remove();
+  const m = normalizeMetrics(r);
   const row = document.createElement('div');
   row.className = 'result-row';
-  const protoClass = r.protocol === 'amqp' ? 'tag-amqp' : `tag-${r.protocol}`;
+  const protoClass = m.protocol === 'amqp' ? 'tag-amqp' : `tag-${m.protocol}`;
   const historicalBadge = r.source === 'historical' ? '<span class="result-tag tag-historical">saved</span>' : '';
-  const durationLabel = r.sim_duration_s ? `${(r.sim_duration_s / 3600).toFixed(1)}h` : '';
-  const logBadge = r.scenario_log?.length > 0 ? '<span class="result-tag" style="color:var(--purple)">log</span>' : '';
+  const durationLabel = m.sim_duration_s ? `${(m.sim_duration_s / 3600).toFixed(1)}h` : '';
+  const logBadge = m.scenario_log?.length > 0 ? '<span class="result-tag" style="color:var(--purple)">log</span>' : '';
   row.innerHTML = `
-    <div class="result-name" title="${r.scenario_name}">${r.scenario_name}</div>
+    <div class="result-name" title="${m.scenario_name}">${m.scenario_name}</div>
     <div class="result-meta">
       ${historicalBadge}
-      <span class="result-tag ${protoClass}">${(r.protocol || '').toUpperCase()}</span>
-      <span class="result-tag">${r.architecture || ''}</span>
-      <span class="result-tag">${r.traffic_level || ''}</span>
+      <span class="result-tag ${protoClass}">${(m.protocol || '').toUpperCase()}</span>
+      <span class="result-tag">${m.architecture || ''}</span>
+      <span class="result-tag">${m.traffic_level || ''}</span>
       ${durationLabel ? `<span class="result-tag">${durationLabel}</span>` : ''}
       ${logBadge}
-      <span class="result-lat">${r.latency_mean_ms?.toFixed(1) ?? '—'}ms</span>
+      <span class="result-lat">${m.latency_mean_ms != null ? m.latency_mean_ms.toFixed(1) + 'ms' : 'N/A'}</span>
     </div>`;
   row.onclick = () => {
     document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
@@ -349,12 +431,13 @@ function updateAIBadge() {
 }
 
 function showResult(r, animate) {
-  renderKpiStrip(r);
-  renderMetricsTable(r);
-  updateLatencyHistogram(r.latency_samples || []);
-  updateMsgCountChart(r);
-  updateBandwidthChart(r);
-  if (animate) buildLotGrid(r.num_spots);
+  const m = normalizeMetrics(r);
+  renderKpiStrip(m);
+  renderMetricsTable(m);
+  updateLatencyHistogram(m.latency_samples || []);
+  updateMsgCountChart(m);
+  updateBandwidthChart(m);
+  if (animate) buildLotGrid(m.num_spots);
 }
 
 function toggleMetricsTable() {
@@ -364,37 +447,51 @@ function toggleMetricsTable() {
   if (lbl) lbl.textContent = open ? '▲ Full Metrics' : '▼ Full Metrics';
 }
 
-function renderKpiStrip(r) {
-  const cloudOnly = isCloudOnly(r);
-  const agg = isEdgeAgg(r);
+const NA = 'N/A';
+const _fmtV = (v, unit = '', dp = 1) => v != null ? `${(+v).toFixed(dp)}${unit}` : NA;
+const _fmtInt = v => v != null ? Number(v).toLocaleString() : NA;
+const _fmtPct = (v, dp = 2) => v != null ? `${(v * 100).toFixed(dp)}%` : NA;
+const _fmtKB = v => v != null ? `${(v / 1024).toFixed(1)} KB` : NA;
+const _pctOrNA = (v, dp = 1) => v != null ? (v * 100).toFixed(dp) : NA;
 
-  setText('kpi_lat_mean', r.latency_mean_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p50', r.latency_p50_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p95', r.latency_p95_ms?.toFixed(1) ?? '—');
-  setText('kpi_lat_p99', r.latency_p99_ms?.toFixed(1) ?? '—');
-  setText('kpi_delivery', ((r.cloud_reflection_ratio ?? 0) * 100).toFixed(1));
+function _row(l1, v1, l2 = '', v2 = '') { return { l1, v1, l2, v2 }; }
+function _group(label) { return { group: label }; }
+
+function renderKpiStrip(m) {
+  const cloudOnly = isCloudOnly(m);
+  const agg = isEdgeAgg(m);
+
+  setText('kpi_lat_mean', m.latency_mean_ms != null ? m.latency_mean_ms.toFixed(1) : NA);
+  setText('kpi_lat_p50', m.latency_p50_ms != null ? m.latency_p50_ms.toFixed(1) : NA);
+  setText('kpi_lat_p95', m.latency_p95_ms != null ? m.latency_p95_ms.toFixed(1) : NA);
+  setText('kpi_lat_p99', m.latency_p99_ms != null ? m.latency_p99_ms.toFixed(1) : NA);
+  setText('kpi_delivery', _pctOrNA(m.e2e_unique_delivery_ratio));
+  const dl = document.getElementById('kpi_delivery_label');
+  if (dl) dl.textContent = 'Event Delivery %';
+
+  const stateAgreement = { label: 'State Agreement', val: _pctOrNA(m.cloud_reflection_ratio), unit: 'final match' };
 
   let slots;
   if (cloudOnly) {
     slots = [
-      { label: 'Msgs to Cloud', val: _fmtInt(r.cloud_msgs_received_total ?? r.cloud_msgs_received), unit: 'received' },
-      { label: 'Wireless Loss', val: _fmtInt(r.sensor_link_dropped), unit: 'dropped' },
-      { label: 'Sensor Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB sent' },
-      { label: 'Retransmits', val: _fmtInt(r.retransmissions_total), unit: 'QoS retries' },
+      stateAgreement,
+      { label: 'Msgs to Cloud', val: _fmtInt(m.cloud_msgs_received), unit: 'received' },
+      { label: 'Wireless Loss', val: _fmtInt(m.frames_s2e_dropped), unit: 'dropped' },
+      { label: 'Retransmits', val: _fmtInt(m.proto_retransmissions), unit: 'protocol' },
     ];
   } else if (agg) {
     slots = [
-      { label: 'Batch Size', val: r.events_per_cloud_message != null ? (+r.events_per_cloud_message).toFixed(1) : '—', unit: 'ev/msg' },
-      { label: 'Msg Reduction', val: r.message_reduction_ratio != null ? (r.message_reduction_ratio * 100).toFixed(1) : '—', unit: '% saved' },
-      { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
-      { label: 'Backhaul Loss', val: _fmtInt(r.edge_to_cloud_dropped), unit: 'dropped' },
+      stateAgreement,
+      { label: 'Msg Reduction', val: _pctOrNA(m.message_reduction_ratio), unit: '% saved' },
+      { label: 'Aggregation', val: m.aggregation_ratio != null ? m.aggregation_ratio.toFixed(3) : NA, unit: 'frames/event' },
+      { label: 'Backhaul Loss', val: _fmtInt(m.frames_e2c_dropped), unit: 'dropped' },
     ];
   } else {
     slots = [
-      { label: 'Msg Reduction', val: r.message_reduction_ratio != null ? (r.message_reduction_ratio * 100).toFixed(1) : '—', unit: '% saved' },
-      { label: 'Filtered', val: _fmtInt(r.filtered_events), unit: 'events' },
-      { label: 'S→E Bytes', val: r.sensor_to_edge_bytes ? (r.sensor_to_edge_bytes / 1024).toFixed(1) : '—', unit: 'KB' },
-      { label: 'Backhaul Loss', val: _fmtInt(r.edge_to_cloud_dropped), unit: 'dropped' },
+      stateAgreement,
+      { label: 'Msg Reduction', val: _pctOrNA(m.message_reduction_ratio), unit: '% saved' },
+      { label: 'Filtered', val: _fmtInt(m.events_filtered_total), unit: 'events' },
+      { label: 'Backhaul Loss', val: _fmtInt(m.frames_e2c_dropped), unit: 'dropped' },
     ];
   }
 
@@ -406,168 +503,130 @@ function renderKpiStrip(r) {
   });
 }
 
-const _fmtV = (v, unit = '', dp = 1) => v != null ? `${(+v).toFixed(dp)}${unit}` : '—';
-const _fmtInt = v => v != null ? Number(v).toLocaleString() : '—';
-const _fmtPct = (v, dp = 2) => v != null ? `${(v * 100).toFixed(dp)}%` : '—';
-const _fmtKB = v => v ? `${(v / 1024).toFixed(1)} KB` : '—';
-
-function _row(l1, v1, l2 = '', v2 = '') { return { l1, v1, l2, v2 }; }
-function _group(label) { return { group: label }; }
-
-function buildMetricsRows(r) {
-  return isCloudOnly(r) ? _metricsCloudOnly(r) : _metricsEdge(r);
+function buildMetricsRows(m) {
+  return isCloudOnly(m) ? _metricsCloudOnly(m) : _metricsEdge(m);
 }
 
-function _metricsCloudOnly(r) {
-  const wireDelivered = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
-  const cloudMsgsTotal = r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? 0;
-  const stateChangesReflected = r.cloud_state_changes_reflected ?? 0;
-  const brokerDR = wireDelivered > 0 ? Math.min(cloudMsgsTotal / wireDelivered, 1.0) : null;
-
-  const snapshots = r.initial_snapshots_generated ?? 0;
-  const totalEmit = r.events_generated ?? 0;
-
-  const coverageTotal = r.valid_state_changes ?? 0;
-  const coverageStr = coverageTotal > 0
-    ? `${stateChangesReflected.toLocaleString()} / ${coverageTotal.toLocaleString()} (${_fmtPct(r.cloud_reflection_ratio)})`
-    : '—';
-
+function _reliabilityGroup(m) {
+  const applied = m.unique_state_changes_applied_at_cloud;
+  const gen = m.state_changes_generated_total;
+  const deliveryStr = (applied != null && gen)
+    ? `${Number(applied).toLocaleString()} / ${Number(gen).toLocaleString()} (${_fmtPct(m.e2e_unique_delivery_ratio)})`
+    : _fmtPct(m.e2e_unique_delivery_ratio);
   return [
-    _group('Workload generation'),
-    _row('Real arrivals/departures', _fmtInt(r.valid_state_changes), 'Initial occupancy snapshots', snapshots > 0 ? _fmtInt(snapshots) : '0  (empty-lot start)'),
-    _row('Heartbeats emitted', _fmtInt(r.heartbeats_generated), 'Heartbeat interval', r.heartbeat_interval_s > 0 ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled'),
-    _row('Duplicate sends', _fmtInt(r.duplicate_sends_generated), 'Total msgs emitted', _fmtInt(totalEmit)),
-
-    _group('Sensor link  (sensor → broker)'),
-    _row('Frames sent', _fmtInt(r.sensor_to_edge_msgs), 'Frames lost on radio', _fmtInt(r.sensor_link_dropped)),
-    _row('Wireless delivery ratio', _fmtPct(r.sensor_to_edge_delivery_ratio), 'Frames delivered to broker', _fmtInt(wireDelivered)),
-
-    _group('Broker'),
-    _row('QoS retransmits', _fmtInt(r.retransmissions_total), 'Duplicates caught by protocol layer', _fmtInt(r.duplicate_deliveries)),
-
-    _group('Cloud intake'),
-    _row('Total msgs received', _fmtInt(cloudMsgsTotal), 'Broker delivery ratio', brokerDR != null ? _fmtPct(brokerDR) : '1.000  (QoS 0)'),
-
-    _group('Coverage  (state-change reflection)'),
-    _row('State transitions reflected / generated', coverageStr, '', ''),
-
-    _group('Latency  (sensor emit → cloud arrival)'),
-    _row('Mean', _fmtV(r.latency_mean_ms, ' ms'), 'Min', _fmtV(r.latency_min_ms, ' ms')),
-    _row('P50', _fmtV(r.latency_p50_ms, ' ms'), 'P95', _fmtV(r.latency_p95_ms, ' ms')),
-    _row('P99', _fmtV(r.latency_p99_ms, ' ms'), 'Max', _fmtV(r.latency_max_ms, ' ms')),
-
-    _group('Bandwidth'),
-    _row('Sensor → broker (KB)', _fmtKB(r.sensor_to_edge_bytes), 'Protocol bytes incl. overhead (KB)', _fmtKB(r.protocol_bytes)),
+    _group('Reliability'),
+    _row('Event delivery — unique state changes applied / generated', deliveryStr,
+         'First-pass physical survival', _fmtPct(m.physical_delivery_ratio)),
+    _row('Final cloud state agreement', _fmtPct(m.cloud_reflection_ratio),
+         'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
   ];
 }
 
-function _metricsEdge(r) {
-  const agg = isEdgeAgg(r);
+function _metricsCloudOnly(m) {
+  const snapshots = m.initial_snapshots_generated_total ?? 0;
+  return [
+    _group('Workload generation'),
+    _row('Real arrivals/departures', _fmtInt(m.state_changes_generated_total), 'Initial occupancy snapshots', snapshots > 0 ? _fmtInt(snapshots) : '0  (empty-lot start)'),
+    _row('Heartbeats emitted', _fmtInt(m.heartbeats_generated_total), 'Heartbeat interval', m.heartbeat_interval_s > 0 ? `${m.heartbeat_interval_s.toFixed(0)} s` : 'disabled'),
+    _row('Duplicate sends', _fmtInt(m.duplicate_sends_generated_total), 'Total events emitted', _fmtInt(m.events_generated_total)),
 
-  const wireDelivered = (r.sensor_to_edge_msgs ?? 0) - (r.sensor_link_dropped ?? 0);
-  const bkhlSent = r.edge_to_cloud_msgs ?? 0;
-  const bkhlDropped = r.edge_to_cloud_dropped ?? 0;
-  const bkhlDelivered = bkhlSent - bkhlDropped;
-  const cloudMsgsTotal = r.cloud_msgs_received_total ?? 0;
-  const stateChangesReflected = r.cloud_state_changes_reflected ?? 0;
+    _group('Sensor link  (sensor → broker, direct)'),
+    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost on radio', _fmtInt(m.frames_s2e_dropped)),
+    _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames delivered to broker', _fmtInt(m.frames_s2e_delivered)),
 
-  const snapshots = r.initial_snapshots_generated ?? 0;
-  const totalEmit = r.events_generated ?? 0;
+    _group('Protocol  (sensor → cloud)'),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries (suppressed)', _fmtInt(m.proto_duplicate_deliveries)),
 
-  const hbSuppressed = r.heartbeats_suppressed ?? 0;
-  const qSuppressed = r.quarantine_suppressed ?? 0;
-  const sameStateFiltered = Math.max(0, (r.filtered_events ?? 0) - hbSuppressed - qSuppressed);
+    _group('Cloud intake'),
+    _row('Total msgs received', _fmtInt(m.cloud_msgs_received), '', ''),
 
-  const evtsPerBatch = r.events_per_cloud_message ?? 0;
-  const evtsInBatches = agg ? Math.max(0, wireDelivered - (r.filtered_events ?? 0)) : 0;
-  const evtsDelivered = agg ? Math.round(evtsPerBatch * bkhlDelivered) : cloudMsgsTotal;
-  const evtsInDropped = agg ? Math.max(0, evtsInBatches - evtsDelivered) : 0;
+    ..._reliabilityGroup(m),
 
-  const coverageTotal = r.valid_state_changes ?? 0;
-  const coverageStr = coverageTotal > 0
-    ? `${stateChangesReflected.toLocaleString()} / ${coverageTotal.toLocaleString()} (${_fmtPct(r.cloud_reflection_ratio)})`
-    : '—';
+    _group('Latency  (sensor emit → cloud arrival, unique state changes)'),
+    _row('Mean', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
+    _row('P50', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
+    _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
+
+    _group('Bandwidth'),
+    _row('Sensor → broker (KB)', _fmtKB(m.bytes_s2e_sent), 'Protocol bytes incl. overhead (KB)', _fmtKB(m.proto_bytes_sent)),
+  ];
+}
+
+function _metricsEdge(m) {
+  const agg = isEdgeAgg(m);
+  const hbSuppressed = m.heartbeats_suppressed ?? 0;
+  const qSuppressed = m.quarantine_suppressed ?? 0;
+  const sameStateFiltered = Math.max(0, (m.events_filtered_total ?? 0) - hbSuppressed - qSuppressed);
 
   const rows = [
     _group('Workload generation'),
-    _row('Real arrivals/departures', _fmtInt(r.valid_state_changes), 'Initial occupancy snapshots', snapshots > 0 ? _fmtInt(snapshots) : '0  (empty-lot start)'),
-    _row('Heartbeats emitted', _fmtInt(r.heartbeats_generated), 'Heartbeat interval', r.heartbeat_interval_s > 0 ? `${r.heartbeat_interval_s.toFixed(0)} s` : 'disabled'),
-    _row('Duplicate sends', _fmtInt(r.duplicate_sends_generated), 'Total msgs emitted', _fmtInt(totalEmit)),
+    _row('Real arrivals/departures', _fmtInt(m.state_changes_generated_total), 'Initial occupancy snapshots', (m.initial_snapshots_generated_total ?? 0) > 0 ? _fmtInt(m.initial_snapshots_generated_total) : '0  (empty-lot start)'),
+    _row('Heartbeats emitted', _fmtInt(m.heartbeats_generated_total), 'Heartbeat interval', m.heartbeat_interval_s > 0 ? `${m.heartbeat_interval_s.toFixed(0)} s` : 'disabled'),
+    _row('Duplicate sends', _fmtInt(m.duplicate_sends_generated_total), 'Total events emitted', _fmtInt(m.events_generated_total)),
 
     _group('Sensor link  (sensor → edge gateway)'),
-    _row('Frames sent', _fmtInt(r.sensor_to_edge_msgs), 'Frames lost on radio', _fmtInt(r.sensor_link_dropped)),
-    _row('Wireless delivery ratio', _fmtPct(r.sensor_to_edge_delivery_ratio), 'Frames arrived at edge', _fmtInt(wireDelivered)),
+    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost on radio', _fmtInt(m.frames_s2e_dropped)),
+    _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames arrived at edge', _fmtInt(m.frames_s2e_delivered)),
 
-    _group('Edge processing  (what happened to the ' + _fmtInt(wireDelivered) + ' arrived frames)'),
+    _group('Edge processing'),
     _row('Filtered (same-state / stale seq)', _fmtInt(sameStateFiltered), 'Heartbeats suppressed', _fmtInt(hbSuppressed)),
-    _row('Quarantine suppressed', _fmtInt(qSuppressed), 'Total filtered', _fmtInt(r.filtered_events)),
-    _row('Message reduction', _fmtPct(r.message_reduction_ratio), '', ''),
+    _row('Quarantine suppressed', _fmtInt(qSuppressed), 'Total filtered', _fmtInt(m.events_filtered_total)),
+    _row('Events forwarded to backhaul', _fmtInt(m.events_forwarded_total), 'Heartbeats forwarded (resync)', _fmtInt(m.heartbeats_forwarded)),
+    _row('Message reduction', _fmtPct(m.message_reduction_ratio), '', ''),
   ];
 
   if (agg) {
     rows.push(
-      _row('Events queued into batches', _fmtInt(evtsInBatches), 'Heartbeats forwarded via resync', _fmtInt(r.heartbeats_forwarded)),
-      _row('Batches created  (wire messages)', _fmtInt(r.aggregation_batches_created ?? bkhlSent), 'Avg events per batch', _fmtV(evtsPerBatch, '', 2)),
-      _row('Aggregation ratio', r.aggregation_ratio != null ? r.aggregation_ratio.toFixed(4) : '—', '', ''),
-
-      _group('Backhaul link  (edge → broker)  —  messages'),
-      _row('Batches sent', _fmtInt(bkhlSent), 'Batches lost', _fmtInt(bkhlDropped)),
-      _row('Backhaul delivery ratio', _fmtPct(r.backhaul_delivery_ratio), 'Batches delivered', _fmtInt(bkhlDelivered)),
-
-      _group('Backhaul link  —  events inside batches'),
-      _row('Events in sent batches', _fmtInt(evtsInBatches), 'Events in delivered batches', _fmtInt(evtsDelivered)),
-      _row('Events lost with dropped batches', _fmtInt(evtsInDropped), 'Event loss rate', evtsInBatches > 0 ? _fmtPct(evtsInDropped / evtsInBatches) : '0.00%'),
-    );
-  } else {
-    const fwdRate = wireDelivered > 0 ? (bkhlSent / wireDelivered) : null;
-    rows.push(
-      _row('Forwarded to backhaul  (1 event / msg)', _fmtInt(bkhlSent), 'Forwarding rate', fwdRate != null ? _fmtPct(fwdRate) : '—'),
-      _row('Heartbeats forwarded via resync', _fmtInt(r.heartbeats_forwarded), '', ''),
-
-      _group('Backhaul link  (edge → broker)'),
-      _row('Msgs sent', _fmtInt(bkhlSent), 'Msgs lost', _fmtInt(bkhlDropped)),
-      _row('Backhaul delivery ratio', _fmtPct(r.backhaul_delivery_ratio), 'Msgs delivered', _fmtInt(bkhlDelivered)),
+      _group('Aggregation'),
+      _row('Batches (cloud frames)', _fmtInt(m.frames_e2c_sent), 'Avg events per batch', m.events_per_cloud_message != null ? m.events_per_cloud_message.toFixed(2) : NA),
+      _row('Aggregation ratio', m.aggregation_ratio != null ? m.aggregation_ratio.toFixed(4) : NA, '', ''),
     );
   }
 
   rows.push(
-    _group('Broker'),
-    _row('QoS retransmits', _fmtInt(r.retransmissions_total), 'Duplicates caught by protocol layer', _fmtInt(r.duplicate_deliveries ?? 0)),
+    _group('Backhaul link  (edge → broker)'),
+    _row('Frames sent', _fmtInt(m.frames_e2c_sent), 'Frames dropped (after retransmit)', _fmtInt(m.frames_e2c_dropped)),
+    _row('Frames delivered', _fmtInt(m.frames_e2c_delivered), 'Backhaul delivery ratio', _fmtPct(m.backhaul_delivery_ratio)),
+
+    _group('Protocol  (edge → cloud)'),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries (suppressed)', _fmtInt(m.proto_duplicate_deliveries)),
 
     _group('Cloud intake'),
-    _row('Total msgs received', _fmtInt(cloudMsgsTotal), 'State transitions reflected / generated', coverageStr),
+    _row('Total msgs received', _fmtInt(m.cloud_msgs_received), '', ''),
+
+    ..._reliabilityGroup(m),
   );
 
-  if (hasAnomaly(r)) {
+  if (hasAnomaly(m)) {
     rows.push(
       _group('Anomaly detection & adaptive mode'),
-      _row('Anomalies detected', _fmtInt(r.anomalies_detected), 'Resolved', _fmtInt(r.anomalies_resolved)),
-      _row('Active at end', _fmtInt(r.active_anomalies), 'Affected spots', _fmtInt(r.anomaly_detected_spots)),
-      _row('Quarantined at end', _fmtInt(r.quarantined_spots_final), 'Quarantine suppressed msgs', _fmtInt(r.quarantine_suppressed ?? 0)),
-      _row('Adaptive mode switches', _fmtInt(r.adaptive_mode_switches), '', ''),
+      _row('Anomalies detected', _fmtInt(m.anomalies_detected), 'Resolved', _fmtInt(m.anomalies_resolved)),
+      _row('Active at end', _fmtInt(m.active_anomalies), 'Affected spots', _fmtInt(m.anomaly_detected_spots)),
+      _row('Quarantined at end', _fmtInt(m.quarantined_spots_final), 'Quarantine suppressed msgs', _fmtInt(m.quarantine_suppressed)),
+      _row('Adaptive mode switches', _fmtInt(m.adaptive_mode_switches), '', ''),
     );
-    if ((r.fault_injected_count ?? 0) > 0)
-      rows.push(_row('Faults injected', _fmtInt(r.fault_injected_count), '', ''));
+    if ((m.fault_injected_count ?? 0) > 0)
+      rows.push(_row('Faults injected', _fmtInt(m.fault_injected_count), '', ''));
   }
 
   rows.push(
-    _group('Latency  (sensor emit → cloud arrival)'),
-    _row('Mean', _fmtV(r.latency_mean_ms, ' ms'), 'Min', _fmtV(r.latency_min_ms, ' ms')),
-    _row('P50', _fmtV(r.latency_p50_ms, ' ms'), 'P95', _fmtV(r.latency_p95_ms, ' ms')),
-    _row('P99', _fmtV(r.latency_p99_ms, ' ms'), 'Max', _fmtV(r.latency_max_ms, ' ms')),
+    _group('Latency  (sensor emit → cloud arrival, unique state changes)'),
+    _row('Mean', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
+    _row('P50', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
+    _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
 
     _group('Bandwidth per hop'),
-    _row('Sensor → edge  (KB)', _fmtKB(r.sensor_to_edge_bytes), 'Edge → cloud  (KB)', _fmtKB(r.edge_to_cloud_bytes ?? 0)),
-    _row('Protocol bytes incl. overhead  (KB)', _fmtKB(r.protocol_bytes), '', ''),
+    _row('Sensor → edge  (KB)', _fmtKB(m.bytes_s2e_sent), 'Edge → cloud  (KB)', _fmtKB(m.bytes_e2c_sent)),
+    _row('Protocol bytes incl. overhead  (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
   );
 
   return rows;
 }
 
-function renderMetricsTable(r) {
+function renderMetricsTable(m) {
   const body = document.getElementById('metricsTableBody');
   if (!body) return;
-  const rows = buildMetricsRows(r);
+  const rows = buildMetricsRows(m);
   body.innerHTML = rows.map(row => {
     if (row.group) {
       return `<tr class="metrics-group-header"><td colspan="4">${row.group}</td></tr>`;
@@ -647,12 +706,12 @@ function initCharts() {
     type: 'bar',
     data: {
       labels: [],
-      datasets: [{ label: 'Cloud Reflection %', data: [], backgroundColor: C.green + '88', borderColor: C.green, borderWidth: 1, borderRadius: 4 }],
+      datasets: [{ label: 'Event Delivery %', data: [], backgroundColor: C.green + '88', borderColor: C.green, borderWidth: 1, borderRadius: 4 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { y: { min: 0, max: 100, title: { display: true, text: 'Cloud Reflection %', color: C.dim, font: { size: 9 } } } },
+      scales: { y: { min: 0, max: 100, title: { display: true, text: 'Event Delivery % (e2e_unique)', color: C.dim, font: { size: 9 } } } },
     },
   });
 }
@@ -672,34 +731,46 @@ function updateLatencyHistogram(samples) {
   charts.latencyHist.update('none');
 }
 
-function updateMsgCountChart(r) {
+function updateMsgCountChart(m) {
   if (!charts.msgCount) return;
-  const cloudOnly = isCloudOnly(r);
-  const sensorSent = r.sensor_to_edge_msgs ?? 0;
-  const atCloud = r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? 0;
-  const filtered = cloudOnly ? 0 : (r.filtered_events ?? 0);
-  const totalDropped = (r.sensor_link_dropped ?? 0) + (cloudOnly ? 0 : (r.edge_to_cloud_dropped ?? 0));
+  const cloudOnly = isCloudOnly(m);
+  const sensorSent = m.frames_s2e_sent ?? 0;
+  const atCloud = m.cloud_msgs_received ?? 0;
+  const droppedTotal = (m.frames_s2e_dropped ?? 0) + (cloudOnly ? 0 : (m.frames_e2c_dropped ?? 0));
 
   const titleEl = document.getElementById('msgCountChartTitle');
   if (titleEl) titleEl.textContent = cloudOnly ? 'Message Flow — Sensor → Cloud' : 'Message Flow';
 
-  charts.msgCount.data.labels = ['Sent by sensor', 'Reached cloud', 'Filtered (edge)', 'Dropped (total)'];
-  charts.msgCount.data.datasets[0].data = [sensorSent, atCloud, filtered, totalDropped];
+  if (cloudOnly) {
+    charts.msgCount.data.labels = ['Sent by sensor', 'Reached cloud', 'Dropped'];
+    charts.msgCount.data.datasets[0].data = [sensorSent, atCloud, droppedTotal];
+  } else {
+    charts.msgCount.data.labels = ['Sent by sensor', 'Reached cloud', 'Filtered (edge)', 'Dropped (total)'];
+    charts.msgCount.data.datasets[0].data = [sensorSent, atCloud, m.events_filtered_total ?? 0, droppedTotal];
+  }
   charts.msgCount.update('none');
 }
 
-function updateBandwidthChart(r) {
+function updateBandwidthChart(m) {
   if (!charts.bandwidth) return;
-  const cloudOnly = isCloudOnly(r);
-  charts.bandwidth.data.labels = cloudOnly ? ['Sensor bytes sent (KB)', 'N/A (no backhaul)'] : ['Sensor → Edge (KB)', 'Edge → Cloud (KB)'];
-  charts.bandwidth.data.datasets[0].data = [+((r.sensor_to_edge_bytes ?? 0) / 1024).toFixed(2), cloudOnly ? 0 : +((r.edge_to_cloud_bytes ?? 0) / 1024).toFixed(2)];
+  const cloudOnly = isCloudOnly(m);
+  const s2eKB = m.bytes_s2e_sent != null ? +(m.bytes_s2e_sent / 1024).toFixed(2) : 0;
+  if (cloudOnly) {
+    charts.bandwidth.data.labels = ['Sensor bytes sent (KB)', 'N/A (no backhaul)'];
+    charts.bandwidth.data.datasets[0].data = [s2eKB, 0];
+  } else {
+    const e2cKB = m.bytes_e2c_sent != null ? +(m.bytes_e2c_sent / 1024).toFixed(2) : 0;
+    charts.bandwidth.data.labels = ['Sensor → Edge (KB)', 'Edge → Cloud (KB)'];
+    charts.bandwidth.data.datasets[0].data = [s2eKB, e2cKB];
+  }
   charts.bandwidth.update('none');
 }
 
 function updateComparisonChart() {
   if (!charts.comparison || !allResults.length) return;
   const groups = {};
-  allResults.forEach(r => {
+  allResults.forEach(raw => {
+    const r = normalizeMetrics(raw);
     const k = `${(r.protocol || '?').toUpperCase()} / ${r.architecture || ''}`;
     if (!groups[k]) groups[k] = {};
     groups[k][r.traffic_level] = r.latency_mean_ms;
@@ -720,9 +791,10 @@ function updateComparisonChart() {
 
 function updateDeliveryChart() {
   if (!charts.delivery || !allResults.length) return;
-  const labels = allResults.map(r => (r.scenario_name || '').replace(/_/g, ' ').substring(0, 20));
-  const data = allResults.map(r => +((r.cloud_reflection_ratio ?? 1) * 100).toFixed(1));
-  const colors = data.map(v => v >= 98 ? C.green + '99' : v >= 90 ? C.amber + '99' : C.red + '99');
+  const norm = allResults.map(normalizeMetrics);
+  const labels = norm.map(m => (m.scenario_name || '').replace(/_/g, ' ').substring(0, 20));
+  const data = norm.map(m => m.e2e_unique_delivery_ratio != null ? +(m.e2e_unique_delivery_ratio * 100).toFixed(1) : null);
+  const colors = data.map(v => v == null ? C.dim + '55' : v >= 98 ? C.green + '99' : v >= 90 ? C.amber + '99' : C.red + '99');
   charts.delivery.data.labels = labels;
   charts.delivery.data.datasets[0].data = data;
   charts.delivery.data.datasets[0].backgroundColor = colors;

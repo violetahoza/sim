@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Callable
 
+from simulator.sensors.fault_injector import FaultInjector
+
 from ..models.models import ParkingEvent, SensorState, SpotState
 from ..traffic.traffic_model import TrafficModel
 from ..config.config import TrafficConfig
@@ -23,9 +25,9 @@ class SensorEmulator:
         self._heartbeats_generated: int = 0
         self._initial_snapshots_generated: int = 0
         self._duplicate_sends_generated: int = 0
-        self._fault_injector = None
+        self._fault_injector: FaultInjector | None = None
 
-    def set_fault_injector(self, fi) -> None:
+    def set_fault_injector(self, fi: FaultInjector | None) -> None:
         self._fault_injector = fi
 
     def add_callback(self, cb: SensorCallback) -> None:

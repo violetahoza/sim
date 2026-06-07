@@ -11,18 +11,8 @@ logger = logging.getLogger(__name__)
 
 CloudForwardCallback = Callable[[BatchUpdate, bytes], None]
 
-_RAPID_ARRIVAL_S: float = 0.5
-_MIN_DWELL_S: float = 10.0
-_RELEASE_CLEAN_TICKS: int = 5
-_STUCK_THRESHOLD_S: float = 12.0 * 3600.0
-
 
 class EdgeNode:
-
-    ANOMALY_INTERVAL_S: float = 30.0
-    ADAPTIVE_INTERVAL_S: float = 30.0
-    ADAPTIVE_DEGRADE_THRESHOLD: float = 0.85
-    ADAPTIVE_RECOVER_THRESHOLD: float = 0.95
 
     def __init__(self, config: ScenarioConfig, clock: SimClock, cloud_cb: CloudForwardCallback, epoch: float) -> None:
         self.config = config
@@ -68,9 +58,9 @@ class EdgeNode:
         if self._active_arch == "edge_aggregated":
             self.clock.schedule(self.edge_cfg.aggregation_interval_s, self._aggregation_tick)
         if self.edge_cfg.anomaly_detection:
-            self.clock.schedule(self.ANOMALY_INTERVAL_S, self._anomaly_tick)
+            self.clock.schedule(self.edge_cfg.anomaly_check_interval_s, self._anomaly_tick)
         elif self.edge_cfg.adaptive_edge:
-            self.clock.schedule(self.ADAPTIVE_INTERVAL_S, self._standalone_adaptive_tick)
+            self.clock.schedule(self.edge_cfg.adaptive_check_interval_s, self._standalone_adaptive_tick)
 
     def set_sensor_link_stats(self, stats: LinkStats) -> None:
         self._sensor_link_stats = stats
@@ -234,7 +224,7 @@ class EdgeNode:
         sid = event.spot_id
         if event.state == SpotState.OCCUPIED and not event.is_initial:
             last_arr = self._last_arrival_virtual.get(sid)
-            if last_arr is not None and (now_virtual - last_arr) < _RAPID_ARRIVAL_S:
+            if last_arr is not None and (now_virtual - last_arr) < self.edge_cfg.rapid_arrival_threshold_s:
                 self._flag_anomaly(sid, "R3_rapid_arrival", now_virtual)
             else:
                 self._resolve_anomaly(sid, "R3_rapid_arrival", now_virtual)
@@ -250,7 +240,7 @@ class EdgeNode:
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
         if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
             last_change_virtual = cached.last_state_change_timestamp - self._epoch
-            if (now_virtual - last_change_virtual) < _MIN_DWELL_S:
+            if (now_virtual - last_change_virtual) < self.edge_cfg.rapid_flip_min_dwell_s:
                 self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
                 return
         self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
@@ -258,10 +248,11 @@ class EdgeNode:
     def _check_anomalies(self) -> None:
         now_virtual = self.clock.now
         silent_thr_s = self.edge_cfg.silent_threshold_s
+        stuck_thr_s = self.edge_cfg.stuck_threshold_s
         for spot_id, state in self._cache.items():
             if state.last_state_change_timestamp > 0.0:
                 last_c_v = state.last_state_change_timestamp - self._epoch
-                if (now_virtual - last_c_v) > _STUCK_THRESHOLD_S:
+                if (now_virtual - last_c_v) > stuck_thr_s:
                     self._flag_anomaly(spot_id, "R1_stuck_sensor", now_virtual)
                 else:
                     self._resolve_anomaly(spot_id, "R1_stuck_sensor", now_virtual)
@@ -328,15 +319,15 @@ class EdgeNode:
             if not any(sid == spot_id for sid, _rule in self._active_anomalies):
                 ticks = self._quarantine_clean_ticks.get(spot_id, 0) + 1
                 self._quarantine_clean_ticks[spot_id] = ticks
-                if ticks >= _RELEASE_CLEAN_TICKS:
+                if ticks >= self.edge_cfg.quarantine_release_clean_ticks:
                     self._release_quarantine(spot_id, reason=f"{ticks} clean anomaly ticks", t_virtual=self.clock.now)
             else:
                 self._quarantine_clean_ticks[spot_id] = 0
-        self.clock.schedule(self.ANOMALY_INTERVAL_S, self._anomaly_tick)
+        self.clock.schedule(self.edge_cfg.anomaly_check_interval_s, self._anomaly_tick)
 
     def _standalone_adaptive_tick(self) -> None:
         self._check_adaptive_mode()
-        self.clock.schedule(self.ADAPTIVE_INTERVAL_S, self._standalone_adaptive_tick)
+        self.clock.schedule(self.edge_cfg.adaptive_check_interval_s, self._standalone_adaptive_tick)
 
     def _check_adaptive_mode(self) -> None:
         if self.config.architecture != "edge_aggregated":
@@ -350,14 +341,14 @@ class EdgeNode:
         self._adaptive_prev_backhaul_sent = ls.sent
         self._adaptive_prev_backhaul_recv = ls.received
 
-        if delta_sent < 3:
+        if delta_sent < self.edge_cfg.adaptive_min_window_samples:
             return
 
         dr = delta_recv / delta_sent
 
-        if self._active_arch == "edge_aggregated" and dr < self.ADAPTIVE_DEGRADE_THRESHOLD:
+        if self._active_arch == "edge_aggregated" and dr < self.edge_cfg.adaptive_degrade_threshold:
             detail = (
-                f"backhaul_window_DR={dr:.3f} < {self.ADAPTIVE_DEGRADE_THRESHOLD:.0%} "
+                f"backhaul_window_DR={dr:.3f} < {self.edge_cfg.adaptive_degrade_threshold:.0%} "
                 f"delta_sent={delta_sent} delta_recv={delta_recv}"
             )
             logger.info(f"[ADAPTIVE] t={self.clock.now:.0f}s → edge_filtered  ({detail})")
@@ -366,9 +357,9 @@ class EdgeNode:
             self._active_arch = "edge_filtered"
             self.mode_switches += 1
 
-        elif self._active_arch == "edge_filtered" and dr >= self.ADAPTIVE_RECOVER_THRESHOLD:
+        elif self._active_arch == "edge_filtered" and dr >= self.edge_cfg.adaptive_recover_threshold:
             detail = (
-                f"backhaul_window_DR={dr:.3f} >= {self.ADAPTIVE_RECOVER_THRESHOLD:.0%} "
+                f"backhaul_window_DR={dr:.3f} >= {self.edge_cfg.adaptive_recover_threshold:.0%} "
                 f"delta_sent={delta_sent} delta_recv={delta_recv}"
             )
             logger.info(f"[ADAPTIVE] t={self.clock.now:.0f}s → edge_aggregated ({detail})")
