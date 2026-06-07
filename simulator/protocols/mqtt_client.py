@@ -33,6 +33,10 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self.bytes_sent = 0
         self.retransmitted = 0
         self.duplicates_delivered = 0
+        self.frames_offered = 0
+        self.frames_delivered = 0
+        self.frames_dropped = 0
+        self.first_pass_delivered = 0
         self._qos2_delivered: dict[int, bool] = {}
         self._qos1_delivered: set[int] = set()
         self._msg_seq = 0
@@ -59,9 +63,10 @@ class SimulatedMQTTBackend(ProtocolBackend):
         qos_extra = (MQTT_PUBACK_BYTES if qos == 1 else (MQTT_PUBACK_BYTES + MQTT_PUBREL_BYTES * 2) if qos == 2 else 0)
         self.bytes_sent += len(payload) + topic_oh + qos_extra
         msg_id = self._next_id()
+        self.frames_offered += 1
         self._do_publish(batch, payload, msg_id, attempt=0)
 
-    def _deliver_to_subscriber(self, batch: BatchUpdate, payload: bytes, msg_id: int, qos: int) -> None:
+    def _deliver_to_subscriber(self, batch: BatchUpdate, payload: bytes, msg_id: int, qos: int, attempt: int) -> None:
         if qos == 2:
             if self._qos2_delivered.get(msg_id):
                 self.duplicates_delivered += 1
@@ -72,6 +77,9 @@ class SimulatedMQTTBackend(ProtocolBackend):
                 self.duplicates_delivered += 1
                 return
             self._qos1_delivered.add(msg_id)
+        self.frames_delivered += 1
+        if attempt == 0:
+            self.first_pass_delivered += 1
         self._subscriber(batch, payload)
 
     def _retry_or_drop(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, qos: int) -> None:
@@ -82,6 +90,7 @@ class SimulatedMQTTBackend(ProtocolBackend):
             self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
         else:
             if self.on_drop:
+                self.frames_dropped += 1
                 self.on_drop()
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
@@ -92,11 +101,15 @@ class SimulatedMQTTBackend(ProtocolBackend):
             self.bytes_sent += len(payload) + self._topic_overhead(batch)
 
         def at_broker() -> None:
-            if qos == 0:
-                self._deliver_to_subscriber(batch, payload, msg_id, qos)
+            if self._rng.random() < self.loss_rate:
+                self._retry_or_drop(batch, payload, msg_id, attempt, qos)
                 return
 
-            self._deliver_to_subscriber(batch, payload, msg_id, qos)
+            if qos == 0:
+                self._deliver_to_subscriber(batch, payload, msg_id, qos, attempt)
+                return
+
+            self._deliver_to_subscriber(batch, payload, msg_id, qos, attempt)
 
             if qos == 1:
                 def puback_arrives() -> None:

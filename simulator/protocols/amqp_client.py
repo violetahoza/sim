@@ -32,6 +32,11 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.bytes_sent = 0
         self.nacked = 0
         self.retransmitted = 0
+        self.duplicates_delivered = 0
+        self.frames_offered = 0
+        self.frames_delivered = 0
+        self.frames_dropped = 0
+        self.first_pass_delivered = 0
         self._msg_seq = 0
         self._delivered_ids: set[int] = set()
         self.on_drop: Optional[Callable[[], None]] = None
@@ -64,15 +69,42 @@ class SimulatedAMQPBackend(ProtocolBackend):
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         self.bytes_sent += self._frame_bytes(batch, payload)
         msg_id = self._next_id()
+        self.frames_offered += 1
         self._do_publish(batch, payload, msg_id, attempt=0)
+    
+    def _retransmit_or_drop(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
+        if attempt < _MAX_RETRIES - 1:
+            backoff = _RETRY_BASE_S * (2 ** attempt)
+            self.retransmitted += 1
+            self.bytes_sent += self._frame_bytes(batch, payload)
+            self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
+        else:
+            self.frames_dropped += 1
+            if self.on_drop:
+                self.on_drop()
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
         broker_oh = self._broker_overhead_s()
 
         def at_broker() -> None:
+            if self._rng.random() < self.loss_rate:
+                if self.config.ack_mode == "auto":
+                    self.frames_dropped += 1
+                    if self.on_drop:
+                        self.on_drop()
+                    return
+                self.nacked += 1
+                self._retransmit_or_drop(batch, payload, msg_id, attempt)
+                return
+
             if msg_id not in self._delivered_ids:
                 self._delivered_ids.add(msg_id)
+                self.frames_delivered += 1
+                if attempt == 0:
+                    self.first_pass_delivered += 1
                 self._subscriber(batch, payload)
+            else:
+                self.duplicates_delivered += 1
 
             if self.config.ack_mode == "auto":
                 return
@@ -80,14 +112,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
             def consumer_ack_arrives() -> None:
                 if self._rng.random() < self.loss_rate:
                     self.nacked += 1
-                    if attempt < _MAX_RETRIES - 1:
-                        backoff = _RETRY_BASE_S * (2 ** attempt)
-                        self.retransmitted += 1
-                        self.bytes_sent += self._frame_bytes(batch, payload)
-                        self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
-                    else:
-                        if self.on_drop:
-                            self.on_drop()
+                    self._retransmit_or_drop(batch, payload, msg_id, attempt)
 
             self.clock.schedule(self._ack_delay(), consumer_ack_arrives)
 

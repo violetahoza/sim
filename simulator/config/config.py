@@ -27,6 +27,9 @@ SIM_DURATION_S = 10_800.0
 DEFAULT_AGG_INTERVAL_S = 1.0
 DEFAULT_TIME_SCALE = 60.0
 
+DEFAULT_ACCESS_LOSS = 0.05     
+DEFAULT_BACKHAUL_LOSS = 0.02  
+
 _SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
 _CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
 
@@ -47,7 +50,7 @@ class LinkConfig:
 class BackhaulLinkConfig:
     base_delay_ms: float = 30.0
     jitter_ms: float = 10.0
-    packet_loss_rate: float = 0.001
+    packet_loss_rate: float = 0.02
     max_payload_bytes: int = 65535
     rate_limit_msgs_per_sec: float = 1000.0
     payload_encoding_ratio: float = 1.0

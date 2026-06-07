@@ -29,7 +29,11 @@ class CloudBackend:
         self.received_events = 0
         self.transitions_received = 0
 
-        self._latency_ms: list[float] = []
+        self._latency_state_change_ms: list[float] = []   
+        self._latency_heartbeat_ms: list[float] = []    
+        self._latency_other_ms: list[float] = []   
+        self._applied_ids: set[tuple[int, int]] = set() 
+        self.duplicate_events_at_cloud: int = 0
         self._event_rows: list[tuple] = []
 
         self._total_bytes_received = 0
@@ -57,19 +61,39 @@ class CloudBackend:
 
     def _process_event(self, event: ParkingEvent, arrival: float) -> None:
         self.received_events += 1
+
+        key = (event.spot_id, event.sequence)
+        latency_ms = (arrival - event.timestamp) * 1000  
+
+        if key in self._applied_ids:
+            self.duplicate_events_at_cloud += 1
+            self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
+            self._snapshot_cache = None
+            return
+        self._applied_ids.add(key)
+
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
+        is_heartbeat = event.is_heartbeat_event
+        is_real = (not event.is_initial) and (not event.is_heartbeat_event)
+
+        applied_state_change = False
         spot = self._spots.get(event.spot_id)
         if spot is not None:
             prev_state = spot["state"]
-            prev_received = spot["received_at"]
             spot["state"] = state_val
             spot["last_updated"] = event.timestamp
             spot["received_at"] = arrival
-            if prev_received > 0.0 and prev_state != state_val:
+            if is_real and prev_state != state_val:
                 self.transitions_received += 1
+                applied_state_change = True
 
-        latency_ms = max(0.0, (arrival - event.timestamp) * 1000)
-        self._latency_ms.append(latency_ms)
+        if applied_state_change:
+            self._latency_state_change_ms.append(latency_ms)
+        elif is_heartbeat:
+            self._latency_heartbeat_ms.append(latency_ms)
+        else:
+            self._latency_other_ms.append(latency_ms)
+
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
         self._snapshot_cache = None
 
@@ -137,7 +161,7 @@ class CloudBackend:
                 run.edge_to_cloud_msgs = metrics.edge_to_cloud_msgs
                 run.sensor_to_edge_delivery_ratio = metrics.sensor_to_edge_delivery_ratio
                 run.edge_to_cloud_delivery_ratio = metrics.backhaul_delivery_ratio
-                run.end_to_end_delivery_ratio = metrics.cloud_reflection_ratio
+                run.end_to_end_delivery_ratio = metrics.e2e_unique_delivery_ratio
                 run.aggregation_ratio = metrics.aggregation_ratio
                 run.filtered_events = metrics.filtered_events
                 run.anomalies_detected = metrics.anomalies_detected
@@ -157,8 +181,17 @@ class CloudBackend:
         occupied = sum(1 for s in self._spots.values() if s["state"] == "occupied")
         return {"total": total, "occupied": occupied, "free": total - occupied, "occupancy_pct": round(occupied / total * 100, 1) if total else 0}
 
+    def compute_state_agreement(self, ground_truth: dict[int, str]) -> float:
+        if not ground_truth:
+            return 1.0
+        match = sum(
+            1 for sid, true_state in ground_truth.items()
+            if (self._spots.get(sid) or {}).get("state") == true_state
+        )
+        return match / len(ground_truth)
+
     def get_metrics_snapshot(self) -> dict:
-        samples = self._latency_ms
+        samples = self._latency_state_change_ms
         current_len = len(samples)
 
         if self._snapshot_cache is not None and current_len == self._snapshot_cache_len:
@@ -194,4 +227,4 @@ class CloudBackend:
         return snapshot
 
     def get_all_latency_samples(self) -> list[float]:
-        return self._latency_ms
+        return self._latency_state_change_ms

@@ -60,6 +60,12 @@ class SensorEmulator:
         occupied = sum(1 for s in self._sensor_states.values() if s.state == SpotState.OCCUPIED)
         return {"total": total, "occupied": occupied, "free": total - occupied, "occupancy_pct": round(occupied / total * 100, 1) if total else 0}
 
+    def final_spot_states(self) -> dict[int, str]:
+        return {
+            sid: (s.state.value if isinstance(s.state, SpotState) else str(s.state))
+            for sid, s in self._sensor_states.items()
+        }
+
     def _on_event(self, event: ParkingEvent) -> None:
         state = self._sensor_states[event.spot_id]
         is_heartbeat = event.is_heartbeat_event

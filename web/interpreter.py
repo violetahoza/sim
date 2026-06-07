@@ -34,14 +34,12 @@ retransmissions, and duplicate deliveries.
 What the latency numbers mean. End-to-end latency is sensor-emit timestamp to cloud-arrival timestamp, measured in virtual simulated time. It includes the 
 link propagation + jitter, the token-bucket wait under rate limiting, any aggregation window wait at the edge, and any protocol retransmit backoff. It does NOT include application-level processing on the cloud side.
 
-What aggregation_ratio means. It is edge_to_cloud_msgs / sensor_to_edge_msgs_received_at_edge. Below 1.0 means the edge reduces message count to the cloud; above 1.0 would mean the edge added overhead.
-message_reduction_ratio = 1 - aggregation_ratio, clamped at 0.
-
-What cloud_reflection_ratio means. The fraction of real state changes (arrivals + departures) that produced a corresponding transition in the cloud's stored parking state, based on cloud_state_changes_reflected / valid_state_changes.
-Distinct from physical_delivery_ratio, which is the product of per-link delivery ratios and reflects packet-level survival.
-
-What cloud_msgs_received_total means. The raw count of all messages received by the cloud, including heartbeats forwarded by the edge, retransmit duplicates, and initial snapshots. It is not a coverage metric.
-cloud_state_changes_reflected is the count of actual occupancy state transitions recorded at the cloud.
+aggregation_ratio = frames_e2c_sent / events_forwarded_total (≈1.0 means no batching; <1.0 means many forwarded events collapsed into fewer cloud frames).
+message_reduction_ratio = 1 - frames_e2c_sent / frames_s2e_delivered (end-to-end reduction from filtering + aggregation).
+e2e_unique_delivery_ratio = unique state changes applied at the cloud / state changes generated (event-flow reliability).
+cloud_reflection_ratio = fraction of spots whose final cloud state matches sensor ground truth (state consistency, NOT delivery).
+physical_delivery_ratio = first-pass survival (sensor-link × first-pass backhaul), before any retransmission.
+Compare proto_bytes_sent across protocols only; link byte fields (bytes_s2e_*, bytes_e2c_*) use a different encoding basis and are not comparable to protocol bytes.
 
 When you write your answer:
 - Quote numbers from the provided summaries. Do not invent figures.

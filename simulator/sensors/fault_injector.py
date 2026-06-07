@@ -64,7 +64,7 @@ class FaultInjector:
 
         if ft == FaultType.STUCK_AT:
             stuck = (SpotState.OCCUPIED if spec.stuck_state == "occupied" else SpotState.FREE)
-            modified = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=stuck, timestamp=event.timestamp, sequence=event.sequence)
+            modified = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=stuck, timestamp=event.timestamp, sequence=event.sequence, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event)
             self._last_events[event.spot_id] = modified
             if modified.state != event.state:
                 self.injected_count += 1
@@ -72,7 +72,7 @@ class FaultInjector:
 
         if ft == FaultType.FLAPPING:
             wrong = (SpotState.FREE if event.state == SpotState.OCCUPIED else SpotState.OCCUPIED)
-            flipped = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=wrong, timestamp=event.timestamp, sequence=event.sequence)
+            flipped = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=wrong, timestamp=event.timestamp, sequence=event.sequence, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event)
             self._last_events[event.spot_id] = event
             self.injected_count += 1
             return [event, flipped]
@@ -83,7 +83,7 @@ class FaultInjector:
             result = [event]
             if prev is not None:
                 for _ in range(spec.replay_count):
-                    result.append(ParkingEvent(sensor_id=prev.sensor_id, spot_id=prev.spot_id, state=prev.state, timestamp=prev.timestamp, sequence=prev.sequence))
+                    result.append(ParkingEvent(sensor_id=prev.sensor_id, spot_id=prev.spot_id, state=prev.state, timestamp=prev.timestamp, sequence=prev.sequence, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event))
                     self.injected_count += 1
             return result
 
@@ -91,7 +91,7 @@ class FaultInjector:
             self._last_events[event.spot_id] = event
             copies = []
             for _ in range(max(0, spec.flood_count - 1)):
-                copies.append(ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=event.state, timestamp=event.timestamp, sequence=event.sequence))
+                copies.append(ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=event.state, timestamp=event.timestamp, sequence=event.sequence, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event))
                 self.injected_count += 1
             return [event] + copies
 
