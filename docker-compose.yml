@@ -1,42 +1,27 @@
 services:
-
-  mqtt:
+  mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: parking-mqtt
-    restart: unless-stopped
+    container_name: parking-mosquitto
     ports:
-      - "1883:1883" # MQTT
-      - "9001:9001" # WebSocket
+      - "127.0.0.1:1883:1883"
     volumes:
       - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
     healthcheck:
-      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health", "-m", "ping", "-q", "0"]
-      interval: 10s
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "healthcheck/ping", "-m", "ok", "-i", "hc"]
+      interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 3s
 
-  amqp:
-    image: rabbitmq:3.13-management-alpine
-    container_name: parking-amqp
-    restart: unless-stopped
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: parking-rabbitmq
     ports:
-      - "5672:5672" # AMQP
-      - "15672:15672" # Management UI  →  http://localhost:15672  (parking/parking)
-    environment:
-      RABBITMQ_DEFAULT_USER: parking
-      RABBITMQ_DEFAULT_PASS: parking
-      RABBITMQ_DEFAULT_VHOST: /
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - "127.0.0.1:5672:5672"   # AMQP wire protocol
+      - "127.0.0.1:15672:15672" # management UI (guest/guest)
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 15s
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
       timeout: 10s
       retries: 5
-
-volumes:
-  mosquitto_data:
-  mosquitto_log:
-  rabbitmq_data:
+      start_period: 10s

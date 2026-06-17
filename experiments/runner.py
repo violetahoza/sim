@@ -93,7 +93,7 @@ def _write_scenario_log(metrics: ExperimentMetrics, path: Path) -> None:
 
 class ExperimentRunner:
 
-    def __init__(self, config: ScenarioConfig, progress_cb: Optional[Callable] = None, flush_cb: Optional[Callable] = None) -> None:
+    def __init__(self, config: ScenarioConfig, progress_cb: Optional[Callable] = None, flush_cb: Optional[Callable] = None, real_mode: bool = False) -> None:
         self.config = config
         self.progress_cb = progress_cb
         self.flush_cb = flush_cb
@@ -102,12 +102,16 @@ class ExperimentRunner:
         self._spot_states: dict[int, str] = {}
         self._edge_summary: Optional[dict] = None
         self._fault_injector = None
+        self._real_mode = real_mode
 
     def cancel(self) -> None:
         self._cancelled = True
 
     async def run(self) -> ExperimentMetrics:
         cfg = self.config
+        if self._real_mode:
+            from experiments.run_real import run_real_for_runner
+            return await run_real_for_runner(self, cfg)
         return await self._run_simulated(cfg)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
@@ -299,7 +303,7 @@ class ExperimentRunner:
             e2c_delivered = frames_delivered_e2c
             e2c_dropped = frames_dropped_e2c
             backhaul_dr = (e2c_delivered / frames_offered) if frames_offered > 0 else None
-            backhaul_first_pass = (first_pass_delivered / frames_offered) if frames_offered > 0 else None
+            backhaul_first_pass = (first_pass_delivered / frames_offered) if (first_pass_delivered is not None and frames_offered > 0) else None
 
             filtered_events = es.get("filtered", 0)
             heartbeats_suppressed = es.get("heartbeats_suppressed", 0)
@@ -394,6 +398,8 @@ class ExperimentRunner:
             scenario_log=es.get("event_log", [])
         )
 
+
+
     def _log_done(self, cfg, metrics: ExperimentMetrics, cloud_events: int) -> None:
         arch = cfg.architecture
         m = metrics
@@ -459,8 +465,9 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
         return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, proto_loss, seed + 2, ack_one_way, ack_jitter)
     raise ValueError(f"Unknown protocol: {proto}")
 
-def run_scenario_sync(cfg: ScenarioConfig, steps: int = 1) -> ExperimentMetrics:
+
+def run_scenario_sync(cfg: ScenarioConfig, steps: int = 1, real_mode: bool = False) -> ExperimentMetrics:
     import asyncio
-    runner = ExperimentRunner(cfg)
+    runner = ExperimentRunner(cfg, real_mode=real_mode)
     runner._des_steps = steps
     return asyncio.run(runner.run())

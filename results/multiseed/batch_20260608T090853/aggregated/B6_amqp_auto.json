@@ -1,0 +1,175 @@
+{
+  "scenario_name": "B6_amqp_auto",
+  "protocol": "amqp",
+  "architecture": "edge_filtered",
+  "traffic_level": "peak",
+  "num_runs": 5,
+  "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+  ],
+  "run_ids": [
+    "20260608T091948_f95dfc",
+    "20260608T092003_c15fe3",
+    "20260608T092018_78fe97",
+    "20260608T092034_d1a922",
+    "20260608T092050_d2b96c"
+  ],
+  "metrics": {
+    "latency_mean_ms": {
+      "n": 5,
+      "mean": 111.306,
+      "std": 0.115022,
+      "ci95_low": 111.163205,
+      "ci95_high": 111.448795,
+      "ci95_halfwidth": 0.142795
+    },
+    "latency_p50_ms": {
+      "n": 5,
+      "mean": 111.216,
+      "std": 0.300466,
+      "ci95_low": 110.842982,
+      "ci95_high": 111.589018,
+      "ci95_halfwidth": 0.373018
+    },
+    "latency_p95_ms": {
+      "n": 5,
+      "mean": 163.25,
+      "std": 0.379144,
+      "ci95_low": 162.779306,
+      "ci95_high": 163.720694,
+      "ci95_halfwidth": 0.470694
+    },
+    "latency_p99_ms": {
+      "n": 5,
+      "mean": 185.272,
+      "std": 1.700609,
+      "ci95_low": 183.160754,
+      "ci95_high": 187.383246,
+      "ci95_halfwidth": 2.111246
+    },
+    "e2e_unique_delivery_ratio": {
+      "n": 5,
+      "mean": 0.86542,
+      "std": 0.003911,
+      "ci95_low": 0.860564,
+      "ci95_high": 0.870276,
+      "ci95_halfwidth": 0.004856
+    },
+    "cloud_reflection_ratio": {
+      "n": 5,
+      "mean": 0.9704,
+      "std": 0.010334,
+      "ci95_low": 0.95757,
+      "ci95_high": 0.98323,
+      "ci95_halfwidth": 0.01283
+    },
+    "physical_delivery_ratio": {
+      "n": 5,
+      "mean": 0.92254,
+      "std": 0.001584,
+      "ci95_low": 0.920574,
+      "ci95_high": 0.924506,
+      "ci95_halfwidth": 0.001966
+    },
+    "backhaul_delivery_ratio": {
+      "n": 5,
+      "mean": 0.96994,
+      "std": 0.000639,
+      "ci95_low": 0.969147,
+      "ci95_high": 0.970733,
+      "ci95_halfwidth": 0.000793
+    },
+    "message_reduction_ratio": {
+      "n": 5,
+      "mean": 0.46606,
+      "std": 0.001369,
+      "ci95_low": 0.464361,
+      "ci95_high": 0.467759,
+      "ci95_halfwidth": 0.001699
+    },
+    "aggregation_ratio": {
+      "n": 5,
+      "mean": 1.0,
+      "std": 0.0,
+      "ci95_low": 1.0,
+      "ci95_high": 1.0,
+      "ci95_halfwidth": 0.0
+    },
+    "proto_bytes_sent": {
+      "n": 5,
+      "mean": 4678856.6,
+      "std": 29044.164135,
+      "ci95_low": 4642799.288483,
+      "ci95_high": 4714913.911517,
+      "ci95_halfwidth": 36057.311517
+    },
+    "frames_e2c_sent": {
+      "n": 5,
+      "mean": 20654.4,
+      "std": 132.417144,
+      "ci95_low": 20490.008758,
+      "ci95_high": 20818.791242,
+      "ci95_halfwidth": 164.391242
+    },
+    "frames_e2c_delivered": {
+      "n": 5,
+      "mean": 20033.6,
+      "std": 118.083869,
+      "ci95_low": 19887.003017,
+      "ci95_high": 20180.196983,
+      "ci95_halfwidth": 146.596983
+    },
+    "bytes_e2c_sent": {
+      "n": 5,
+      "mean": 3274357.4,
+      "std": 20040.042023,
+      "ci95_low": 3249478.39041,
+      "ci95_high": 3299236.40959,
+      "ci95_halfwidth": 24879.00959
+    },
+    "bytes_s2e_sent": {
+      "n": 5,
+      "mean": 778129.8,
+      "std": 2792.320755,
+      "ci95_low": 774663.231678,
+      "ci95_high": 781596.368322,
+      "ci95_halfwidth": 3466.568322
+    },
+    "proto_retransmissions": {
+      "n": 5,
+      "mean": 0.0,
+      "std": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "ci95_halfwidth": 0.0
+    },
+    "proto_duplicate_deliveries": {
+      "n": 5,
+      "mean": 0.0,
+      "std": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "ci95_halfwidth": 0.0
+    },
+    "unique_state_changes_applied_at_cloud": {
+      "n": 5,
+      "mean": 13824.8,
+      "std": 110.615098,
+      "ci95_low": 13687.475233,
+      "ci95_high": 13962.124767,
+      "ci95_halfwidth": 137.324767
+    },
+    "duplicate_events_at_cloud": {
+      "n": 5,
+      "mean": 0.0,
+      "std": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "ci95_halfwidth": 0.0
+    }
+  }
+}

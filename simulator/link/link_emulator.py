@@ -218,7 +218,10 @@ class LinkEmulator:
             if self._batch_cb:
                 self._batch_cb(batch, payload)
 
-        self.clock.schedule(total_delay, deliver)
+        if self._wall_clock:
+            threading.Timer(total_delay, deliver).start()
+        else:
+            self.clock.schedule(total_delay, deliver)
 
     @property
     def queue_depth(self) -> int:

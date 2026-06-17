@@ -1,0 +1,175 @@
+{
+  "scenario_name": "A6_adaptive_edge",
+  "protocol": "mqtt",
+  "architecture": "edge_aggregated",
+  "traffic_level": "peak",
+  "num_runs": 5,
+  "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+  ],
+  "run_ids": [
+    "20260608T091132_b9ff66",
+    "20260608T091152_614221",
+    "20260608T091213_c265cf",
+    "20260608T091232_e23380",
+    "20260608T091251_4c76ac"
+  ],
+  "metrics": {
+    "latency_mean_ms": {
+      "n": 5,
+      "mean": 2910.748,
+      "std": 18.140388,
+      "ci95_low": 2888.227345,
+      "ci95_high": 2933.268655,
+      "ci95_halfwidth": 22.520655
+    },
+    "latency_p50_ms": {
+      "n": 5,
+      "mean": 2873.86,
+      "std": 11.552766,
+      "ci95_low": 2859.517646,
+      "ci95_high": 2888.202354,
+      "ci95_halfwidth": 14.342354
+    },
+    "latency_p95_ms": {
+      "n": 5,
+      "mean": 5317.98,
+      "std": 63.940633,
+      "ci95_low": 5238.599945,
+      "ci95_high": 5397.360055,
+      "ci95_halfwidth": 79.380055
+    },
+    "latency_p99_ms": {
+      "n": 5,
+      "mean": 7416.686,
+      "std": 105.840734,
+      "ci95_low": 7285.288439,
+      "ci95_high": 7548.083561,
+      "ci95_halfwidth": 131.397561
+    },
+    "e2e_unique_delivery_ratio": {
+      "n": 5,
+      "mean": 0.91386,
+      "std": 0.001817,
+      "ci95_low": 0.911604,
+      "ci95_high": 0.916116,
+      "ci95_halfwidth": 0.002256
+    },
+    "cloud_reflection_ratio": {
+      "n": 5,
+      "mean": 0.982,
+      "std": 0.003464,
+      "ci95_low": 0.977699,
+      "ci95_high": 0.986301,
+      "ci95_halfwidth": 0.004301
+    },
+    "physical_delivery_ratio": {
+      "n": 5,
+      "mean": 0.75914,
+      "std": 0.00605,
+      "ci95_low": 0.75163,
+      "ci95_high": 0.76665,
+      "ci95_halfwidth": 0.00751
+    },
+    "backhaul_delivery_ratio": {
+      "n": 5,
+      "mean": 0.99836,
+      "std": 0.000404,
+      "ci95_low": 0.997859,
+      "ci95_high": 0.998861,
+      "ci95_halfwidth": 0.000501
+    },
+    "message_reduction_ratio": {
+      "n": 5,
+      "mean": 0.80398,
+      "std": 0.001184,
+      "ci95_low": 0.80251,
+      "ci95_high": 0.80545,
+      "ci95_halfwidth": 0.00147
+    },
+    "aggregation_ratio": {
+      "n": 5,
+      "mean": 0.4075,
+      "std": 0.002058,
+      "ci95_low": 0.404945,
+      "ci95_high": 0.410055,
+      "ci95_halfwidth": 0.002555
+    },
+    "proto_bytes_sent": {
+      "n": 5,
+      "mean": 7594765.0,
+      "std": 28623.181444,
+      "ci95_low": 7559230.323734,
+      "ci95_high": 7630299.676266,
+      "ci95_halfwidth": 35534.676266
+    },
+    "frames_e2c_sent": {
+      "n": 5,
+      "mean": 13345.2,
+      "std": 88.273439,
+      "ci95_low": 13235.61162,
+      "ci95_high": 13454.78838,
+      "ci95_halfwidth": 109.58838
+    },
+    "frames_e2c_delivered": {
+      "n": 5,
+      "mean": 13322.4,
+      "std": 84.848689,
+      "ci95_low": 13217.063327,
+      "ci95_high": 13427.736673,
+      "ci95_halfwidth": 105.336673
+    },
+    "bytes_e2c_sent": {
+      "n": 5,
+      "mean": 4592749.0,
+      "std": 17144.270399,
+      "ci95_low": 4571464.989359,
+      "ci95_high": 4614033.010641,
+      "ci95_halfwidth": 21284.010641
+    },
+    "bytes_s2e_sent": {
+      "n": 5,
+      "mean": 1393115.8,
+      "std": 2858.41603,
+      "ci95_low": 1389567.176712,
+      "ci95_high": 1396664.423288,
+      "ci95_halfwidth": 3548.623288
+    },
+    "proto_retransmissions": {
+      "n": 5,
+      "mean": 7140.2,
+      "std": 109.707338,
+      "ci95_low": 7004.002186,
+      "ci95_high": 7276.397814,
+      "ci95_halfwidth": 136.197814
+    },
+    "proto_duplicate_deliveries": {
+      "n": 5,
+      "mean": 3079.4,
+      "std": 47.631922,
+      "ci95_low": 3020.266639,
+      "ci95_high": 3138.533361,
+      "ci95_halfwidth": 59.133361
+    },
+    "unique_state_changes_applied_at_cloud": {
+      "n": 5,
+      "mean": 20661.0,
+      "std": 149.025166,
+      "ci95_low": 20475.990481,
+      "ci95_high": 20846.009519,
+      "ci95_halfwidth": 185.009519
+    },
+    "duplicate_events_at_cloud": {
+      "n": 5,
+      "mean": 0.0,
+      "std": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "ci95_halfwidth": 0.0
+    }
+  }
+}

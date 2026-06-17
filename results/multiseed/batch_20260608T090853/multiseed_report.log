@@ -1,0 +1,390 @@
+Multi-seed confidence-interval report
+==============================================================================
+Generated (UTC) : 2026-06-08T09:23:47Z
+Scenarios       : 14
+Seeds           : [1000, 1001, 1002, 1003, 1004]  (n=5 per scenario)
+DES steps       : 1
+Total runs      : 70
+Failed runs     : 0
+Wall time       : 892.6s
+
+CI shown as: mean ± 95% CI half-width  [low, high] (n)   [Student-t, ddof=1]
+
+------------------------------------------------------------------------------
+SCENARIO: A1_cloud_only
+  mqtt/cloud_only/peak   spots=500   dur=10800.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.02  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=0  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    80.74 ± 0.5203  [80.22, 81.26] (n=5)
+    latency_p50_ms                     80.82 ± 0.6407  [80.18, 81.46] (n=5)
+    latency_p95_ms                     130 ± 1.698  [128.3, 131.7] (n=5)
+    latency_p99_ms                     150 ± 3.678  [146.3, 153.7] (n=5)
+    e2e_unique_delivery_ratio          0.9389 ± 0.002918  [0.936, 0.9418] (n=5)
+    cloud_reflection_ratio             0.9896 ± 0.004776  [0.9848, 0.9944] (n=5)
+    physical_delivery_ratio            0.9487 ± 0.003092  [0.9456, 0.9518] (n=5)
+    backhaul_delivery_ratio            n/a
+    message_reduction_ratio            n/a
+    aggregation_ratio                  n/a
+    proto_bytes_sent                   1.727e+06 ± 2.873e+04  [1.698e+06, 1.756e+06] (n=5)
+    frames_e2c_sent                    n/a
+    frames_e2c_delivered               n/a
+    bytes_e2c_sent                     n/a
+    bytes_s2e_sent                     1.845e+05 ± 2432  [1.821e+05, 1.869e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 3260 ± 117.1  [3143, 3377] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: A2_edge_filtered
+  mqtt/edge_filtered/peak   spots=500   dur=10800.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.02  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=0  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    110.7 ± 0.6826  [110, 111.3] (n=5)
+    latency_p50_ms                     110.6 ± 1.111  [109.4, 111.7] (n=5)
+    latency_p95_ms                     162.9 ± 1.43  [161.5, 164.3] (n=5)
+    latency_p99_ms                     183.7 ± 3.066  [180.7, 186.8] (n=5)
+    e2e_unique_delivery_ratio          0.8911 ± 0.007907  [0.8832, 0.899] (n=5)
+    cloud_reflection_ratio             0.964 ± 0.01278  [0.9512, 0.9768] (n=5)
+    physical_delivery_ratio            0.929 ± 0.003021  [0.9259, 0.932] (n=5)
+    backhaul_delivery_ratio            0.9792 ± 0.003107  [0.9761, 0.9823] (n=5)
+    message_reduction_ratio            0.4836 ± 0.003303  [0.4803, 0.4869] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   8.599e+05 ± 1.876e+04  [8.411e+05, 8.787e+05] (n=5)
+    frames_e2c_sent                    4727 ± 107.7  [4619, 4835] (n=5)
+    frames_e2c_delivered               4629 ± 98.08  [4531, 4727] (n=5)
+    bytes_e2c_sent                     7.464e+05 ± 1.618e+04  [7.303e+05, 7.626e+05] (n=5)
+    bytes_s2e_sent                     1.845e+05 ± 2432  [1.821e+05, 1.869e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 3094 ± 99.57  [2994, 3193] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: A3_edge_agg_5s
+  mqtt/edge_aggregated/peak   spots=500   dur=10800.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.02  agg_interval_s=5.0  hb_interval_s=900.0
+  mqtt_qos=0  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    2623 ± 44.09  [2578, 2667] (n=5)
+    latency_p50_ms                     2622 ± 87.25  [2535, 2709] (n=5)
+    latency_p95_ms                     4856 ± 24.34  [4831, 4880] (n=5)
+    latency_p99_ms                     5051 ± 11.47  [5040, 5063] (n=5)
+    e2e_unique_delivery_ratio          0.8901 ± 0.01032  [0.8798, 0.9004] (n=5)
+    cloud_reflection_ratio             0.958 ± 0.0158  [0.9422, 0.9738] (n=5)
+    physical_delivery_ratio            0.9297 ± 0.003305  [0.9264, 0.933] (n=5)
+    backhaul_delivery_ratio            0.98 ± 0.004386  [0.9757, 0.9844] (n=5)
+    message_reduction_ratio            0.7986 ± 0.002845  [0.7957, 0.8014] (n=5)
+    aggregation_ratio                  0.3901 ± 0.006767  [0.3833, 0.3969] (n=5)
+    proto_bytes_sent                   6.924e+05 ± 1.329e+04  [6.791e+05, 7.057e+05] (n=5)
+    frames_e2c_sent                    1844 ± 19.32  [1824, 1863] (n=5)
+    frames_e2c_delivered               1806 ± 16.76  [1789, 1823] (n=5)
+    bytes_e2c_sent                     6.484e+05 ± 1.299e+04  [6.354e+05, 6.614e+05] (n=5)
+    bytes_s2e_sent                     1.845e+05 ± 2432  [1.821e+05, 1.869e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 3090 ± 78.93  [3011, 3169] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: A4_edge_agg_15s
+  mqtt/edge_aggregated/peak   spots=500   dur=10800.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.02  agg_interval_s=15.0  hb_interval_s=900.0
+  mqtt_qos=0  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    7623 ± 135.6  [7487, 7759] (n=5)
+    latency_p50_ms                     7624 ± 278  [7346, 7902] (n=5)
+    latency_p95_ms                     1.441e+04 ± 51.31  [1.435e+04, 1.446e+04] (n=5)
+    latency_p99_ms                     1.496e+04 ± 44.87  [1.492e+04, 1.501e+04] (n=5)
+    e2e_unique_delivery_ratio          0.8935 ± 0.009326  [0.8841, 0.9028] (n=5)
+    cloud_reflection_ratio             0.9548 ± 0.01236  [0.9424, 0.9672] (n=5)
+    physical_delivery_ratio            0.9301 ± 0.005439  [0.9247, 0.9356] (n=5)
+    backhaul_delivery_ratio            0.9805 ± 0.004283  [0.9762, 0.9847] (n=5)
+    message_reduction_ratio            0.9217 ± 0.00124  [0.9204, 0.9229] (n=5)
+    aggregation_ratio                  0.1517 ± 0.003263  [0.1485, 0.155] (n=5)
+    proto_bytes_sent                   6.265e+05 ± 1.236e+04  [6.142e+05, 6.389e+05] (n=5)
+    frames_e2c_sent                    717.2 ± 2.04  [715.2, 719.2] (n=5)
+    frames_e2c_delivered               702.2 ± 4.246  [698, 706.4] (n=5)
+    bytes_e2c_sent                     6.101e+05 ± 1.256e+04  [5.976e+05, 6.227e+05] (n=5)
+    bytes_s2e_sent                     1.845e+05 ± 2432  [1.821e+05, 1.869e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 3102 ± 94.49  [3007, 3196] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: A5_edge_anomaly
+  mqtt/edge_filtered/peak   spots=500   dur=10800.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.02  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    132.3 ± 3.293  [129, 135.6] (n=5)
+    latency_p50_ms                     111.8 ± 0.7922  [111, 112.6] (n=5)
+    latency_p95_ms                     169.3 ± 2.788  [166.5, 172.1] (n=5)
+    latency_p99_ms                     1109 ± 8.183  [1100, 1117] (n=5)
+    e2e_unique_delivery_ratio          0.9226 ± 0.003897  [0.9187, 0.9265] (n=5)
+    cloud_reflection_ratio             0.9748 ± 0.009552  [0.9652, 0.9844] (n=5)
+    physical_delivery_ratio            0.9296 ± 0.003396  [0.9262, 0.933] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4843 ± 0.003286  [0.481, 0.4876] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   9.137e+05 ± 2.154e+04  [8.921e+05, 9.352e+05] (n=5)
+    frames_e2c_sent                    4720 ± 108.1  [4612, 4828] (n=5)
+    frames_e2c_delivered               4720 ± 108.1  [4612, 4828] (n=5)
+    bytes_e2c_sent                     7.454e+05 ± 1.625e+04  [7.292e+05, 7.617e+05] (n=5)
+    bytes_s2e_sent                     1.845e+05 ± 2432  [1.821e+05, 1.869e+05] (n=5)
+    proto_retransmissions              198.2 ± 19.22  [179, 217.4] (n=5)
+    proto_duplicate_deliveries         99.4 ± 11.06  [88.34, 110.5] (n=5)
+    unique_state_changes_applied_at_cloud 3203 ± 105.7  [3098, 3309] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: A6_adaptive_edge
+  mqtt/edge_aggregated/peak   spots=500   dur=86400.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.2  agg_interval_s=5.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    2911 ± 22.52  [2888, 2933] (n=5)
+    latency_p50_ms                     2874 ± 14.34  [2860, 2888] (n=5)
+    latency_p95_ms                     5318 ± 79.38  [5239, 5397] (n=5)
+    latency_p99_ms                     7417 ± 131.4  [7285, 7548] (n=5)
+    e2e_unique_delivery_ratio          0.9139 ± 0.002256  [0.9116, 0.9161] (n=5)
+    cloud_reflection_ratio             0.982 ± 0.004301  [0.9777, 0.9863] (n=5)
+    physical_delivery_ratio            0.7591 ± 0.00751  [0.7516, 0.7667] (n=5)
+    backhaul_delivery_ratio            0.9984 ± 0.000501  [0.9979, 0.9989] (n=5)
+    message_reduction_ratio            0.804 ± 0.00147  [0.8025, 0.8054] (n=5)
+    aggregation_ratio                  0.4075 ± 0.002555  [0.4049, 0.4101] (n=5)
+    proto_bytes_sent                   7.595e+06 ± 3.553e+04  [7.559e+06, 7.63e+06] (n=5)
+    frames_e2c_sent                    1.335e+04 ± 109.6  [1.324e+04, 1.345e+04] (n=5)
+    frames_e2c_delivered               1.332e+04 ± 105.3  [1.322e+04, 1.343e+04] (n=5)
+    bytes_e2c_sent                     4.593e+06 ± 2.128e+04  [4.571e+06, 4.614e+06] (n=5)
+    bytes_s2e_sent                     1.393e+06 ± 3549  [1.39e+06, 1.397e+06] (n=5)
+    proto_retransmissions              7140 ± 136.2  [7004, 7276] (n=5)
+    proto_duplicate_deliveries         3079 ± 59.13  [3020, 3139] (n=5)
+    unique_state_changes_applied_at_cloud 2.066e+04 ± 185  [2.048e+04, 2.085e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B1_mqtt_qos0
+  mqtt/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=0  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    110.8 ± 0.3309  [110.5, 111.2] (n=5)
+    latency_p50_ms                     111 ± 0.146  [110.8, 111.1] (n=5)
+    latency_p95_ms                     162.2 ± 0.632  [161.5, 162.8] (n=5)
+    latency_p99_ms                     183.9 ± 1.107  [182.8, 185] (n=5)
+    e2e_unique_delivery_ratio          0.8691 ± 0.004591  [0.8645, 0.8737] (n=5)
+    cloud_reflection_ratio             0.9688 ± 0.008346  [0.9605, 0.9771] (n=5)
+    physical_delivery_ratio            0.9226 ± 0.002735  [0.9199, 0.9254] (n=5)
+    backhaul_delivery_ratio            0.9699 ± 0.000758  [0.9692, 0.9707] (n=5)
+    message_reduction_ratio            0.4653 ± 0.001696  [0.4636, 0.467] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   3.775e+06 ± 2.533e+04  [3.75e+06, 3.801e+06] (n=5)
+    frames_e2c_sent                    2.068e+04 ± 145.5  [2.054e+04, 2.083e+04] (n=5)
+    frames_e2c_delivered               2.006e+04 ± 132.8  [1.993e+04, 2.02e+04] (n=5)
+    bytes_e2c_sent                     3.279e+06 ± 2.184e+04  [3.257e+06, 3.301e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 1.388e+04 ± 136.9  [1.375e+04, 1.402e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B2_mqtt_qos1
+  mqtt/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    143.7 ± 1.178  [142.6, 144.9] (n=5)
+    latency_p50_ms                     112.7 ± 0.3283  [112.4, 113.1] (n=5)
+    latency_p95_ms                     175.7 ± 1.304  [174.4, 177] (n=5)
+    latency_p99_ms                     1126 ± 2.573  [1123, 1129] (n=5)
+    e2e_unique_delivery_ratio          0.9135 ± 0.003234  [0.9103, 0.9167] (n=5)
+    cloud_reflection_ratio             0.976 ± 0.009775  [0.9662, 0.9858] (n=5)
+    physical_delivery_ratio            0.9221 ± 0.001579  [0.9205, 0.9237] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4653 ± 0.001696  [0.4636, 0.467] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   4.097e+06 ± 3.08e+04  [4.067e+06, 4.128e+06] (n=5)
+    frames_e2c_sent                    2.068e+04 ± 145.5  [2.054e+04, 2.083e+04] (n=5)
+    frames_e2c_delivered               2.068e+04 ± 145.5  [2.054e+04, 2.083e+04] (n=5)
+    bytes_e2c_sent                     3.279e+06 ± 2.184e+04  [3.257e+06, 3.301e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              1312 ± 47.04  [1265, 1359] (n=5)
+    proto_duplicate_deliveries         640.6 ± 51.34  [589.3, 691.9] (n=5)
+    unique_state_changes_applied_at_cloud 1.459e+04 ± 153.9  [1.444e+04, 1.475e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B3_mqtt_qos2
+  mqtt/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=2  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    144.8 ± 1.374  [143.4, 146.2] (n=5)
+    latency_p50_ms                     113.2 ± 0.2298  [112.9, 113.4] (n=5)
+    latency_p95_ms                     176.4 ± 1.401  [175, 177.8] (n=5)
+    latency_p99_ms                     1130 ± 4.245  [1126, 1134] (n=5)
+    e2e_unique_delivery_ratio          0.9134 ± 0.002971  [0.9105, 0.9164] (n=5)
+    cloud_reflection_ratio             0.9752 ± 0.01033  [0.9649, 0.9855] (n=5)
+    physical_delivery_ratio            0.9224 ± 0.002405  [0.92, 0.9248] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4653 ± 0.001696  [0.4636, 0.467] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   4.517e+06 ± 2.328e+04  [4.494e+06, 4.541e+06] (n=5)
+    frames_e2c_sent                    2.068e+04 ± 145.5  [2.054e+04, 2.083e+04] (n=5)
+    frames_e2c_delivered               2.068e+04 ± 145.5  [2.054e+04, 2.083e+04] (n=5)
+    bytes_e2c_sent                     3.279e+06 ± 2.184e+04  [3.257e+06, 3.301e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              2708 ± 40.96  [2667, 2749] (n=5)
+    proto_duplicate_deliveries         2003 ± 47.67  [1956, 2051] (n=5)
+    unique_state_changes_applied_at_cloud 1.459e+04 ± 154  [1.444e+04, 1.475e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B4_coap_non
+  coap/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=NON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    110.6 ± 0.2652  [110.3, 110.8] (n=5)
+    latency_p50_ms                     110.6 ± 0.4804  [110.1, 111.1] (n=5)
+    latency_p95_ms                     162.7 ± 0.9233  [161.8, 163.6] (n=5)
+    latency_p99_ms                     184.4 ± 1.513  [182.9, 185.9] (n=5)
+    e2e_unique_delivery_ratio          0.8672 ± 0.005357  [0.8619, 0.8726] (n=5)
+    cloud_reflection_ratio             0.9664 ± 0.01902  [0.9474, 0.9854] (n=5)
+    physical_delivery_ratio            0.9222 ± 0.002463  [0.9197, 0.9246] (n=5)
+    backhaul_delivery_ratio            0.97 ± 0.000743  [0.9692, 0.9707] (n=5)
+    message_reduction_ratio            0.4657 ± 0.001243  [0.4644, 0.4669] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   3.441e+06 ± 1.662e+04  [3.424e+06, 3.457e+06] (n=5)
+    frames_e2c_sent                    2.066e+04 ± 103.7  [2.056e+04, 2.076e+04] (n=5)
+    frames_e2c_delivered               2.004e+04 ± 93.92  [1.995e+04, 2.013e+04] (n=5)
+    bytes_e2c_sent                     3.275e+06 ± 1.579e+04  [3.26e+06, 3.291e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 1.385e+04 ± 102.3  [1.375e+04, 1.396e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B5_coap_con
+  coap/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    191.9 ± 5.922  [186, 197.8] (n=5)
+    latency_p50_ms                     112.3 ± 0.6283  [111.7, 112.9] (n=5)
+    latency_p95_ms                     175.7 ± 1.252  [174.5, 177] (n=5)
+    latency_p99_ms                     2787 ± 32.2  [2755, 2819] (n=5)
+    e2e_unique_delivery_ratio          0.9092 ± 0.005995  [0.9032, 0.9152] (n=5)
+    cloud_reflection_ratio             0.9684 ± 0.01234  [0.9561, 0.9807] (n=5)
+    physical_delivery_ratio            0.9218 ± 0.002322  [0.9195, 0.9241] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4657 ± 0.001243  [0.4644, 0.4669] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   3.659e+06 ± 2.203e+04  [3.637e+06, 3.681e+06] (n=5)
+    frames_e2c_sent                    2.066e+04 ± 103.7  [2.056e+04, 2.076e+04] (n=5)
+    frames_e2c_delivered               2.066e+04 ± 103.7  [2.056e+04, 2.076e+04] (n=5)
+    bytes_e2c_sent                     3.275e+06 ± 1.579e+04  [3.26e+06, 3.291e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              1310 ± 43.41  [1267, 1354] (n=5)
+    proto_duplicate_deliveries         641.2 ± 35.09  [606.1, 676.3] (n=5)
+    unique_state_changes_applied_at_cloud 1.452e+04 ± 95.78  [1.443e+04, 1.462e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B6_amqp_auto
+  amqp/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,auto,durable=False)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    111.3 ± 0.1428  [111.2, 111.4] (n=5)
+    latency_p50_ms                     111.2 ± 0.373  [110.8, 111.6] (n=5)
+    latency_p95_ms                     163.2 ± 0.4707  [162.8, 163.7] (n=5)
+    latency_p99_ms                     185.3 ± 2.111  [183.2, 187.4] (n=5)
+    e2e_unique_delivery_ratio          0.8654 ± 0.004856  [0.8606, 0.8703] (n=5)
+    cloud_reflection_ratio             0.9704 ± 0.01283  [0.9576, 0.9832] (n=5)
+    physical_delivery_ratio            0.9225 ± 0.001966  [0.9206, 0.9245] (n=5)
+    backhaul_delivery_ratio            0.9699 ± 0.000793  [0.9691, 0.9707] (n=5)
+    message_reduction_ratio            0.4661 ± 0.001699  [0.4644, 0.4678] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   4.679e+06 ± 3.606e+04  [4.643e+06, 4.715e+06] (n=5)
+    frames_e2c_sent                    2.065e+04 ± 164.4  [2.049e+04, 2.082e+04] (n=5)
+    frames_e2c_delivered               2.003e+04 ± 146.6  [1.989e+04, 2.018e+04] (n=5)
+    bytes_e2c_sent                     3.274e+06 ± 2.488e+04  [3.249e+06, 3.299e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              0 ± 0  [0, 0] (n=5)
+    proto_duplicate_deliveries         0 ± 0  [0, 0] (n=5)
+    unique_state_changes_applied_at_cloud 1.382e+04 ± 137.3  [1.369e+04, 1.396e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B7_amqp_manual_durable
+  amqp/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(direct,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    143.7 ± 1.356  [142.3, 145] (n=5)
+    latency_p50_ms                     113.4 ± 0.391  [113, 113.8] (n=5)
+    latency_p95_ms                     176.5 ± 1.392  [175.1, 177.9] (n=5)
+    latency_p99_ms                     1130 ± 3.106  [1127, 1133] (n=5)
+    e2e_unique_delivery_ratio          0.9108 ± 0.004309  [0.9065, 0.9151] (n=5)
+    cloud_reflection_ratio             0.9796 ± 0.01196  [0.9676, 0.9916] (n=5)
+    physical_delivery_ratio            0.9223 ± 0.001781  [0.9206, 0.9241] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4661 ± 0.001699  [0.4644, 0.4678] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   4.974e+06 ± 4.353e+04  [4.93e+06, 5.017e+06] (n=5)
+    frames_e2c_sent                    2.065e+04 ± 164.4  [2.049e+04, 2.082e+04] (n=5)
+    frames_e2c_delivered               2.065e+04 ± 164.4  [2.049e+04, 2.082e+04] (n=5)
+    bytes_e2c_sent                     3.274e+06 ± 2.488e+04  [3.249e+06, 3.299e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              1300 ± 38.52  [1262, 1339] (n=5)
+    proto_duplicate_deliveries         636.2 ± 36.75  [599.5, 672.9] (n=5)
+    unique_state_changes_applied_at_cloud 1.455e+04 ± 161.1  [1.439e+04, 1.471e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+
+------------------------------------------------------------------------------
+SCENARIO: B8_amqp_topic
+  amqp/edge_filtered/peak   spots=500   dur=43200.0s   n_runs=5
+  access_loss=0.05  backhaul_loss=0.03  agg_interval_s=1.0  hb_interval_s=900.0
+  mqtt_qos=1  coap_mode=CON  amqp=(topic,manual,durable=True)
+  seeds=[1000, 1001, 1002, 1003, 1004]
+
+    latency_mean_ms                    144.9 ± 0.9138  [144, 145.8] (n=5)
+    latency_p50_ms                     114.4 ± 0.4192  [114, 114.8] (n=5)
+    latency_p95_ms                     177.7 ± 1.353  [176.3, 179] (n=5)
+    latency_p99_ms                     1132 ± 2.479  [1130, 1135] (n=5)
+    e2e_unique_delivery_ratio          0.9108 ± 0.004248  [0.9066, 0.9151] (n=5)
+    cloud_reflection_ratio             0.9792 ± 0.01172  [0.9675, 0.9909] (n=5)
+    physical_delivery_ratio            0.9222 ± 0.001721  [0.9205, 0.9239] (n=5)
+    backhaul_delivery_ratio            1 ± 0  [1, 1] (n=5)
+    message_reduction_ratio            0.4661 ± 0.001699  [0.4644, 0.4678] (n=5)
+    aggregation_ratio                  1 ± 0  [1, 1] (n=5)
+    proto_bytes_sent                   5.128e+06 ± 4.512e+04  [5.083e+06, 5.173e+06] (n=5)
+    frames_e2c_sent                    2.065e+04 ± 164.4  [2.049e+04, 2.082e+04] (n=5)
+    frames_e2c_delivered               2.065e+04 ± 164.4  [2.049e+04, 2.082e+04] (n=5)
+    bytes_e2c_sent                     3.274e+06 ± 2.488e+04  [3.249e+06, 3.299e+06] (n=5)
+    bytes_s2e_sent                     7.781e+05 ± 3467  [7.747e+05, 7.816e+05] (n=5)
+    proto_retransmissions              1303 ± 40.25  [1263, 1343] (n=5)
+    proto_duplicate_deliveries         635.8 ± 36.13  [599.7, 671.9] (n=5)
+    unique_state_changes_applied_at_cloud 1.455e+04 ± 161.3  [1.439e+04, 1.471e+04] (n=5)
+    duplicate_events_at_cloud          0 ± 0  [0, 0] (n=5)
+

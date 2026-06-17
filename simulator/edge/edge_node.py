@@ -165,7 +165,7 @@ class EdgeNode:
             return False
 
         event_virtual = event.timestamp - self._epoch
-        last_virtual = cached.last_updated - self._epoch if cached.last_updated else None
+        last_virtual = (cached.last_updated - self._epoch) if cached.total_events > 0 else None
         if last_virtual is not None and (event_virtual - last_virtual) <= self.edge_cfg.duplicate_window_s:
             return True
 
