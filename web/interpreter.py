@@ -60,23 +60,54 @@ FOCUS_PROMPTS: dict[str, str] = {
     "scale": "Focus on how latency, delivery, and message counts shift as num_spots grows. Identify which protocol or architecture degrades most gracefully according to the data. Avoid extrapolating to scales not represented in the provided runs.",
 }
 
+SINGLE_RUN_FOCUS_PROMPTS: dict[str, str] = {
+    "general": "Give a close read of this single run: what its configuration (protocol, architecture, traffic level, spot count) would predict about its latency/reliability/bandwidth profile, and whether the measured numbers match that prediction. Call out anything in the numbers that looks off for this configuration.",
+    "latency": "Examine this run's latency distribution: what the spread between mean, P50, P95, and P99 tells you about tail behaviour for this specific configuration. Attribute any large P99-vs-mean gap to a specific mechanism the simulator models (jitter, token-bucket queueing, aggregation window wait, retransmit backoff) given this run's link/edge settings.",
+    "reliability": "Work through this run's delivery chain: compare cloud_reflection_ratio and physical_delivery_ratio against what the configured loss rates would predict. State whether retransmits (retransmissions_total) plausibly account for the gap between physical and cloud-level delivery. Say whether you'd trust this configuration for availability based on this run alone, and what you would NOT yet conclude from a single run.",
+    "bandwidth": "Break down this run's byte budget: sensor_to_edge_bytes_kb vs edge_to_cloud_bytes_kb vs protocol_bytes_kb. Explain what aggregation_ratio and events_per_cloud_message imply about event burstiness for this run's traffic level and architecture.",
+    "protocol": "Characterise this run's protocol behaviour using its own numbers - latency tail, retransmissions_total, duplicate_deliveries, protocol_bytes_kb. Note which of these are inherent to the protocol (e.g. QoS/ACK overhead) versus driven by this run's link conditions, and flag anything that looks inconsistent with the protocol's expected behaviour.",
+    "architecture": "Explain what this run's architecture (cloud_only / edge_filtered / edge_aggregated) is doing to its numbers: the filtered/forwarded/aggregation_ratio figures and what they cost or save versus a hypothetical cloud_only baseline at the same traffic level - flagged clearly as a hypothetical since no such run is in the data.",
+    "recommendation": "Based strictly on this one run, say whether its configuration looks production-ready and why, citing its own numbers. List any failure modes visible in this run (high P99, low cloud_reflection_ratio, retransmit storms) and what would mitigate them. Be explicit that a single run cannot establish robustness across seeds or conditions.",
+    "scale": "This run has num_spots = a single value, so growth trends cannot be assessed. Instead, assess whether this run's per-spot message and byte rates (events_generated_total / heartbeats_generated_total / cloud_msgs_received, each divided by spots) look sustainable at this spot count, and name what would need to be measured (a sweep over num_spots) to actually answer a scaling question.",
+}
+
 
 def build_prompt(summaries: list[dict], focus: str) -> str:
-    fi = FOCUS_PROMPTS.get(focus, FOCUS_PROMPTS["general"])
     n = len(summaries)
+    if n == 1:
+        fi = SINGLE_RUN_FOCUS_PROMPTS.get(focus, SINGLE_RUN_FOCUS_PROMPTS["general"])
+        run_desc = "Scenario result (1 run):"
+        sections = (
+            "Respond using these markdown sections - paragraphs only, no tables:\n\n"
+            "### 🔍 Key Findings\n"
+            "3–5 bullet points, each citing a specific number from the data.\n\n"
+            "### 📊 Analysis\n"
+            "2–3 paragraphs explaining the mechanisms behind the numbers for this configuration.\n\n"
+            "### 💡 Non-Obvious Insights\n"
+            "1–2 things that are surprising or only visible on close inspection of this run.\n\n"
+            "### ✅ Recommendations\n"
+            "3–4 concrete action items grounded in the data above, each tagged [Easy], [Medium], or [Hard]. "
+            "At least one item should be about what additional run(s) would be needed to validate or stress-test this configuration further."
+        )
+    else:
+        fi = FOCUS_PROMPTS.get(focus, FOCUS_PROMPTS["general"])
+        run_desc = f"Scenario results ({n} runs):"
+        sections = (
+            "Respond using these markdown sections - paragraphs only, no tables:\n\n"
+            "### 🔍 Key Findings\n"
+            "3–5 bullet points, each citing a specific number from the data.\n\n"
+            "### 📊 Analysis\n"
+            "2–3 paragraphs explaining the mechanisms behind the numbers.\n\n"
+            "### 💡 Non-Obvious Insights\n"
+            "1–2 things that are surprising or only visible on close inspection.\n\n"
+            "### ✅ Recommendations\n"
+            "3–4 concrete action items grounded in the data above, each tagged [Easy], [Medium], or [Hard]."
+        )
     return (
         f"{fi}\n\n"
-        f"Scenario results ({n} run{'s' if n != 1 else ''}):\n"
+        f"{run_desc}\n"
         f"{json.dumps(summaries, indent=2)}\n\n"
-        "Respond using these markdown sections - paragraphs only, no tables:\n\n"
-        "### 🔍 Key Findings\n"
-        "3–5 bullet points, each citing a specific number from the data.\n\n"
-        "### 📊 Analysis\n"
-        "2–3 paragraphs explaining the mechanisms behind the numbers.\n\n"
-        "### 💡 Non-Obvious Insights\n"
-        "1–2 things that are surprising or only visible on close inspection.\n\n"
-        "### ✅ Recommendations\n"
-        "3–4 concrete action items grounded in the data above, each tagged [Easy], [Medium], or [Hard]."
+        f"{sections}"
     )
 
 
@@ -158,9 +189,88 @@ async def interpret(summaries: list[dict], focus: str) -> dict:
     return {"interpretation": rule_based_interpret(summaries), "model": "rule-based", "powered_by": "Built-in Analyzer"}
 
 
+def _rule_based_single_run(s: dict) -> str:
+    name = s.get("scenario") or "this run"
+    proto = (s.get("protocol") or "?").upper()
+    arch = s.get("architecture") or "?"
+    traffic = s.get("traffic_level") or s.get("traffic") or "?"
+    spots = s.get("spots") or s.get("num_spots")
+
+    lines: list[str] = [f"## 📊 Simulation Analysis — `{name}`\n"]
+    lines.append(f"*{proto} · {arch} · {traffic} traffic · {spots} spots*\n")
+
+    lines.append("### 🔍 Key Findings\n")
+
+    lat_mean = s.get("latency_mean_ms")
+    lat_p95 = s.get("latency_p95_ms")
+    lat_p99 = s.get("latency_p99_ms")
+    if lat_mean is not None:
+        lines.append(f"- ⏱️ **Latency**: mean {lat_mean:.1f} ms, P95 {lat_p95:.1f} ms, P99 {lat_p99:.1f} ms" if lat_p95 is not None and lat_p99 is not None else f"- ⏱️ **Latency**: mean {lat_mean:.1f} ms")
+        if lat_p99 is not None and lat_mean and lat_p99 > lat_mean * 3:
+            lines.append(f"- ⚠️ **Heavy tail**: P99 is {lat_p99 / lat_mean:.1f}× the mean — a minority of messages are waiting much longer than typical (jitter, queueing, or retransmit backoff)")
+
+    refl = s.get("cloud_reflection_ratio")
+    e2e = s.get("e2e_unique_delivery_ratio")
+    if refl is not None:
+        tag = "📦" if refl >= 0.98 else "⚠️"
+        lines.append(f"- {tag} **Cloud state agreement**: {refl * 100:.2f}% of spots match sensor ground truth at the cloud")
+    if e2e is not None and (refl is None or abs(e2e - refl) > 0.001 if refl is not None else True):
+        lines.append(f"- 📨 **Unique delivery**: {e2e * 100:.2f}% of generated state changes were uniquely applied at the cloud")
+
+    retransmits = s.get("proto_retransmissions")
+    dups = s.get("proto_duplicate_deliveries")
+    if retransmits:
+        lines.append(f"- 🔁 **Retransmissions**: {retransmits} retransmission(s) recorded at the protocol layer")
+    if dups:
+        lines.append(f"- 🧬 **Duplicates**: {dups} duplicate delivery(ies) reached the cloud")
+
+    agg = s.get("aggregation_ratio")
+    msg_red = s.get("message_reduction_ratio")
+    if agg is not None:
+        lines.append(f"- 💾 **Aggregation ratio**: {agg:.3f} ({(1 - agg) * 100:.1f}% fewer cloud messages than forwarded events)")
+    if msg_red is not None:
+        lines.append(f"- 📉 **End-to-end message reduction**: {msg_red * 100:.1f}% fewer cloud messages than sensor-to-edge messages")
+
+    lines.append("\n### 📊 Analysis\n")
+    analysis_parts = []
+    if lat_mean is not None and lat_p99 is not None:
+        analysis_parts.append(
+            f"At {proto} over `{arch}`, this run shows a mean end-to-end latency of {lat_mean:.1f} ms. "
+            + (f"The P99 of {lat_p99:.1f} ms suggests link jitter and/or queueing dominate the tail rather than the mean case. "
+               if lat_p99 > lat_mean * 2 else "The P99 stays close to the mean, suggesting a fairly stable link with little tail blow-up. ")
+        )
+    if refl is not None:
+        analysis_parts.append(
+            f"Cloud state agreement of {refl * 100:.2f}% "
+            + ("indicates the sensor link and any edge/backhaul stages are reliably reflecting ground truth at the cloud. "
+               if refl >= 0.98 else "is below the 98% mark — check the configured loss rates on the sensor and backhaul links, and whether retransmissions are configured for this protocol/QoS. ")
+        )
+    if arch != "cloud_only" and agg is not None:
+        analysis_parts.append(
+            f"With `{arch}`, the aggregation ratio of {agg:.3f} shows the edge is "
+            + ("meaningfully batching events before forwarding to the cloud. " if agg < 0.9 else "passing through most events roughly 1:1, with little batching benefit at this traffic level. ")
+        )
+    if analysis_parts:
+        lines.append(" ".join(analysis_parts) + "\n")
+    else:
+        lines.append("Limited metrics were available in this result to analyse in detail.\n")
+
+    lines.append("\n### ✅ Recommendations\n")
+    lines.append(f"- 🔎 **Treat this as one data point** — re-run `{name}` with a different seed to see how much of the above is run-to-run noise vs a structural property of the configuration [Easy]")
+    if lat_p99 is not None and lat_mean is not None and lat_p99 > lat_mean * 3:
+        lines.append("- 🧪 **Investigate the latency tail** — inspect link jitter, token-bucket rate limiting, or aggregation window settings that could be inflating P99 [Medium]")
+    if refl is not None and refl < 0.98:
+        lines.append("- 🛠️ **Improve delivery** — consider a higher QoS/ACK mode for this protocol or reduce configured loss rates, then re-run to confirm the effect [Medium]")
+    lines.append("- 📐 **Compare against a baseline** — run the same traffic/spots with `cloud_only` (or a different protocol) and use 'All runs' or 'Last 3' scope to interpret the two side by side [Easy]")
+    lines.append("\n\n*Built-in analysis - set `AI_API_KEY` in `.env` for Groq-powered insights.*")
+    return "\n".join(lines)
+
+
 def rule_based_interpret(summaries: list[dict]) -> str:
     if not summaries:
         return "No results to analyse."
+    if len(summaries) == 1:
+        return _rule_based_single_run(summaries[0])
 
     lines: list[str] = ["## 📊 Simulation Analysis\n"]
 

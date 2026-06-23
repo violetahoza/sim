@@ -6,6 +6,7 @@ const C = { cyan: '#00e5c8', blue: '#4d9bff', amber: '#ffc246', red: '#ff5252', 
 
 let charts = {};
 let allResults = [];
+let currentResult = null;
 let simRunning = false;
 let currentSpotCount = 0;
 let allScenarios = [];
@@ -474,6 +475,7 @@ function updateAIBadge() {
 }
 
 function showResult(r, animate) {
+  currentResult = r;
   const m = normalizeMetrics(r);
   renderKpiStrip(m);
   renderMetricsTable(m);
@@ -865,13 +867,19 @@ async function runAIAnalysis() {
   const scope = document.getElementById('aiScope')?.value ?? 'all';
   const btn = document.getElementById('aiAnalyseBtn');
 
-  const toSend = scope === 'last3' ? allResults.slice(-3) : scope === 'last1' ? allResults.slice(-1) : allResults.slice();
+  const toSend = scope === 'this' ? [currentResult ?? allResults[allResults.length - 1]]
+    : scope === 'last3' ? allResults.slice(-3)
+    : scope === 'last1' ? allResults.slice(-1)
+    : allResults.slice();
   const stripped = toSend.map(r => {
     const c = { ...r }; delete c.latency_samples; delete c.scenario_log; return c;
   });
 
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Thinking…'; }
-  aiSetOutput(`<div class="ai-thinking"><span class="ai-spinner"></span> Analysing ${stripped.length} run${stripped.length !== 1 ? 's' : ''}…</div>`);
+  const thinkingLabel = stripped.length === 1
+    ? `Analysing “${stripped[0].scenario_name || 'this run'}”…`
+    : `Analysing ${stripped.length} runs…`;
+  aiSetOutput(`<div class="ai-thinking"><span class="ai-spinner"></span> ${thinkingLabel}</div>`);
   aiSetTag('', '');
 
   try {
