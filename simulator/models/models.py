@@ -158,6 +158,9 @@ class ExperimentMetrics:
     latency_samples: list[float] = field(default_factory=list)
     scenario_log: list[dict] = field(default_factory=list)
 
+    final_spot_states: dict[int, str] = field(default_factory=dict)
+    final_occupancy: dict = field(default_factory=dict)
+
     @property
     def events_generated_total(self) -> int:
         return self.events_generated
@@ -283,6 +286,9 @@ class ExperimentMetrics:
             "latency_p99_ms": self.latency_p99_ms,
             "latency_min_ms": self.latency_min_ms,
             "latency_max_ms": self.latency_max_ms,
+
+            "final_spot_states": self.final_spot_states,
+            "final_occupancy": self.final_occupancy
         }
 
         if is_cloud_only:
@@ -294,7 +300,7 @@ class ExperimentMetrics:
                 "heartbeats_suppressed", "heartbeats_forwarded", "quarantine_suppressed",
                 "anomalies_detected", "anomalies_resolved", "active_anomalies",
                 "adaptive_mode_switches", "quarantined_spots_final",
-                "anomaly_detected_spots", "fault_injected_count",
+                "anomaly_detected_spots", "fault_injected_count"
             )})
         else:
             d.update({
@@ -317,6 +323,6 @@ class ExperimentMetrics:
                 "adaptive_mode_switches": self.adaptive_mode_switches,
                 "quarantined_spots_final": self.quarantined_spots_final,
                 "anomaly_detected_spots": self.anomaly_detected_spots,
-                "fault_injected_count": self.fault_injected_count,
+                "fault_injected_count": self.fault_injected_count
             })
         return d

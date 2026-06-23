@@ -10,35 +10,35 @@ from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
 
 logger = logging.getLogger(__name__)
 
-AMQP_FRAME_OVERHEAD = 37
-AMQP_EXCHANGE_OVERHEAD = 16
+AMQP_FRAME_ENVELOPE = 8
+AMQP_PUBLISH_METHOD_FIXED = 9
+AMQP_CONTENT_HEADER_FIXED = 14
+AMQP_DURABLE_PROPERTY = 1
+AMQP_ACK_FRAME = 21
 
-_EXCHANGE_OVERHEAD_S: dict[str, float] = {"direct": 0.0005, "fanout": 0.0008, "topic": 0.0015}
-_DURABLE_OVERHEAD_S = 0.0010
-_CONFIRM_OVERHEAD_S = 0.0005
-
-_MAX_RETRIES = 3
-_RETRY_BASE_S = 1.0
+AMQP_MAX_REDELIVERIES = 3
+AMQP_REQUEUE_DELAY_S = 0.2
 
 
 class SimulatedAMQPBackend(ProtocolBackend):
 
-    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010) -> None:
+    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
-        self.loss_rate = loss_rate
+        self.uplink_loss = loss_rate
+        self.downlink_loss = loss_rate if downlink_loss_rate is None else downlink_loss_rate
         self._rng = random.Random(seed)
         self.bytes_sent = 0
-        self.nacked = 0
         self.retransmitted = 0
         self.duplicates_delivered = 0
         self.frames_offered = 0
         self.frames_delivered = 0
         self.frames_dropped = 0
         self.first_pass_delivered = 0
+        self._delivered: set[int] = set()
+        self._dirty: set[int] = set()
         self._msg_seq = 0
-        self._delivered_ids: set[int] = set()
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
@@ -52,9 +52,6 @@ class SimulatedAMQPBackend(ProtocolBackend):
             return self._ack_one_way_s
         return max(0.0, self._ack_one_way_s + self._rng.gauss(0, self._ack_jitter_s))
 
-    def _broker_overhead_s(self) -> float:
-        return (_EXCHANGE_OVERHEAD_S.get(self.config.exchange_type, 0.0005) + (_DURABLE_OVERHEAD_S if self.config.durable else 0.0) + _CONFIRM_OVERHEAD_S)
-
     def _routing_key(self, batch: BatchUpdate) -> str:
         if self.config.exchange_type == "fanout":
             return ""
@@ -62,58 +59,57 @@ class SimulatedAMQPBackend(ProtocolBackend):
             return f"parking.{batch.edge_id}.update"
         return f"parking.{batch.edge_id}"
 
-    def _frame_bytes(self, batch: BatchUpdate, payload: bytes) -> int:
+    def _publish_bytes(self, batch: BatchUpdate, payload: bytes) -> int:
         rk = self._routing_key(batch)
-        return len(payload) + AMQP_FRAME_OVERHEAD + AMQP_EXCHANGE_OVERHEAD + len(rk.encode())
+        method = AMQP_PUBLISH_METHOD_FIXED + len(self.config.exchange.encode()) + len(rk.encode())
+        header = AMQP_CONTENT_HEADER_FIXED + (AMQP_DURABLE_PROPERTY if self.config.durable else 0)
+        return 3 * AMQP_FRAME_ENVELOPE + method + header + len(payload)
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
-        self.bytes_sent += self._frame_bytes(batch, payload)
-        msg_id = self._next_id()
         self.frames_offered += 1
-        self._do_publish(batch, payload, msg_id, attempt=0)
-    
-    def _retransmit_or_drop(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
-        if attempt < _MAX_RETRIES - 1:
-            backoff = _RETRY_BASE_S * (2 ** attempt)
-            self.retransmitted += 1
-            self.bytes_sent += self._frame_bytes(batch, payload)
-            self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
-        else:
-            self.frames_dropped += 1
-            if self.on_drop:
-                self.on_drop()
+        self._do_publish(batch, payload, self._next_id(), attempt=0)
+
+    def _release(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
+        if msg_id in self._delivered:
+            self.duplicates_delivered += 1
+            return
+        self._delivered.add(msg_id)
+        self.frames_delivered += 1
+        if msg_id not in self._dirty:
+            self.first_pass_delivered += 1
+        self._subscriber(batch, payload)
+
+    def _drop(self, msg_id: int) -> None:
+        if msg_id in self._delivered:
+            return
+        self.frames_dropped += 1
+        if self.on_drop:
+            self.on_drop()
+
+    def _requeue(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
+        if attempt >= AMQP_MAX_REDELIVERIES:
+            self._drop(msg_id)
+            return
+        self.retransmitted += 1
+        self._dirty.add(msg_id)
+        self.clock.schedule(AMQP_REQUEUE_DELAY_S, lambda: self._do_publish(batch, payload, msg_id, attempt + 1))
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
-        broker_oh = self._broker_overhead_s()
-
-        def at_broker() -> None:
-            if self._rng.random() < self.loss_rate:
-                if self.config.ack_mode == "auto":
-                    self.frames_dropped += 1
-                    if self.on_drop:
-                        self.on_drop()
-                    return
-                self.nacked += 1
-                self._retransmit_or_drop(batch, payload, msg_id, attempt)
-                return
-
-            if msg_id not in self._delivered_ids:
-                self._delivered_ids.add(msg_id)
-                self.frames_delivered += 1
-                if attempt == 0:
-                    self.first_pass_delivered += 1
-                self._subscriber(batch, payload)
-            else:
-                self.duplicates_delivered += 1
-
+        self.bytes_sent += self._publish_bytes(batch, payload)
+        if self._rng.random() < self.uplink_loss:
             if self.config.ack_mode == "auto":
-                return
+                self._drop(msg_id)
+            else:
+                self._requeue(batch, payload, msg_id, attempt)
+            return
+        self.bytes_sent += AMQP_ACK_FRAME
+        self._release(batch, payload, msg_id)
+        if self.config.ack_mode == "auto":
+            return
+        self.bytes_sent += AMQP_ACK_FRAME
 
-            def consumer_ack_arrives() -> None:
-                if self._rng.random() < self.loss_rate:
-                    self.nacked += 1
-                    self._retransmit_or_drop(batch, payload, msg_id, attempt)
+        def consumer_ack() -> None:
+            if self._rng.random() < self.downlink_loss:
+                self._requeue(batch, payload, msg_id, attempt)
 
-            self.clock.schedule(self._ack_delay(), consumer_ack_arrives)
-
-        self.clock.schedule(broker_oh, at_broker)
+        self.clock.schedule(self._ack_delay(), consumer_ack)

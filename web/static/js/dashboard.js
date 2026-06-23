@@ -36,6 +36,7 @@ function normalizeMetrics(raw) {
     sim_duration_s: raw.sim_duration_s, heartbeat_interval_s: raw.heartbeat_interval_s,
     source: raw.source, scenario_log: raw.scenario_log, latency_samples: raw.latency_samples,
     fault_injected_count: pick(raw, 'fault_injected_count'),
+    final_spot_states: raw.final_spot_states, final_occupancy: raw.final_occupancy,
 
     events_generated_total: pick(raw, 'events_generated_total', 'events_generated'),
     state_changes_generated_total: pick(raw, 'state_changes_generated_total', 'valid_state_changes'),
@@ -267,7 +268,7 @@ function connectSSE() {
   es.addEventListener('sim_started', e => {
     const d = JSON.parse(e.data);
     setRunning(true);
-    buildLotGrid(d.num_spots || 50);
+    buildLotGrid(d.num_spots || 50, true);
     const ls = document.getElementById('lotStats');
     if (ls) ls.style.display = 'grid';
     resetLiveSection();
@@ -352,8 +353,8 @@ function resetLiveSection() {
    'progOccupancy', 'progFiltered', 'progAnomalies'].forEach(id => setText(id, '-'));
 }
 
-function buildLotGrid(n) {
-  if (n === currentSpotCount) return;
+function buildLotGrid(n, force) {
+  if (n === currentSpotCount && !force) return;
   currentSpotCount = n;
   const grid = document.getElementById('lotGrid');
   if (!grid) return;
@@ -388,6 +389,48 @@ function updateSpot(id, state) {
   if (el.dataset.state === s) return;
   el.dataset.state = s;
   el.className = `spot ${s} flash`;
+}
+
+function restoreLotFromResult(m) {
+  const n = m.num_spots;
+  if (!n) return;
+
+  // Rebuild the grid for this run's spot count (force, since a same-size
+  // run may currently show a different run's stale spot states).
+  buildLotGrid(n, true);
+
+  const spots = m.final_spot_states;
+  const occ = m.final_occupancy;
+
+  if (spots && Object.keys(spots).length) {
+    Object.entries(spots).forEach(([id, st]) => updateSpot(+id, st));
+  }
+
+  if (occ && occ.total != null) {
+    setText('lst_total', occ.total);
+    setText('lst_free', occ.free);
+    setText('lst_occ', occ.occupied);
+    setText('lst_pct', occ.occupancy_pct + '%');
+  }
+
+  // Mirror the same numbers into the LIVE section so it reflects this
+  // historical run rather than staying blank or showing the last live run.
+  setText('progOccupancy', occ && occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '-');
+  setText('progGenerated', m.events_generated_total ?? '-');
+  setText('progHeartbeats', m.heartbeats_generated_total ?? '-');
+  setText('progReceived', m.cloud_msgs_received ?? '-');
+  setText('progFiltered', m.events_filtered_total ?? '-');
+  setText('progAnomalies', m.anomalies_detected ?? '-');
+  const simH = Math.floor((m.sim_duration_s ?? 0) / 3600);
+  const simM = Math.floor(((m.sim_duration_s ?? 0) % 3600) / 60);
+  setText('progSimTime', `${simH}h ${String(simM).padStart(2, '0')}m`);
+  setText('progElapsed', '-');
+
+  const cloudOnly = m.architecture === 'cloud_only';
+  ['progFilteredItem', 'progAnomaliesItem'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = cloudOnly ? 'none' : '';
+  });
 }
 
 function addResultRow(r, scrollIntoView) {
@@ -437,7 +480,7 @@ function showResult(r, animate) {
   updateLatencyHistogram(m.latency_samples || []);
   updateMsgCountChart(m);
   updateBandwidthChart(m);
-  if (animate) buildLotGrid(m.num_spots);
+  restoreLotFromResult(m);
 }
 
 function toggleMetricsTable() {

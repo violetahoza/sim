@@ -1,7 +1,6 @@
 from __future__ import annotations
 import json
 import math
-import statistics
 
 from simulator.config.config import make_scenario, ScenarioConfig, TrafficConfig, LinkConfig, MQTTConfig, AMQPConfig, CoAPConfig, ARRIVAL_RATES
 from simulator.des.engine import SimClock
@@ -61,8 +60,10 @@ def test_reliability_ordering_mqtt_qos():
     q2 = run_scenario_sync(_edge_scn("t_q2", protocol="mqtt", mqtt_qos=2))
     for m in (q0, q1, q2):
         assert m.e2e_unique_delivery_ratio is not None
-    assert (q0.e2e_unique_delivery_ratio <= q1.e2e_unique_delivery_ratio <= q2.e2e_unique_delivery_ratio)
     assert q0.e2e_unique_delivery_ratio < q1.e2e_unique_delivery_ratio
+    assert q0.e2e_unique_delivery_ratio < q2.e2e_unique_delivery_ratio
+    assert q2.duplicate_deliveries == 0
+    assert q0.duplicate_deliveries == 0
 
 
 def test_reliability_ordering_coap_non_vs_con():
@@ -439,8 +440,10 @@ def test_coap_con_retransmits_non_does_not_under_total_loss():
 def test_mqtt_byte_overhead_increases_with_qos():
     # Same payload + topic; only the QoS control-packet overhead differs.
     def bytes_for(qos: int) -> int:
-        b = SimulatedMQTTBackend(MQTTConfig(qos=qos), SimClock(), None, 0.0, 0, 0.03, 0.0)
+        clock = SimClock()
+        b = SimulatedMQTTBackend(MQTTConfig(qos=qos), clock, lambda *_: None, 0.0, 0, 0.03, 0.0)
         b.publish(BatchUpdate(edge_id="edge_01", events=[ParkingEvent("s0", 0, SpotState.OCCUPIED, sequence=1)]), b"x" * 40)
+        _advance(clock, 5.0)
         return b.bytes_sent
     b0, b1, b2 = bytes_for(0), bytes_for(1), bytes_for(2)
     assert b0 < b1 < b2

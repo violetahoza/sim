@@ -48,6 +48,7 @@ class BackhaulLinkConfig:
     base_delay_ms: float = 30.0
     jitter_ms: float = 10.0
     packet_loss_rate: float = 0.02
+    downlink_loss_rate: Optional[float] = None
     max_payload_bytes: int = 65535
     rate_limit_msgs_per_sec: float = 1000.0
     payload_encoding_ratio: float = 1.0
@@ -188,6 +189,7 @@ class ScenarioConfig:
             "backhaul_base_delay_ms": self.backhaul_link.base_delay_ms,
             "backhaul_jitter_ms": self.backhaul_link.jitter_ms,
             "backhaul_loss_rate": self.backhaul_link.packet_loss_rate,
+            "backhaul_downlink_loss_rate": self.backhaul_link.downlink_loss_rate,
             "payload_encoding_ratio": link["payload_encoding_ratio"],
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
@@ -274,6 +276,7 @@ class ScenarioConfig:
             backhaul_base_delay_ms=d.get("backhaul_base_delay_ms", 30.0),
             backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
             backhaul_loss_rate=d.get("backhaul_loss_rate", 0.02),
+            backhaul_downlink_loss_rate=d.get("backhaul_downlink_loss_rate"),
             mean_parking_duration_s=d.get("mean_parking_duration_s", 1800.0),
             parking_duration_cv=d.get("parking_duration_cv", 1.5),
             use_time_of_day=d.get("use_time_of_day", False),
@@ -333,6 +336,7 @@ def make_scenario(
     backhaul_base_delay_ms: float = 30.0,
     backhaul_jitter_ms: float = 10.0,
     backhaul_loss_rate: float = 0.02,
+    backhaul_downlink_loss_rate: Optional[float] = None,
     payload_encoding_ratio: float = 0.15,
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
@@ -363,7 +367,8 @@ def make_scenario(
     backhaul = BackhaulLinkConfig(
         base_delay_ms=backhaul_base_delay_ms,
         jitter_ms=backhaul_jitter_ms,
-        packet_loss_rate=backhaul_loss_rate
+        packet_loss_rate=backhaul_loss_rate,
+        downlink_loss_rate=backhaul_downlink_loss_rate
     )
 
     edge = EdgeConfig(

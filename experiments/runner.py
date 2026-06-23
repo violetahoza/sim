@@ -395,7 +395,10 @@ class ExperimentRunner:
             anomaly_detected_spots=es.get("detected_spots", 0),
 
             latency_samples=post_samples[-50_000:],
-            scenario_log=es.get("event_log", [])
+            scenario_log=es.get("event_log", []),
+
+            final_spot_states=sensors.final_spot_states(),
+            final_occupancy=sensors.occupancy_snapshot()
         )
 
 
@@ -448,21 +451,23 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     from simulator.protocols.coap_client import SimulatedCoAPBackend
 
     if cfg.architecture == "cloud_only":
-        proto_loss = 0.0
+        uplink_loss = 0.0
+        downlink_loss = 0.0
         ack_one_way = cfg.link.base_delay_ms / 1000.0
         ack_jitter = cfg.link.jitter_ms / 1000.0
     else:
-        proto_loss = cfg.backhaul_link.packet_loss_rate
+        uplink_loss = cfg.backhaul_link.packet_loss_rate
+        downlink_loss = cfg.backhaul_link.downlink_loss_rate if cfg.backhaul_link.downlink_loss_rate is not None else uplink_loss
         ack_one_way = cfg.backhaul_link.base_delay_ms / 1000.0
         ack_jitter = cfg.backhaul_link.jitter_ms / 1000.0
 
     proto = cfg.protocol
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, proto_loss, seed + 2, ack_one_way, ack_jitter)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, proto_loss, seed + 2, ack_one_way, ack_jitter)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
     elif proto == "coap":
-        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, proto_loss, seed + 2, ack_one_way, ack_jitter)
+        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
     raise ValueError(f"Unknown protocol: {proto}")
 
 

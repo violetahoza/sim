@@ -8,27 +8,37 @@ from simulator.config.config import MQTTConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
 
-
 logger = logging.getLogger(__name__)
 
 _TOPIC_TMPL = "{prefix}/{edge_id}/update"
 
-MQTT_FIXED_HEADER = 2
-MQTT_PUBACK_BYTES = 4
-MQTT_PUBREL_BYTES = 4
+MQTT_CONTROL_BYTE = 1
+MQTT_PACKET_ID_BYTES = 2
+MQTT_TOPIC_LEN_BYTES = 2
+MQTT_ACK_BYTES = 4
 
-_QOS_BROKER_OVERHEAD_S = {0: 0.0005, 1: 0.001, 2: 0.0015}
-_MAX_RETRIES = {0: 0, 1: 3, 2: 5}
-_RETRY_BASE_S = 1.0
+_MAX_RETRIES = {0: 0, 1: 3, 2: 3}
+MQTT_RETRY_INTERVAL_S = 2.0
+
+
+def _remaining_length_bytes(n: int) -> int:
+    if n < 128:
+        return 1
+    if n < 16384:
+        return 2
+    if n < 2097152:
+        return 3
+    return 4
 
 
 class SimulatedMQTTBackend(ProtocolBackend):
-    
-    def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.0, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010) -> None:
+
+    def __init__(self, config: MQTTConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.0, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
-        self.loss_rate = loss_rate
+        self.uplink_loss = loss_rate
+        self.downlink_loss = loss_rate if downlink_loss_rate is None else downlink_loss_rate
         self._rng = random.Random(seed)
         self.bytes_sent = 0
         self.retransmitted = 0
@@ -37,8 +47,8 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self.frames_delivered = 0
         self.frames_dropped = 0
         self.first_pass_delivered = 0
-        self._qos2_delivered: dict[int, bool] = {}
-        self._qos1_delivered: set[int] = set()
+        self._delivered: set[int] = set()
+        self._dirty: set[int] = set()
         self._msg_seq = 0
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
@@ -53,86 +63,92 @@ class SimulatedMQTTBackend(ProtocolBackend):
             return self._ack_one_way_s
         return max(0.0, self._ack_one_way_s + self._rng.gauss(0, self._ack_jitter_s))
 
-    def _topic_overhead(self, batch: BatchUpdate) -> int:
+    def _publish_bytes(self, batch: BatchUpdate, payload: bytes, qos: int) -> int:
         topic = _TOPIC_TMPL.format(prefix=self.config.topic_prefix, edge_id=batch.edge_id)
-        return MQTT_FIXED_HEADER + len(topic.encode())
+        remaining = MQTT_TOPIC_LEN_BYTES + len(topic.encode()) + (MQTT_PACKET_ID_BYTES if qos > 0 else 0) + len(payload)
+        return MQTT_CONTROL_BYTE + _remaining_length_bytes(remaining) + remaining
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
-        topic_oh = self._topic_overhead(batch)
         qos = self.config.qos
-        qos_extra = (MQTT_PUBACK_BYTES if qos == 1 else (MQTT_PUBACK_BYTES + MQTT_PUBREL_BYTES * 2) if qos == 2 else 0)
-        self.bytes_sent += len(payload) + topic_oh + qos_extra
-        msg_id = self._next_id()
         self.frames_offered += 1
-        self._do_publish(batch, payload, msg_id, attempt=0)
+        self._send_publish(batch, payload, self._next_id(), qos, attempt=0)
 
-    def _deliver_to_subscriber(self, batch: BatchUpdate, payload: bytes, msg_id: int, qos: int, attempt: int) -> None:
-        if qos == 2:
-            if self._qos2_delivered.get(msg_id):
-                self.duplicates_delivered += 1
-                return
-            self._qos2_delivered[msg_id] = True
-        elif qos == 1:
-            if msg_id in self._qos1_delivered:
-                self.duplicates_delivered += 1
-                return
-            self._qos1_delivered.add(msg_id)
+    def _deliver(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
+        if msg_id in self._delivered:
+            self.duplicates_delivered += 1
+            return
+        self._release(batch, payload, msg_id)
+
+    def _release(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
+        if msg_id in self._delivered:
+            return
+        self._delivered.add(msg_id)
         self.frames_delivered += 1
-        if attempt == 0:
+        if msg_id not in self._dirty:
             self.first_pass_delivered += 1
         self._subscriber(batch, payload)
 
-    def _retry_or_drop(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, qos: int) -> None:
-        max_r = _MAX_RETRIES[qos]
-        if attempt < max_r:
-            backoff = _RETRY_BASE_S * (2 ** attempt)
-            self.retransmitted += 1
-            self.clock.schedule(backoff, lambda a=attempt + 1: self._do_publish(batch, payload, msg_id, a))
-        else:
-            self.frames_dropped += 1
-            if self.on_drop:
-                self.on_drop()
+    def _drop(self, msg_id: int) -> None:
+        if msg_id in self._delivered:
+            return
+        self.frames_dropped += 1
+        if self.on_drop:
+            self.on_drop()
 
-    def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
-        qos = self.config.qos
-        broker_oh = _QOS_BROKER_OVERHEAD_S[qos]
+    def _retry_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, qos: int, attempt: int) -> None:
+        if attempt >= _MAX_RETRIES[qos]:
+            self._drop(msg_id)
+            return
+        self.retransmitted += 1
+        self._dirty.add(msg_id)
+        self.clock.schedule(MQTT_RETRY_INTERVAL_S, lambda: self._send_publish(batch, payload, msg_id, qos, attempt + 1))
 
-        if attempt > 0:
-            self.bytes_sent += len(payload) + self._topic_overhead(batch)
+    def _retry_pubrel(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
+        if attempt >= _MAX_RETRIES[2]:
+            self._drop(msg_id)
+            return
+        self.retransmitted += 1
+        self._dirty.add(msg_id)
+        self.clock.schedule(MQTT_RETRY_INTERVAL_S, lambda: self._send_pubrel(batch, payload, msg_id, attempt + 1))
 
-        def at_broker() -> None:
-            if self._rng.random() < self.loss_rate:
-                self._retry_or_drop(batch, payload, msg_id, attempt, qos)
+    def _send_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, qos: int, attempt: int) -> None:
+        self.bytes_sent += self._publish_bytes(batch, payload, qos)
+        if self._rng.random() < self.uplink_loss:
+            self._retry_publish(batch, payload, msg_id, qos, attempt)
+            return
+        if qos == 0:
+            self._deliver(batch, payload, msg_id)
+            return
+        if qos == 1:
+            self._deliver(batch, payload, msg_id)
+            self.bytes_sent += MQTT_ACK_BYTES
+
+            def puback() -> None:
+                if self._rng.random() < self.downlink_loss:
+                    self._retry_publish(batch, payload, msg_id, qos, attempt)
+
+            self.clock.schedule(self._ack_delay(), puback)
+            return
+        self.bytes_sent += MQTT_ACK_BYTES
+
+        def pubrec() -> None:
+            if self._rng.random() < self.downlink_loss:
+                self._retry_publish(batch, payload, msg_id, qos, attempt)
                 return
+            self._send_pubrel(batch, payload, msg_id, attempt=0)
 
-            if qos == 0:
-                self._deliver_to_subscriber(batch, payload, msg_id, qos, attempt)
-                return
+        self.clock.schedule(self._ack_delay(), pubrec)
 
-            self._deliver_to_subscriber(batch, payload, msg_id, qos, attempt)
+    def _send_pubrel(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
+        self.bytes_sent += MQTT_ACK_BYTES
+        if self._rng.random() < self.uplink_loss:
+            self._retry_pubrel(batch, payload, msg_id, attempt)
+            return
+        self._release(batch, payload, msg_id)
+        self.bytes_sent += MQTT_ACK_BYTES
 
-            if qos == 1:
-                def puback_arrives() -> None:
-                    if self._rng.random() < self.loss_rate:
-                        self._retry_or_drop(batch, payload, msg_id, attempt, qos)
-                self.clock.schedule(self._ack_delay(), puback_arrives)
-                return
+        def pubcomp() -> None:
+            if self._rng.random() < self.downlink_loss:
+                self._retry_pubrel(batch, payload, msg_id, attempt)
 
-            if qos == 2:
-                def pubrec_arrives() -> None:
-                    if self._rng.random() < self.loss_rate:
-                        self._retry_or_drop(batch, payload, msg_id, attempt, qos)
-                        return
-                    def pubrel_arrives() -> None:
-                        if self._rng.random() < self.loss_rate:
-                            self._retry_or_drop(batch, payload, msg_id, attempt, qos)
-                            return
-                        def pubcomp_arrives() -> None:
-                            if self._rng.random() < self.loss_rate:
-                                self._retry_or_drop(batch, payload, msg_id, attempt, qos)
-                        self.clock.schedule(self._ack_delay(), pubcomp_arrives)
-                    self.clock.schedule(self._ack_delay(), pubrel_arrives)
-                self.clock.schedule(self._ack_delay(), pubrec_arrives)
-                return
-
-        self.clock.schedule(broker_oh, at_broker)
+        self.clock.schedule(self._ack_delay(), pubcomp)
