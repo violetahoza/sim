@@ -67,7 +67,7 @@ async def run_real_for_runner(runner: "ExperimentRunner", cfg: ScenarioConfig):
         cloud.receive_batch_real(batch, raw, time.time())
 
     backend = _make_real_backend(cfg, _cloud_recv_real)
-    await backend.start()   # connect + subscribe; raises clearly if broker is down
+    await backend.start()  
 
     arch = cfg.architecture
     _sensor_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol))
@@ -138,7 +138,7 @@ async def run_real_for_runner(runner: "ExperimentRunner", cfg: ScenarioConfig):
             "occupancy": sensors.occupancy_snapshot(),
             "spot_states": dict(runner._spot_states),
             "edge": es,
-            "mode": "real",
+            "mode": "real"
         }
         runner.progress_cb(snap)
 

@@ -287,3 +287,267 @@ scenarios:
     group: "B - Protocol Comparison"
     group_order: 8
     is_builtin: true
+
+
+  - name: C1_scale_50
+    description: >
+      Scalability - 50 spots | MQTT QoS1 / edge_filtered baseline at small deployment size. Anchor point for the scalability sweep (C1-C5): same protocol, architecture, and traffic
+      mix, only num_spots changes. Use alongside C2-C5 to see how latency, message volume, and bandwidth scale with deployment size.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 50
+    seed: 3001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    group: "C - Scalability Sweep"
+    group_order: 1
+    is_builtin: true
+
+  - name: C2_scale_200
+    description: >
+      Scalability - 200 spots | Same configuration as C1, 4x the deployment size.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 200
+    seed: 3001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    group: "C - Scalability Sweep"
+    group_order: 2
+    is_builtin: true
+
+  - name: C3_scale_500
+    description: >
+      Scalability - 500 spots | Same configuration as C1, matching the reference deployment size used throughout the A/B groups.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 3001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    group: "C - Scalability Sweep"
+    group_order: 3
+    is_builtin: true
+
+  - name: C4_scale_1000
+    description: >
+      Scalability - 1000 spots | Same configuration as C1, double the reference deployment.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 1000
+    seed: 3001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    group: "C - Scalability Sweep"
+    group_order: 4
+    is_builtin: true
+
+  - name: C5_scale_2000
+    description: >
+      Scalability - 2000 spots | Same configuration as C1, largest deployment in the sweep (40x C1). Watch for queueing/rate-limit effects as token-bucket and broker throughput
+      assumptions are stressed at this size.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 2000
+    seed: 3001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.02
+    anomaly_detection: false
+    group: "C - Scalability Sweep"
+    group_order: 5
+    is_builtin: true
+
+ 
+  - name: D1_mqtt_loss_low
+    description: >
+      Reliability - MQTT QoS1 at 5% backhaul loss | Baseline recovery behavior at modest loss. Part of the D1-D3 MQTT sub-sweep; compare against D4-D6 (CoAP CON) and D7-D9 (AMQP
+      manual+durable) at matching loss levels to compare protocol recovery mechanisms head to head.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.05
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 1
+    is_builtin: true
+
+  - name: D2_mqtt_loss_med
+    description: >
+      Reliability - MQTT QoS1 at 25% backhaul loss | Same as D1 with backhaul loss raised to 25%; QoS1's bounded retry budget (3 attempts) should start showing real delivery loss.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.25
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 2
+    is_builtin: true
+
+  - name: D3_mqtt_loss_high
+    description: >
+      Reliability - MQTT QoS1 at 45% backhaul loss | Severe backhaul degradation; stress test for QoS1 retry exhaustion and worst-case latency tail.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.45
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 3
+    is_builtin: true
+
+  - name: D4_coap_loss_low
+    description: >
+      Reliability - CoAP CON at 5% backhaul loss | Confirmable CoAP with exponential backoff, matching D1's loss level for direct protocol comparison.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.05
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 4
+    is_builtin: true
+
+  - name: D5_coap_loss_med
+    description: >
+      Reliability - CoAP CON at 25% backhaul loss | Matches D2's loss level. CoAP allows up to 4 retransmits with exponential backoff, one more attempt than MQTT QoS1.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.25
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 5
+    is_builtin: true
+
+  - name: D6_coap_loss_high
+    description: >
+      Reliability - CoAP CON at 45% backhaul loss | Matches D3's loss level; backoff growth (timeout doubling per attempt) should push tail latency higher than MQTT at this loss rate.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.45
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 6
+    is_builtin: true
+
+  - name: D7_amqp_loss_low
+    description: >
+      Reliability - AMQP manual+durable at 5% backhaul loss | Manual ack with requeue, matching D1/D4's loss level for a three-way protocol comparison.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.05
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 7
+    is_builtin: true
+
+  - name: D8_amqp_loss_med
+    description: >
+      Reliability - AMQP manual+durable at 25% backhaul loss | Matches D2/D5's loss level. AMQP's requeue has no fixed retry cap (unlike MQTT/CoAP), so delivery ratio 
+      should hold up better at the cost of higher latency and byte overhead.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.25
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 8
+    is_builtin: true
+
+  - name: D9_amqp_loss_high
+    description: >
+      Reliability - AMQP manual+durable at 45% backhaul loss | Matches D3/D6's loss level; the headline scenario for "which protocol degrades most gracefully" under severe loss.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.45
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 9
+    is_builtin: true
