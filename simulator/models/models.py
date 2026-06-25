@@ -287,8 +287,8 @@ class ExperimentMetrics:
             "latency_min_ms": self.latency_min_ms,
             "latency_max_ms": self.latency_max_ms,
 
-            "final_spot_states": self.final_spot_states,
-            "final_occupancy": self.final_occupancy
+            #"final_spot_states": self.final_spot_states,
+            #"final_occupancy": self.final_occupancy
         }
 
         if is_cloud_only:

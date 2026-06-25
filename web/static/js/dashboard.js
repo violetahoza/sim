@@ -396,8 +396,6 @@ function restoreLotFromResult(m) {
   const n = m.num_spots;
   if (!n) return;
 
-  // Rebuild the grid for this run's spot count (force, since a same-size
-  // run may currently show a different run's stale spot states).
   buildLotGrid(n, true);
 
   const spots = m.final_spot_states;
@@ -414,8 +412,6 @@ function restoreLotFromResult(m) {
     setText('lst_pct', occ.occupancy_pct + '%');
   }
 
-  // Mirror the same numbers into the LIVE section so it reflects this
-  // historical run rather than staying blank or showing the last live run.
   setText('progOccupancy', occ && occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '-');
   setText('progGenerated', m.events_generated_total ?? '-');
   setText('progHeartbeats', m.heartbeats_generated_total ?? '-');
