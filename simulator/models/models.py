@@ -319,6 +319,7 @@ class ExperimentMetrics:
                 "events_forwarded_total": self.events_forwarded_total,
                 "aggregation_ratio": self.aggregation_ratio,
                 "message_reduction_ratio": self.message_reduction_ratio,
+                "events_per_cloud_message": self.events_per_cloud_message,
                 "heartbeats_suppressed": self.heartbeats_suppressed,
                 "heartbeats_forwarded": self.heartbeats_forwarded,
                 "quarantine_suppressed": self.quarantine_suppressed,

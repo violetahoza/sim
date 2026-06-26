@@ -576,10 +576,12 @@ function _metricsCloudOnly(m) {
     _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames delivered to broker', _fmtInt(m.frames_s2e_delivered)),
 
     _group('Protocol  (sensor → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries (suppressed)', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
     _group('Cloud intake'),
-    _row('Total msgs received', _fmtInt(m.cloud_msgs_received), '', ''),
+    _row('Total events received', _fmtInt(m.cloud_msgs_received), 'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
+    _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
 
     ..._reliabilityGroup(m),
 
@@ -588,8 +590,9 @@ function _metricsCloudOnly(m) {
     _row('P50', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
     _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
 
-    _group('Bandwidth'),
-    _row('Sensor → broker (KB)', _fmtKB(m.bytes_s2e_sent), 'Protocol bytes incl. overhead (KB)', _fmtKB(m.proto_bytes_sent)),
+    _group('Bandwidth per hop'),
+    _row('Sensor → broker sent (KB)', _fmtKB(m.bytes_s2e_sent), 'Sensor → broker received (KB)', _fmtKB(m.bytes_s2e_received)),
+    _row('Protocol bytes incl. overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
   ];
 }
 
@@ -626,14 +629,16 @@ function _metricsEdge(m) {
 
   rows.push(
     _group('Backhaul link  (edge → broker)'),
-    _row('Frames sent', _fmtInt(m.frames_e2c_sent), 'Frames dropped (after retransmit)', _fmtInt(m.frames_e2c_dropped)),
+    _row('Frames sent', _fmtInt(m.frames_e2c_sent), 'Frames dropped (link + retransmit)', _fmtInt(m.frames_e2c_dropped)),
     _row('Frames delivered', _fmtInt(m.frames_e2c_delivered), 'Backhaul delivery ratio', _fmtPct(m.backhaul_delivery_ratio)),
 
     _group('Protocol  (edge → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries (suppressed)', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
     _group('Cloud intake'),
-    _row('Total msgs received', _fmtInt(m.cloud_msgs_received), '', ''),
+    _row('Total events received', _fmtInt(m.cloud_msgs_received), 'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
+    _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
 
     ..._reliabilityGroup(m),
   );
@@ -646,8 +651,13 @@ function _metricsEdge(m) {
       _row('Quarantined at end', _fmtInt(m.quarantined_spots_final), 'Quarantine suppressed msgs', _fmtInt(m.quarantine_suppressed)),
       _row('Adaptive mode switches', _fmtInt(m.adaptive_mode_switches), '', ''),
     );
-    if ((m.fault_injected_count ?? 0) > 0)
-      rows.push(_row('Faults injected', _fmtInt(m.fault_injected_count), '', ''));
+    if ((m.fault_injected_count ?? 0) > 0) {
+      rows.push(_row('Faults injected', _fmtInt(m.fault_injected_count), 'Faulty spots (ground truth)', _fmtInt(m.fault_true_count)));
+      if (m.anomaly_precision != null) {
+        rows.push(_row('Precision', _fmtPct(m.anomaly_precision), 'Recall', _fmtPct(m.anomaly_recall)));
+        rows.push(_row('F1 Score', _fmtPct(m.anomaly_f1), '', ''));
+      }
+    }
   }
 
   rows.push(
@@ -657,8 +667,9 @@ function _metricsEdge(m) {
     _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
 
     _group('Bandwidth per hop'),
-    _row('Sensor → edge  (KB)', _fmtKB(m.bytes_s2e_sent), 'Edge → cloud  (KB)', _fmtKB(m.bytes_e2c_sent)),
-    _row('Protocol bytes incl. overhead  (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
+    _row('Sensor → edge sent (KB)', _fmtKB(m.bytes_s2e_sent), 'Sensor → edge received (KB)', _fmtKB(m.bytes_s2e_received)),
+    _row('Edge → cloud sent (KB)', _fmtKB(m.bytes_e2c_sent), 'Edge → cloud received (KB)', _fmtKB(m.bytes_e2c_received)),
+    _row('Protocol bytes incl. overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
   );
 
   return rows;

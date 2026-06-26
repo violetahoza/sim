@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json
+import math
 import random
 import threading
 from typing import Callable, Optional
@@ -7,6 +7,8 @@ from typing import Callable, Optional
 from ..models.models import ParkingEvent, BatchUpdate, LinkStats
 from ..config.config import LinkConfig
 from ..des.engine import SimClock
+from ..encoding import encode_event
+from ..constants import compute_lora_airtime_s, LORAWAN_OVERHEAD_BYTES
 
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
 ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
@@ -23,7 +25,7 @@ class TokenBucket:
     def consume(self, clock: SimClock) -> float:
         if not self._enabled:
             return 0.0
-        
+
         now = clock.now
         elapsed = now - self._last_virtual
         self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
@@ -134,23 +136,25 @@ class LinkEmulator:
     def set_batch_callback(self, cb: ForwardBatchCallback) -> None:
         self._batch_cb = cb
 
-    def _serialize(self, event: ParkingEvent) -> bytes:
-        return json.dumps(event.to_dict()).encode()
+    def _wire_bytes(self, payload: bytes) -> int:
+        return len(payload) + self.config.transport_overhead_bytes
 
-    def _compute_delay(self) -> float:
+    def _compute_delay(self, payload_bytes: int = 0) -> float:
+        if self.config.use_lora_airtime and payload_bytes > 0:
+            return compute_lora_airtime_s(payload_bytes)
         if self.config.jitter_ms <= 0:
             return self.config.base_delay_ms / 1000.0
         jittered_ms = self.config.base_delay_ms + self.rng.gauss(0, self.config.jitter_ms)
         return max(0.0, jittered_ms / 1000.0)
 
     def transmit(self, event: ParkingEvent) -> None:
-        payload = self._serialize(event)
-        wire_bytes = max(1, int(len(payload) * self.config.payload_encoding_ratio))
+        payload = encode_event(event)
+        wire_bytes = self._wire_bytes(payload)
 
         self.stats.sent += 1
         self.stats.total_bytes_sent += wire_bytes
 
-        if wire_bytes > self.config.max_payload_bytes:
+        if wire_bytes > self.config.max_payload_bytes + self.config.transport_overhead_bytes:
             self.stats.dropped += 1
             if self.on_drop:
                 self.on_drop()
@@ -169,7 +173,7 @@ class LinkEmulator:
             return
 
         token_delay = self._bucket.consume(self.clock)
-        prop_delay = self._compute_delay()
+        prop_delay = self._compute_delay(len(payload))
         total_delay = token_delay + prop_delay
 
         def deliver() -> None:
@@ -185,11 +189,11 @@ class LinkEmulator:
             self.clock.schedule(total_delay, deliver)
 
     def transmit_batch(self, batch: BatchUpdate, payload: bytes) -> None:
-        wire_bytes = max(1, int(len(payload) * self.config.payload_encoding_ratio))
+        wire_bytes = self._wire_bytes(payload)
         self.stats.sent += 1
         self.stats.total_bytes_sent += wire_bytes
 
-        if wire_bytes > self.config.max_payload_bytes:
+        if wire_bytes > self.config.max_payload_bytes + self.config.transport_overhead_bytes:
             self.stats.dropped += 1
             if self.on_drop:
                 self.on_drop()
@@ -208,7 +212,7 @@ class LinkEmulator:
             return
 
         token_delay = self._bucket.consume(self.clock)
-        prop_delay = self._compute_delay()
+        prop_delay = self._compute_delay(len(payload))
         total_delay = token_delay + prop_delay
 
         def deliver() -> None:

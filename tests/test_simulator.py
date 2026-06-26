@@ -191,7 +191,7 @@ def test_simclock_schedule_at_absolute_time():
 
 
 def _lossless_link_cfg(**kw) -> LinkConfig:
-    base = dict(base_delay_ms=10.0, jitter_ms=0.0, packet_loss_rate=0.0, max_payload_bytes=100_000, rate_limit_msgs_per_sec=0.0, payload_encoding_ratio=1.0)
+    base = dict(base_delay_ms=10.0, jitter_ms=0.0, packet_loss_rate=0.0, max_payload_bytes=100_000, rate_limit_msgs_per_sec=0.0)
     base.update(kw)
     return LinkConfig(**base)
 

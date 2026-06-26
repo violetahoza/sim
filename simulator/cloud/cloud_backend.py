@@ -67,8 +67,11 @@ class CloudBackend:
 
         if key in self._applied_ids:
             self.duplicate_events_at_cloud += 1
-        else:
-            self._applied_ids.add(key)
+            self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
+            self._snapshot_cache = None
+            return
+
+        self._applied_ids.add(key)
 
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         is_heartbeat = event.is_heartbeat_event

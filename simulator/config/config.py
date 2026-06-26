@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Literal, Optional
 import yaml
 
+from simulator.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES
+
 Protocol = Literal["mqtt", "amqp", "coap"]
 Architecture = Literal["cloud_only", "edge_filtered", "edge_aggregated"]
 TrafficLevel = Literal["low", "medium", "peak"]
@@ -15,13 +17,11 @@ AMQPExchange = Literal["direct", "fanout", "topic"]
 AMQPAckMode = Literal["auto", "manual"]
 
 DEFAULT_TOD_FACTORS: list[float] = [
-    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  
-    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  
-    1.70, 1.50, 1.30, 1.50, 1.80, 2.20, 
-    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  
+    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,
+    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,
+    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,
+    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,
 ]
-
-ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
 
 SIM_DURATION_S = 10_800.0
 DEFAULT_AGG_INTERVAL_S = 1.0
@@ -38,9 +38,10 @@ class LinkConfig:
     base_delay_ms: float = 80.0
     jitter_ms: float = 30.0
     packet_loss_rate: float = 0.05
-    max_payload_bytes: int = 51
+    max_payload_bytes: int = 222
     rate_limit_msgs_per_sec: float = 5.0
-    payload_encoding_ratio: float = 0.15
+    transport_overhead_bytes: int = LORAWAN_OVERHEAD_BYTES
+    use_lora_airtime: bool = True
 
 
 @dataclass
@@ -52,7 +53,7 @@ class BackhaulLinkConfig:
     loss_peak_rate: Optional[float] = None
     max_payload_bytes: int = 65535
     rate_limit_msgs_per_sec: float = 1000.0
-    payload_encoding_ratio: float = 1.0
+    transport_overhead_bytes: int = 0
 
     def to_link_config(self) -> "LinkConfig":
         return LinkConfig(
@@ -61,7 +62,8 @@ class BackhaulLinkConfig:
             packet_loss_rate=self.packet_loss_rate,
             max_payload_bytes=self.max_payload_bytes,
             rate_limit_msgs_per_sec=self.rate_limit_msgs_per_sec,
-            payload_encoding_ratio=self.payload_encoding_ratio
+            transport_overhead_bytes=self.transport_overhead_bytes,
+            use_lora_airtime=False,
         )
 
 
@@ -79,21 +81,21 @@ class EdgeConfig:
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False
-    silent_threshold_s: float = 7200.0
+    silent_threshold_s: Optional[float] = None
     quarantine_threshold: int = 5
     quarantine_recovery_events: int = 3
 
-    stuck_threshold_s: float = 43200.0 
-    rapid_arrival_threshold_s: float = 0.5 
-    rapid_flip_min_dwell_s: float = 10.0  
-    quarantine_release_clean_ticks: int = 5 
-    anomaly_check_interval_s: float = 30.0  
+    stuck_threshold_s: Optional[float] = None
+    rapid_arrival_threshold_s: Optional[float] = None
+    rapid_flip_min_dwell_s: float = 10.0
+    quarantine_release_clean_ticks: int = 5
+    anomaly_check_interval_s: float = 30.0
 
-    adaptive_check_interval_s: float = 30.0 
-    adaptive_degrade_threshold: float = 0.85 
-    adaptive_recover_threshold: float = 0.95 
-    adaptive_min_window_samples: int = 3   
-    adaptive_dr_smoothing: float = 0.3
+    adaptive_check_interval_s: float = 30.0
+    adaptive_degrade_threshold: float = 0.85
+    adaptive_recover_threshold: float = 0.95
+    adaptive_min_window_samples: int = 10
+    adaptive_dr_smoothing: float = 0.15
 
 
 @dataclass
@@ -104,6 +106,8 @@ class MQTTConfig:
     qos: MQTTQoS = 1
     keepalive: int = 60
     clean_session: bool = True
+    max_retries_qos1: int = 3
+    max_retries_qos2: int = 3
 
 
 @dataclass
@@ -118,6 +122,8 @@ class AMQPConfig:
     prefetch_count: int = 10
     heartbeat_s: int = 900
     queue_prefix: str = "parking.edge"
+    max_redeliveries: int = 3
+    requeue_delay_s: float = 0.2
 
 
 @dataclass
@@ -126,7 +132,9 @@ class CoAPConfig:
     port: int = 5683
     mode: CoAPMode = "CON"
     resource: str = "parking/update"
-    payload_size_factor: float = 1.0
+    max_retransmit: int = 4       # RFC 7252 §4.8
+    ack_timeout_s: float = 2.0    # RFC 7252 §4.8
+    ack_random_factor: float = 1.5  # RFC 7252 §4.8
 
 
 @dataclass
@@ -194,7 +202,7 @@ class ScenarioConfig:
             "backhaul_loss_rate": self.backhaul_link.packet_loss_rate,
             "backhaul_downlink_loss_rate": self.backhaul_link.downlink_loss_rate,
             "backhaul_loss_peak_rate": self.backhaul_link.loss_peak_rate,
-            "payload_encoding_ratio": link["payload_encoding_ratio"],
+            "payload_encoding_ratio": 1.0,
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
             "max_batch_size": edge["max_batch_size"],
@@ -216,11 +224,17 @@ class ScenarioConfig:
             "adaptive_min_window_samples": edge["adaptive_min_window_samples"],
             "adaptive_dr_smoothing": edge["adaptive_dr_smoothing"],
             "mqtt_qos": mqtt["qos"],
+            "mqtt_max_retries_qos1": mqtt["max_retries_qos1"],
+            "mqtt_max_retries_qos2": mqtt["max_retries_qos2"],
             "coap_mode": coap["mode"],
-            "coap_payload_size_factor": coap["payload_size_factor"],   # Step 1 knob
+            "coap_max_retransmit": coap["max_retransmit"],
+            "coap_ack_timeout_s": coap["ack_timeout_s"],
+            "coap_ack_random_factor": coap["ack_random_factor"],
             "amqp_exchange": amqp["exchange_type"],
             "amqp_ack": amqp["ack_mode"],
             "amqp_durable": amqp["durable"],
+            "amqp_max_redeliveries": amqp["max_redeliveries"],
+            "amqp_requeue_delay_s": amqp["requeue_delay_s"],
             "time_scale": traffic["time_scale"],
             "parking_duration_cv": traffic["parking_duration_cv"],
             "mean_parking_duration_s": traffic["mean_parking_duration_s"],
@@ -251,25 +265,32 @@ class ScenarioConfig:
             heartbeat_forward_interval_s=d.get("heartbeat_forward_interval_s", 3600.0),
             anomaly_detection=d.get("anomaly_detection", True),
             adaptive_edge=d.get("adaptive_edge", False),
-            silent_threshold_s=d.get("silent_threshold_s", 7200.0),
+            silent_threshold_s=d.get("silent_threshold_s"),
             quarantine_threshold=d.get("quarantine_threshold", 5),
             quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
-            stuck_threshold_s=d.get("stuck_threshold_s", 43200.0),
-            rapid_arrival_threshold_s=d.get("rapid_arrival_threshold_s", 0.5),
+            stuck_threshold_s=d.get("stuck_threshold_s"),
+            rapid_arrival_threshold_s=d.get("rapid_arrival_threshold_s"),
             rapid_flip_min_dwell_s=d.get("rapid_flip_min_dwell_s", 10.0),
             quarantine_release_clean_ticks=d.get("quarantine_release_clean_ticks", 5),
             anomaly_check_interval_s=d.get("anomaly_check_interval_s", 30.0),
             adaptive_check_interval_s=d.get("adaptive_check_interval_s", 30.0),
             adaptive_degrade_threshold=d.get("adaptive_degrade_threshold", 0.85),
             adaptive_recover_threshold=d.get("adaptive_recover_threshold", 0.95),
-            adaptive_min_window_samples=d.get("adaptive_min_window_samples", 3),
-            adaptive_dr_smoothing=d.get("adaptive_dr_smoothing", 0.3),
+            adaptive_min_window_samples=d.get("adaptive_min_window_samples", 10),
+            adaptive_dr_smoothing=d.get("adaptive_dr_smoothing", 0.15),
             mqtt_qos=d.get("mqtt_qos", 1),
+            mqtt_max_retries_qos1=d.get("mqtt_max_retries_qos1", 3),
+            mqtt_max_retries_qos2=d.get("mqtt_max_retries_qos2", 3),
             coap_mode=d.get("coap_mode", "CON"),
-            coap_payload_size_factor=d.get("coap_payload_size_factor", 1.0),   # Step 1 knob
+            coap_max_retransmit=d.get("coap_max_retransmit", 4),
+            coap_ack_timeout_s=d.get("coap_ack_timeout_s", 2.0),
+            coap_ack_random_factor=d.get("coap_ack_random_factor", 1.5),
+            coap_payload_size_factor=d.get("coap_payload_size_factor", 1.0),
             amqp_exchange=d.get("amqp_exchange", "direct"),
             amqp_ack=d.get("amqp_ack", "manual"),
             amqp_durable=d.get("amqp_durable", True),
+            amqp_max_redeliveries=d.get("amqp_max_redeliveries", 3),
+            amqp_requeue_delay_s=d.get("amqp_requeue_delay_s", 0.2),
             sim_duration_s=d.get("sim_duration_s", SIM_DURATION_S),
             seed=d.get("seed", 42),
             group=d.get("group", ""),
@@ -278,7 +299,7 @@ class ScenarioConfig:
             time_scale=d.get("time_scale", DEFAULT_TIME_SCALE),
             base_delay_ms=d.get("base_delay_ms", 80.0),
             jitter_ms=d.get("jitter_ms", 30.0),
-            max_payload_bytes=d.get("max_payload_bytes", 51),
+            max_payload_bytes=d.get("max_payload_bytes", 222),
             payload_encoding_ratio=d.get("payload_encoding_ratio", 0.15),
             backhaul_base_delay_ms=d.get("backhaul_base_delay_ms", 30.0),
             backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
@@ -299,6 +320,12 @@ class ScenarioConfig:
         )
 
 
+def _derive_threshold(
+    value: Optional[float], fallback: float
+) -> float:
+    return value if value is not None else fallback
+
+
 def make_scenario(
     name: str,
     description: str = "",
@@ -314,25 +341,32 @@ def make_scenario(
     heartbeat_forward_interval_s: float = 3600.0,
     anomaly_detection: bool = True,
     adaptive_edge: bool = False,
-    silent_threshold_s: float = 7200.0,
+    silent_threshold_s: Optional[float] = None,
     quarantine_threshold: int = 5,
     quarantine_recovery_events: int = 3,
-    stuck_threshold_s: float = 43200.0,
-    rapid_arrival_threshold_s: float = 0.5,
+    stuck_threshold_s: Optional[float] = None,
+    rapid_arrival_threshold_s: Optional[float] = None,
     rapid_flip_min_dwell_s: float = 10.0,
     quarantine_release_clean_ticks: int = 5,
     anomaly_check_interval_s: float = 30.0,
     adaptive_check_interval_s: float = 30.0,
     adaptive_degrade_threshold: float = 0.85,
     adaptive_recover_threshold: float = 0.95,
-    adaptive_min_window_samples: int = 3,
-    adaptive_dr_smoothing: float = 0.3,
+    adaptive_min_window_samples: int = 10,
+    adaptive_dr_smoothing: float = 0.15,
     mqtt_qos: MQTTQoS = 1,
+    mqtt_max_retries_qos1: int = 3,
+    mqtt_max_retries_qos2: int = 3,
     coap_mode: CoAPMode = "CON",
-    coap_payload_size_factor: float = 1.0,  
+    coap_max_retransmit: int = 4,
+    coap_ack_timeout_s: float = 2.0,
+    coap_ack_random_factor: float = 1.5,
+    coap_payload_size_factor: float = 1.0,  # kept for back-compat in YAML
     amqp_exchange: AMQPExchange = "direct",
     amqp_ack: AMQPAckMode = "manual",
     amqp_durable: bool = True,
+    amqp_max_redeliveries: int = 3,
+    amqp_requeue_delay_s: float = 0.2,
     sim_duration_s: float = SIM_DURATION_S,
     seed: int = 42,
     group: str = "",
@@ -343,13 +377,13 @@ def make_scenario(
     faults: Optional[list] = None,
     base_delay_ms: float = 80.0,
     jitter_ms: float = 30.0,
-    max_payload_bytes: int = 51,
+    max_payload_bytes: int = 222,
     backhaul_base_delay_ms: float = 30.0,
     backhaul_jitter_ms: float = 10.0,
     backhaul_loss_rate: float = 0.02,
     backhaul_downlink_loss_rate: Optional[float] = None,
     backhaul_loss_peak_rate: Optional[float] = None,
-    payload_encoding_ratio: float = 0.15,
+    payload_encoding_ratio: float = 0.15,  # ignored — kept for YAML compat
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
     use_time_of_day: bool = False,
@@ -367,13 +401,16 @@ def make_scenario(
 
     occ = initial_occupancy if initial_occupancy is not None else 0.0
 
+    _silent = _derive_threshold(silent_threshold_s, 3.0 * heartbeat_interval_s)
+    _stuck = _derive_threshold(stuck_threshold_s, 43_200.0 + heartbeat_interval_s)
+    _rapid = _derive_threshold(rapid_arrival_threshold_s, 15.0)
+
     link = LinkConfig(
         packet_loss_rate=loss_rate,
         rate_limit_msgs_per_sec=rate_limit,
         base_delay_ms=base_delay_ms,
         jitter_ms=jitter_ms,
         max_payload_bytes=max_payload_bytes,
-        payload_encoding_ratio=payload_encoding_ratio
     )
 
     backhaul = BackhaulLinkConfig(
@@ -381,7 +418,7 @@ def make_scenario(
         jitter_ms=backhaul_jitter_ms,
         packet_loss_rate=backhaul_loss_rate,
         downlink_loss_rate=backhaul_downlink_loss_rate,
-        loss_peak_rate=backhaul_loss_peak_rate
+        loss_peak_rate=backhaul_loss_peak_rate,
     )
 
     edge = EdgeConfig(
@@ -393,11 +430,11 @@ def make_scenario(
         heartbeat_forward_interval_s=heartbeat_forward_interval_s,
         anomaly_detection=anomaly_detection,
         adaptive_edge=adaptive_edge,
-        silent_threshold_s=silent_threshold_s,
+        silent_threshold_s=_silent,
         quarantine_threshold=quarantine_threshold,
         quarantine_recovery_events=quarantine_recovery_events,
-        stuck_threshold_s=stuck_threshold_s,
-        rapid_arrival_threshold_s=rapid_arrival_threshold_s,
+        stuck_threshold_s=_stuck,
+        rapid_arrival_threshold_s=_rapid,
         rapid_flip_min_dwell_s=rapid_flip_min_dwell_s,
         quarantine_release_clean_ticks=quarantine_release_clean_ticks,
         anomaly_check_interval_s=anomaly_check_interval_s,
@@ -405,7 +442,7 @@ def make_scenario(
         adaptive_degrade_threshold=adaptive_degrade_threshold,
         adaptive_recover_threshold=adaptive_recover_threshold,
         adaptive_min_window_samples=adaptive_min_window_samples,
-        adaptive_dr_smoothing=adaptive_dr_smoothing
+        adaptive_dr_smoothing=adaptive_dr_smoothing,
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
@@ -427,9 +464,23 @@ def make_scenario(
         architecture=architecture, traffic_level=traffic_level,
         num_spots=num_spots, arrival_rate=arrival, sim_duration_s=sim_duration_s,
         link=link, backhaul_link=backhaul, edge=edge,
-        mqtt=MQTTConfig(qos=mqtt_qos),
-        amqp=AMQPConfig(exchange_type=amqp_exchange, ack_mode=amqp_ack, durable=amqp_durable),
-        coap=CoAPConfig(mode=coap_mode, payload_size_factor=coap_payload_size_factor),
+        mqtt=MQTTConfig(
+            qos=mqtt_qos,
+            max_retries_qos1=mqtt_max_retries_qos1,
+            max_retries_qos2=mqtt_max_retries_qos2,
+        ),
+        amqp=AMQPConfig(
+            exchange_type=amqp_exchange, ack_mode=amqp_ack,
+            durable=amqp_durable,
+            max_redeliveries=amqp_max_redeliveries,
+            requeue_delay_s=amqp_requeue_delay_s,
+        ),
+        coap=CoAPConfig(
+            mode=coap_mode,
+            max_retransmit=coap_max_retransmit,
+            ack_timeout_s=coap_ack_timeout_s,
+            ack_random_factor=coap_ack_random_factor,
+        ),
         traffic=traffic, random_seed=seed,
         group=group, group_order=group_order, is_builtin=is_builtin,
         faults=faults or []

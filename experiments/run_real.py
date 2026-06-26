@@ -78,7 +78,8 @@ async def run_real_for_runner(runner: "ExperimentRunner", cfg: ScenarioConfig):
 
         def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
             batch = BatchUpdate(edge_id="direct", events=[event])
-            payload = EdgeNode._serialize_batch(batch)
+            from simulator.encoding import encode_batch
+            payload = encode_batch(batch)
             backend.publish(batch, payload)
 
         link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng, wall_clock=True)
