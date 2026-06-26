@@ -167,8 +167,9 @@ class ExperimentRunner:
             edge = EdgeNode(cfg, clock, lambda b, p: None, epoch)
 
             def _sensor_link_cb(event: ParkingEvent, raw: bytes) -> None:
+                from simulator.utils import encode_batch
                 batch = BatchUpdate(edge_id="direct", events=[event])
-                payload = EdgeNode._serialize_batch(batch)
+                payload = encode_batch(batch)
                 backend.publish(batch, payload)
 
             link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng)
@@ -509,7 +510,6 @@ def _make_loss_provider(cfg):
 
     return provider
 
-
 def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     from simulator.protocols.mqtt_client import SimulatedMQTTBackend
     from simulator.protocols.amqp_client import SimulatedAMQPBackend
@@ -527,7 +527,6 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
         ack_jitter = cfg.backhaul_link.jitter_ms / 1000.0
 
     loss_provider = _make_loss_provider(cfg)
-
     proto = cfg.protocol
     if proto == "mqtt":
         return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)

@@ -7,21 +7,14 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import CoAPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
+from simulator.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_BYTES, UDP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
 
-COAP_ACK_TIMEOUT_S = 2.0
-COAP_ACK_RANDOM_FACTOR = 1.5
-COAP_MAX_RETRANSMIT = 4
-COAP_HEADER_BYTES = 4
-COAP_TOKEN_BYTES = 4
-COAP_PAYLOAD_MARKER = 1
-COAP_ACK_BYTES = COAP_HEADER_BYTES + COAP_TOKEN_BYTES
-
-
 class SimulatedCoAPBackend(ProtocolBackend):
 
-    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
+    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, 
+                 ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
@@ -61,11 +54,13 @@ class SimulatedCoAPBackend(ProtocolBackend):
         return max(0.0, self._ack_one_way_s + self._rng.gauss(0, self._ack_jitter_s))
 
     def _initial_timeout(self) -> float:
-        return self._rng.uniform(COAP_ACK_TIMEOUT_S, COAP_ACK_TIMEOUT_S * COAP_ACK_RANDOM_FACTOR)
+        ack_timeout = self.config.ack_timeout_s
+        ack_random = self.config.ack_random_factor
+        return self._rng.uniform(ack_timeout, ack_timeout * ack_random)
 
     def _frame_bytes(self, payload: bytes) -> int:
-        factor = getattr(self.config, "payload_size_factor", 1.0)
-        return COAP_HEADER_BYTES + COAP_TOKEN_BYTES + COAP_PAYLOAD_MARKER + int(len(payload) * factor)
+        return (UDP_TRANSPORT_OVERHEAD + COAP_HEADER_BYTES + COAP_TOKEN_BYTES +
+                COAP_URI_PATH_OPTION_EST + COAP_PAYLOAD_MARKER + len(payload))
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         msg_id = self._next_id()
@@ -100,7 +95,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self._release(batch, payload, msg_id)
 
     def _retransmit(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
-        if attempt >= COAP_MAX_RETRANSMIT:
+        if attempt >= self.config.max_retransmit:
             self._drop(msg_id)
             return
         self.retransmitted += 1
@@ -109,14 +104,16 @@ class SimulatedCoAPBackend(ProtocolBackend):
 
     def _send_con(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
         self.bytes_sent += self._frame_bytes(payload)
+
         if self._uplink_drop():
             self._retransmit(batch, payload, msg_id, attempt, timeout)
             return
-        self._release(batch, payload, msg_id)
-        self.bytes_sent += COAP_ACK_BYTES
 
         def ack() -> None:
             if self._downlink_drop():
                 self._retransmit(batch, payload, msg_id, attempt, timeout)
+            else:
+                self.bytes_sent += COAP_ACK_BYTES
+                self._release(batch, payload, msg_id)
 
         self.clock.schedule(self._ack_delay(), ack)

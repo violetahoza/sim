@@ -7,22 +7,15 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import AMQPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
+from simulator.constants import (AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST,
+    AMQP_DURABLE_PROPERTY, AMQP_ACK_FRAME, TCP_TRANSPORT_OVERHEAD)
 
 logger = logging.getLogger(__name__)
 
-AMQP_FRAME_ENVELOPE = 8
-AMQP_PUBLISH_METHOD_FIXED = 9
-AMQP_CONTENT_HEADER_FIXED = 14
-AMQP_DURABLE_PROPERTY = 1
-AMQP_ACK_FRAME = 21
-
-AMQP_MAX_REDELIVERIES = 3
-AMQP_REQUEUE_DELAY_S = 0.2
-
-
 class SimulatedAMQPBackend(ProtocolBackend):
 
-    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
+    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, 
+                 ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
@@ -71,8 +64,8 @@ class SimulatedAMQPBackend(ProtocolBackend):
     def _publish_bytes(self, batch: BatchUpdate, payload: bytes) -> int:
         rk = self._routing_key(batch)
         method = AMQP_PUBLISH_METHOD_FIXED + len(self.config.exchange.encode()) + len(rk.encode())
-        header = AMQP_CONTENT_HEADER_FIXED + (AMQP_DURABLE_PROPERTY if self.config.durable else 0)
-        return 3 * AMQP_FRAME_ENVELOPE + method + header + len(payload)
+        header = AMQP_CONTENT_HEADER_FIXED + AMQP_PROPERTY_TABLE_EST + (AMQP_DURABLE_PROPERTY if self.config.durable else 0)
+        return TCP_TRANSPORT_OVERHEAD + 3 * AMQP_FRAME_ENVELOPE + method + header + len(payload)
 
     def publish(self, batch: BatchUpdate, payload: bytes) -> None:
         self.frames_offered += 1
@@ -97,29 +90,34 @@ class SimulatedAMQPBackend(ProtocolBackend):
             self.on_drop()
 
     def _requeue(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
-        if attempt >= AMQP_MAX_REDELIVERIES:
+        if attempt >= self.config.max_redeliveries:
             self._drop(msg_id)
             return
         self.retransmitted += 1
         self._dirty.add(msg_id)
-        self.clock.schedule(AMQP_REQUEUE_DELAY_S, lambda: self._do_publish(batch, payload, msg_id, attempt + 1))
+        delay = self.config.requeue_delay_s * (2 ** attempt)
+        self.clock.schedule(delay, lambda: self._do_publish(batch, payload, msg_id, attempt + 1))
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
         self.bytes_sent += self._publish_bytes(batch, payload)
+
         if self._uplink_drop():
             if self.config.ack_mode == "auto":
                 self._drop(msg_id)
             else:
                 self._requeue(batch, payload, msg_id, attempt)
             return
+        
         self.bytes_sent += AMQP_ACK_FRAME
-        self._release(batch, payload, msg_id)
         if self.config.ack_mode == "auto":
+            self._release(batch, payload, msg_id)
             return
-        self.bytes_sent += AMQP_ACK_FRAME
 
         def consumer_ack() -> None:
             if self._downlink_drop():
                 self._requeue(batch, payload, msg_id, attempt)
+            else:
+                self.bytes_sent += AMQP_ACK_FRAME
+                self._release(batch, payload, msg_id)
 
         self.clock.schedule(self._ack_delay(), consumer_ack)

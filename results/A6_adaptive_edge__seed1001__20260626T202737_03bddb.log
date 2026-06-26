@@ -1,0 +1,49 @@
+Scenario Log: A6_adaptive_edge
+Architecture: edge_aggregated   Protocol: mqtt
+Traffic: peak   Spots: 500   Duration: 86400s
+========================================================================
+
+SUMMARY
+  Anomalies detected    : 0
+  Anomalies resolved    : 0
+  Active at end         : 0
+  Affected spots        : 0
+  Quarantined at end    : 0
+  Quarantine suppressed : 0
+  Heartbeats suppressed : 33799
+  Adaptive mode switches: 4
+
+EVENT LOG
+  t_virtual(s)  event                   detail
+------------------------------------------------------------------------
+         120.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.667 < 85% delta_sent=21 delta_recv=14 agg_interval=5.0→10.0s
+       21570.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.955 >= 95% delta_sent=28 delta_recv=28
+       33330.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.849 < 85% delta_sent=21 delta_recv=13 agg_interval=5.0→10.0s
+       35220.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.843 < 85% delta_sent=20 delta_recv=16 agg_interval=10.0→20.0s
+       35460.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.831 < 85% delta_sent=21 delta_recv=16 agg_interval=20.0→40.0s
+       35730.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.809 < 85% delta_sent=22 delta_recv=15 agg_interval=40.0→60.0s
+       36030.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.830 < 85% delta_sent=21 delta_recv=20 agg_interval=60.0→60.0s
+       36330.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.820 < 85% delta_sent=21 delta_recv=16 agg_interval=60.0→60.0s
+       36600.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.840 < 85% delta_sent=21 delta_recv=20 agg_interval=60.0→60.0s
+       36900.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.828 < 85% delta_sent=21 delta_recv=16 agg_interval=60.0→60.0s
+       37140.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.801 < 85% delta_sent=20 delta_recv=13 agg_interval=60.0→60.0s
+       37380.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.809 < 85% delta_sent=20 delta_recv=17 agg_interval=60.0→60.0s
+       37650.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.787 < 85% delta_sent=21 delta_recv=14 agg_interval=60.0→60.0s
+       37920.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.798 < 85% delta_sent=21 delta_recv=18 agg_interval=60.0→60.0s
+       38190.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.783 < 85% delta_sent=20 delta_recv=14 agg_interval=60.0→60.0s
+       38460.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.775 < 85% delta_sent=22 delta_recv=16 agg_interval=60.0→60.0s
+       38730.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.771 < 85% delta_sent=20 delta_recv=15 agg_interval=60.0→60.0s
+       39030.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.777 < 85% delta_sent=21 delta_recv=17 agg_interval=60.0→60.0s
+       39330.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.739 < 85% delta_sent=21 delta_recv=11 agg_interval=60.0→60.0s
+       39600.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.726 < 85% delta_sent=20 delta_recv=13 agg_interval=60.0→60.0s
+       39870.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.724 < 85% delta_sent=21 delta_recv=15 agg_interval=60.0→60.0s
+       40140.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.722 < 85% delta_sent=21 delta_recv=15 agg_interval=60.0→60.0s
+       40440.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.696 < 85% delta_sent=22 delta_recv=12 agg_interval=60.0→60.0s
+       40740.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.699 < 85% delta_sent=21 delta_recv=15 agg_interval=60.0→60.0s
+       41010.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.672 < 85% delta_sent=21 delta_recv=11 agg_interval=60.0→60.0s
+       58410.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.954 >= 95% delta_sent=25 delta_recv=25
+       85140.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.838 < 85% delta_sent=21 delta_recv=13 agg_interval=5.0→10.0s
+       85380.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.828 < 85% delta_sent=22 delta_recv=17 agg_interval=10.0→20.0s
+       85620.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.840 < 85% delta_sent=21 delta_recv=19 agg_interval=20.0→40.0s
+       85980.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.842 < 85% delta_sent=21 delta_recv=18 agg_interval=40.0→60.0s
+       86310.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.828 < 85% delta_sent=20 delta_recv=15 agg_interval=60.0→60.0s

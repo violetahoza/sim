@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import json
+import msgpack
 from simulator.models.models import BatchUpdate, ParkingEvent, SpotState
 
 
@@ -43,3 +44,10 @@ def deserialize_batch(payload: bytes) -> BatchUpdate:
             is_heartbeat_event=bool(e.get("is_heartbeat_event", False))
         ))
     return BatchUpdate(edge_id=obj.get("edge_id", "edge"), events=events)
+
+def encode_event(event: ParkingEvent) -> bytes:
+    return msgpack.packb(event.to_dict(), use_bin_type=True)
+
+
+def encode_batch(batch: BatchUpdate) -> bytes:
+    return msgpack.packb(batch.to_dict(), use_bin_type=True)

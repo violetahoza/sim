@@ -1,11 +1,11 @@
 from __future__ import annotations
-import json
 import logging
 from typing import Callable, Optional
 
 from ..models.models import BatchUpdate, LinkStats, ParkingEvent, SensorState, SpotState
 from ..config.config import EdgeConfig, ScenarioConfig
 from ..des.engine import SimClock
+from ..utils import encode_batch
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class EdgeNode:
         self._epoch = epoch
         self.edge_id = "edge_01"
 
-        self._backhaul_encoding_ratio: float = getattr(config.backhaul_link, "payload_encoding_ratio", 1.0)
+        self._backhaul_overhead: int = getattr(config.backhaul_link, "transport_overhead_bytes", 0)
         self._active_arch: str = config.architecture
         self._cache: dict[int, SensorState] = {}
         self._pending: list[ParkingEvent] = []
@@ -48,6 +48,10 @@ class EdgeNode:
         self._adaptive_prev_offered: int = 0
         self._adaptive_prev_first_pass: int = 0
         self._adaptive_dr_ewma: Optional[float] = None
+        self._adaptive_last_switch_time: float = -1e9
+
+        self._base_aggregation_interval: float = self.edge_cfg.aggregation_interval_s
+        self._active_aggregation_interval: float = self._base_aggregation_interval
 
         self._active_anomalies: set[tuple[int, str]] = set()
         self._resolved_anomalies: int = 0
@@ -65,7 +69,7 @@ class EdgeNode:
                 self._cache[sid] = SensorState(spot_id=sid, last_updated=epoch, last_state_change_timestamp=epoch)
 
         if self._active_arch == "edge_aggregated":
-            self.clock.schedule(self.edge_cfg.aggregation_interval_s, self._aggregation_tick)
+            self.clock.schedule(self._active_aggregation_interval, self._aggregation_tick)
         if self.edge_cfg.anomaly_detection:
             self.clock.schedule(self.edge_cfg.anomaly_check_interval_s, self._anomaly_tick)
         elif self.edge_cfg.adaptive_edge:
@@ -122,7 +126,10 @@ class EdgeNode:
             cached.last_heartbeat_forwarded_timestamp = event.timestamp
             return
 
-        if self.edge_cfg.anomaly_detection:
+        is_stale = cached.last_event_seq > 0 and event.sequence <= cached.last_event_seq
+        is_real_state_change = (not event.is_initial) and (not is_stale) and (event.state != cached.state)
+
+        if self.edge_cfg.anomaly_detection and is_real_state_change:
             self._check_r3_r4(event, cached, now_virtual)
             self._check_r5(event, cached, now_virtual)
 
@@ -195,7 +202,7 @@ class EdgeNode:
 
     def _aggregation_tick(self) -> None:
         self._flush_batch()
-        self.clock.schedule(self.edge_cfg.aggregation_interval_s, self._aggregation_tick)
+        self.clock.schedule(self._active_aggregation_interval, self._aggregation_tick)
 
     def record_cloud_drop(self) -> None:
         self.stats.dropped += 1
@@ -206,8 +213,8 @@ class EdgeNode:
 
     def _forward_single(self, event: ParkingEvent) -> None:
         batch = BatchUpdate(edge_id=self.edge_id, events=[event])
-        payload = self._serialize_batch(batch)
-        wire_bytes = max(1, int(len(payload) * self._backhaul_encoding_ratio))
+        payload = encode_batch(batch)
+        wire_bytes = len(payload) + self._backhaul_overhead
         self.stats.sent += 1
         self.stats.total_bytes_sent += wire_bytes
         self.forwarded_events += 1
@@ -219,16 +226,13 @@ class EdgeNode:
         events = list(self._pending)
         self._pending.clear()
         batch = BatchUpdate(edge_id=self.edge_id, events=events)
-        payload = self._serialize_batch(batch)
-        wire_bytes = max(1, int(len(payload) * self._backhaul_encoding_ratio))
+        payload = encode_batch(batch)
+        wire_bytes = len(payload) + self._backhaul_overhead
         self.stats.sent += 1
         self.stats.total_bytes_sent += wire_bytes
         self.forwarded_events += len(events)
         self._cloud_cb(batch, payload)
 
-    @staticmethod
-    def _serialize_batch(batch: BatchUpdate) -> bytes:
-        return json.dumps(batch.to_dict()).encode()
 
     def _check_r3_r4(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
         sid = event.spot_id
@@ -248,15 +252,20 @@ class EdgeNode:
             self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
-        if cached.last_event_seq > 0 and event.state != cached.state and event.sequence <= cached.last_event_seq:
-            self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+        if event.state != cached.state:
+            last_change_virtual = cached.last_state_change_timestamp - self._epoch
+            dwell = now_virtual - last_change_virtual
+            if cached.total_events > 0 and dwell < self.edge_cfg.rapid_flip_min_dwell_s:
+                self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+            else:
+                self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
         else:
             self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
 
     def _check_anomalies(self) -> None:
         now_virtual = self.clock.now
-        silent_thr_s = self.edge_cfg.silent_threshold_s
-        stuck_thr_s = self.edge_cfg.stuck_threshold_s
+        silent_thr_s = self.edge_cfg.silent_threshold_s or 2700.0
+        stuck_thr_s = self.edge_cfg.stuck_threshold_s or 44100.0
         for spot_id, state in self._cache.items():
             if state.last_state_change_timestamp >= 0.0:
                 last_c_v = state.last_state_change_timestamp - self._epoch
@@ -342,6 +351,10 @@ class EdgeNode:
             return
         if not self.edge_cfg.adaptive_edge:
             return
+        
+        cooldown = 2.0 * self.edge_cfg.adaptive_check_interval_s
+        if (self.clock.now - self._adaptive_last_switch_time) < cooldown:
+            return
 
         if self._backhaul_probe is not None:
             offered, first_pass = self._backhaul_probe()
@@ -369,15 +382,23 @@ class EdgeNode:
         dr = self._adaptive_dr_ewma
 
         if self._active_arch == "edge_aggregated" and dr < self.edge_cfg.adaptive_degrade_threshold:
+            new_interval = min(self._active_aggregation_interval * 2.0, 60.0)
             detail = (
                 f"backhaul_window_DR={dr:.3f} < {self.edge_cfg.adaptive_degrade_threshold:.0%} "
-                f"delta_sent={delta_sent} delta_recv={delta_recv}"
+                f"delta_sent={delta_sent} delta_recv={delta_recv} "
+                f"agg_interval={self._active_aggregation_interval:.1f}→{new_interval:.1f}s"
             )
-            logger.info(f"[ADAPTIVE] t={self.clock.now:.0f}s → edge_filtered  ({detail})")
-            self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "MODE_SWITCH", "detail": f"aggregated→filtered {detail}"})
-            self._flush_batch()
-            self._active_arch = "edge_filtered"
-            self.mode_switches += 1
+            self._active_aggregation_interval = new_interval
+
+            if dr < self.edge_cfg.adaptive_degrade_threshold * 0.8:
+                logger.info(f"[ADAPTIVE] t={self.clock.now:.0f}s → edge_filtered  ({detail})")
+                self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "MODE_SWITCH", "detail": f"aggregated→filtered {detail}"})
+                self._flush_batch()
+                self._active_arch = "edge_filtered"
+                self.mode_switches += 1
+                self._adaptive_last_switch_time = self.clock.now
+            else:
+                self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "AGG_WINDOW_INCREASE", "detail": detail})
 
         elif self._active_arch == "edge_filtered" and dr >= self.edge_cfg.adaptive_recover_threshold:
             detail = (
@@ -387,7 +408,16 @@ class EdgeNode:
             logger.info(f"[ADAPTIVE] t={self.clock.now:.0f}s → edge_aggregated ({detail})")
             self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "MODE_SWITCH", "detail": f"filtered→aggregated {detail}"})
             self._active_arch = "edge_aggregated"
+            self._active_aggregation_interval = self._base_aggregation_interval
             self.mode_switches += 1
+            self._adaptive_last_switch_time = self.clock.now
+
+        elif self._active_arch == "edge_aggregated" and dr >= self.edge_cfg.adaptive_recover_threshold:
+            if self._active_aggregation_interval > self._base_aggregation_interval:
+                new_interval = max(self._base_aggregation_interval, self._active_aggregation_interval / 2.0)
+                detail = f"DR={dr:.3f} healthy, agg_interval={self._active_aggregation_interval:.1f}→{new_interval:.1f}s"
+                self._active_aggregation_interval = new_interval
+                self._event_log.append({"t_virtual": round(self.clock.now, 1), "event": "AGG_WINDOW_DECREASE", "detail": detail})
 
     def summary(self) -> dict:
         return {
