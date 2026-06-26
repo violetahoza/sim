@@ -1,7 +1,7 @@
 {
   "scenario_name": "B6_amqp_auto",
   "seed": 2001,
-  "run_id": "20260625T104712_aba379",
+  "run_id": "20260626T134635_245ae1",
   "protocol": "amqp",
   "architecture": "edge_filtered",
   "traffic_level": "peak",
@@ -53,5 +53,9 @@
   "adaptive_mode_switches": 0,
   "quarantined_spots_final": 0,
   "anomaly_detected_spots": 0,
-  "fault_injected_count": 0
+  "fault_injected_count": 0,
+  "fault_true_count": 0,
+  "anomaly_precision": null,
+  "anomaly_recall": null,
+  "anomaly_f1": null
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import math
 import random
 import time
 from pathlib import Path
@@ -102,6 +103,7 @@ class ExperimentRunner:
         self._spot_states: dict[int, str] = {}
         self._edge_summary: Optional[dict] = None
         self._fault_injector = None
+        self._fault_true_spots: set = set()
         self._real_mode = real_mode
 
     def cancel(self) -> None:
@@ -126,6 +128,27 @@ class ExperimentRunner:
         arrival_rate = cfg.arrival_rate
 
         sensors = SensorEmulator(cfg.traffic, arrival_rate)
+        self._fault_true_spots = set()
+        if cfg.faults:
+            from simulator.sensors.fault_injector import FaultInjector, FaultSpec, FaultType
+            fi = FaultInjector(rng=random.Random(seed + 9001))
+            pool = list(range(cfg.num_spots))
+            random.Random(seed + 9000).shuffle(pool)
+            idx = 0
+            for spec_dict in cfg.faults:
+                count = int(spec_dict.get("count", 1))
+                chosen = pool[idx:idx + count]
+                idx += count
+                spec = FaultSpec(
+                    fault_type=FaultType(spec_dict["type"]),
+                    stuck_state=spec_dict.get("stuck_state", "occupied"),
+                    replay_count=int(spec_dict.get("replay_count", 3)),
+                    flood_count=int(spec_dict.get("flood_count", 10))
+                )
+                fi.set_faults(chosen, spec)
+                self._fault_true_spots.update(chosen)
+            sensors.set_fault_injector(fi)
+            self._fault_injector = fi
         cloud = CloudBackend(cfg, clock, epoch)
 
         engine = make_engine(None)
@@ -171,6 +194,7 @@ class ExperimentRunner:
 
             link = LinkEmulator(cfg.link, clock, forward_cb=_sensor_link_cb, rng=_sensor_rng)
             edge.set_sensor_link_stats(link.stats)
+            edge.set_backhaul_delivery_probe(lambda: (getattr(backend, "frames_offered", 0), getattr(backend, "first_pass_delivered", 0)))
 
         for i in range(cfg.num_spots):
             self._spot_states[i] = "free"
@@ -329,6 +353,17 @@ class ExperimentRunner:
             message_reduction_ratio = (max(0.0, 1.0 - e2c_msgs / s2e_received) if s2e_received > 0 else None)
             events_per_cloud_message = (forwarded_events / e2c_msgs) if e2c_msgs > 0 else None
 
+        true_spots = getattr(self, "_fault_true_spots", set())
+        quarantined_spots = set(es.get("ever_quarantined", []))
+        fault_injected = self._fault_injector.injected_count if self._fault_injector is not None else 0
+        if true_spots:
+            tp = len(quarantined_spots & true_spots)
+            precision = (tp / len(quarantined_spots)) if quarantined_spots else 0.0
+            recall = tp / len(true_spots)
+            f1 = (2.0 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        else:
+            precision = recall = f1 = None
+
         return ExperimentMetrics(
             scenario_name=cfg.name,
             seed=cfg.random_seed if cfg.random_seed is not None else 42,
@@ -393,6 +428,11 @@ class ExperimentRunner:
             adaptive_mode_switches=es.get("mode_switches", 0),
             quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
+            fault_injected_count=fault_injected,
+            fault_true_count=len(true_spots),
+            anomaly_precision=_r(precision) if precision is not None else None,
+            anomaly_recall=_r(recall) if recall is not None else None,
+            anomaly_f1=_r(f1) if f1 is not None else None,
 
             latency_samples=post_samples[-50_000:],
             scenario_log=es.get("event_log", []),
@@ -445,6 +485,31 @@ class ExperimentRunner:
             )
 
 
+BACKHAUL_CONGESTION_PEAK_HOURS = (8.0, 18.0)
+BACKHAUL_CONGESTION_WIDTH_H = 1.5
+
+
+def _make_loss_provider(cfg):
+    if cfg.architecture == "cloud_only":
+        return None
+    peak = cfg.backhaul_link.loss_peak_rate
+    if peak is None:
+        return None
+    floor = cfg.backhaul_link.packet_loss_rate
+    start_hour = cfg.traffic.start_hour
+
+    def provider(t: float) -> float:
+        hour = (start_hour + t / 3600.0) % 24.0
+        bump = 0.0
+        for c in BACKHAUL_CONGESTION_PEAK_HOURS:
+            d = abs(hour - c)
+            d = min(d, 24.0 - d)
+            bump = max(bump, math.exp(-0.5 * (d / BACKHAUL_CONGESTION_WIDTH_H) ** 2))
+        return floor + (peak - floor) * bump
+
+    return provider
+
+
 def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     from simulator.protocols.mqtt_client import SimulatedMQTTBackend
     from simulator.protocols.amqp_client import SimulatedAMQPBackend
@@ -461,13 +526,15 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
         ack_one_way = cfg.backhaul_link.base_delay_ms / 1000.0
         ack_jitter = cfg.backhaul_link.jitter_ms / 1000.0
 
+    loss_provider = _make_loss_provider(cfg)
+
     proto = cfg.protocol
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     elif proto == "coap":
-        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss)
+        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     raise ValueError(f"Unknown protocol: {proto}")
 
 

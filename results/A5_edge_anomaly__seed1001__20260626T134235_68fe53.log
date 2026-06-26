@@ -1,0 +1,2467 @@
+Scenario Log: A5_edge_anomaly
+Architecture: edge_filtered   Protocol: mqtt
+Traffic: peak   Spots: 500   Duration: 86400s
+========================================================================
+
+SUMMARY
+  Anomalies detected    : 1112
+  Anomalies resolved    : 1071
+  Active at end         : 41
+  Affected spots        : 138
+  Quarantined at end    : 18
+  Quarantine suppressed : 30
+  Heartbeats suppressed : 40448
+  Adaptive mode switches: 0
+
+EVENT LOG
+  t_virtual(s)  event                   detail
+------------------------------------------------------------------------
+         399.2  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+         399.2  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+         537.4  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=1
+         671.5  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+         681.4  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+         681.4  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+         810.0  QUARANTINE_RELEASE      spot=320 reason=5 clean anomaly ticks
+         917.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=1
+        1182.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+        1182.7  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+        1209.2  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+        2047.7  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+        2047.7  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+        2138.1  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=1
+        2292.6  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        2363.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        2490.0  QUARANTINE_RELEASE      spot=207 reason=5 clean anomaly ticks
+        2493.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=1
+        2713.9  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=1
+        2717.2  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        2760.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=1
+        2760.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=2
+        2760.5  QUARANTINE_ADD          spot=176 cumulative_flags=5 threshold=5
+        2833.6  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=7
+        2833.6  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=8
+        2833.6  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=9
+        2854.1  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+        2854.1  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+        2952.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=1
+        2952.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=2
+        2957.7  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+        2957.7  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+        3156.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+        3156.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+        3156.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+        3196.2  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        3196.2  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=2
+        3200.4  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        3227.5  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+        3227.5  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+        3234.8  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=1
+        3290.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+        3290.9  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+        3396.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+        3396.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+        3396.9  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+        3477.7  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+        3589.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+        3589.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+        3589.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+        3630.0  ANOMALY_FLAG            spot=11 rule=R2_silent_sensor cumulative_flags=1
+        3630.0  ANOMALY_FLAG            spot=14 rule=R2_silent_sensor cumulative_flags=1
+        3630.0  ANOMALY_FLAG            spot=18 rule=R2_silent_sensor cumulative_flags=1
+        3630.0  ANOMALY_FLAG            spot=260 rule=R2_silent_sensor cumulative_flags=1
+        3630.0  ANOMALY_FLAG            spot=273 rule=R2_silent_sensor cumulative_flags=1
+        3630.0  ANOMALY_FLAG            spot=279 rule=R2_silent_sensor cumulative_flags=1
+        3660.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=16
+        3660.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=17
+        3662.3  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        3668.4  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=3
+        3745.5  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+        3745.5  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=11 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=14 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=18 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=260 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=273 cumulative_flags=5 threshold=5
+        3750.0  QUARANTINE_ADD          spot=279 cumulative_flags=5 threshold=5
+        3810.0  QUARANTINE_RELEASE      spot=207 reason=5 clean anomaly ticks
+        3814.8  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=7
+        3814.8  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=8
+        3814.8  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=9
+        3852.6  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+        3852.6  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+        3852.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=3
+        3852.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=4
+        3852.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=5
+        3852.6  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+        3852.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=6
+        3862.6  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+        3894.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=1
+        3894.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=2
+        3894.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+        3907.6  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+        3907.6  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+        3907.6  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+        3990.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+        4019.3  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+        4019.3  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+        4019.3  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+        4019.3  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+        4019.3  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+        4050.7  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=2
+        4098.8  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=7
+        4098.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        4098.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        4098.8  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=8
+        4098.8  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=9
+        4098.8  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=10
+        4151.4  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        4200.0  QUARANTINE_RELEASE      spot=45 reason=5 clean anomaly ticks
+        4271.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+        4271.9  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+        4285.7  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+        4285.7  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+        4290.0  QUARANTINE_RELEASE      spot=320 reason=5 clean anomaly ticks
+        4296.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        4296.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        4296.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=7
+        4296.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=8
+        4296.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=9
+        4296.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=10
+        4380.8  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+        4380.8  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+        4380.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+        4380.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+        4380.8  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=7
+        4380.8  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=8
+        4402.6  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=2
+        4545.1  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+        4545.1  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+        4545.1  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        4545.1  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        4604.5  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+        4604.5  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+        4680.0  QUARANTINE_RELEASE      spot=214 reason=5 clean anomaly ticks
+        4705.6  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        4738.0  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        4770.6  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+        4794.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=14
+        4794.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=15
+        4796.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=2
+        4819.3  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        4819.3  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=3
+        4956.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=7
+        4956.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=8
+        4956.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=9
+        4960.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        5008.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=4
+        5056.4  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        5056.4  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        5056.4  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        5081.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        5156.6  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        5156.6  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=3
+        5160.2  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+        5183.4  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+        5184.8  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+        5184.8  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=3
+        5195.9  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+        5196.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+        5196.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+        5196.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=3
+        5196.9  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+        5204.0  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        5223.2  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+        5252.8  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=10
+        5270.0  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=10
+        5372.5  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        5394.4  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+        5415.6  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        5415.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=4
+        5521.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        5521.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=5
+        5521.7  QUARANTINE_ADD          spot=184 cumulative_flags=5 threshold=5
+        5694.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        5694.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        5694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=20
+        5694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=21
+        5694.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=22
+        5694.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=23
+        5769.3  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        5769.3  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        5769.3  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        5769.3  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        5769.3  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        5769.3  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=15
+        5769.3  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=16
+        5819.0  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=9
+        5819.0  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=10
+        5821.8  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+        5821.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        5821.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        5856.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=17
+        5856.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=18
+        5856.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=19
+        5894.0  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+        5916.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+        5949.3  ANOMALY_FLAG            spot=179 rule=R4_stale_seq cumulative_flags=1
+        5949.3  ANOMALY_FLAG            spot=179 rule=R5_rapid_state_flip cumulative_flags=2
+        5993.9  ANOMALY_FLAG            spot=292 rule=R4_stale_seq cumulative_flags=1
+        5993.9  ANOMALY_FLAG            spot=292 rule=R5_rapid_state_flip cumulative_flags=2
+        6002.0  ANOMALY_FLAG            spot=283 rule=R4_stale_seq cumulative_flags=1
+        6002.0  ANOMALY_FLAG            spot=283 rule=R5_rapid_state_flip cumulative_flags=2
+        6095.0  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        6096.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=15
+        6096.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=16
+        6096.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=17
+        6125.7  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=19
+        6263.9  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=4
+        6264.7  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        6264.7  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=5
+        6264.7  QUARANTINE_ADD          spot=234 cumulative_flags=5 threshold=5
+        6289.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+        6289.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+        6289.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=3
+        6289.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+        6338.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+        6353.0  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+        6371.7  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        6389.8  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        6389.8  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=5
+        6389.8  QUARANTINE_ADD          spot=114 cumulative_flags=5 threshold=5
+        6422.4  ANOMALY_RESOLVE         spot=283 rule=R4_stale_seq
+        6422.4  ANOMALY_RESOLVE         spot=283 rule=R5_rapid_state_flip
+        6443.0  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        6457.4  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        6457.5  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+        6459.9  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=9
+        6474.9  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+        6474.9  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+        6527.3  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        6527.3  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        6527.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        6527.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        6527.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=24
+        6527.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=25
+        6570.0  QUARANTINE_RELEASE      spot=114 reason=5 clean anomaly ticks
+        6608.2  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        6608.2  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        6608.2  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=25
+        6608.2  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=26
+        6614.2  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        6614.2  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        6614.2  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        6625.0  ANOMALY_RESOLVE         spot=179 rule=R4_stale_seq
+        6625.0  ANOMALY_RESOLVE         spot=179 rule=R5_rapid_state_flip
+        6634.0  ANOMALY_FLAG            spot=352 rule=R4_stale_seq cumulative_flags=1
+        6634.0  ANOMALY_FLAG            spot=352 rule=R5_rapid_state_flip cumulative_flags=2
+        6719.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        6719.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        6719.8  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=20
+        6719.8  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=21
+        6722.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+        6722.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        6722.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        6722.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=26
+        6722.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=27
+        6722.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=28
+        6756.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        6756.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        6756.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=31
+        6797.3  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        6809.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=12
+        6886.6  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        6892.8  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=6
+        6892.8  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        6894.8  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+        6904.4  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=9
+        6904.4  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=10
+        6915.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+        6915.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+        6915.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+        6925.0  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        6948.5  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        6948.5  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        6948.5  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+        6948.5  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+        6948.5  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+        6954.5  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+        6954.5  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+        6954.5  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+        6954.6  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+        7050.0  QUARANTINE_RELEASE      spot=184 reason=5 clean anomaly ticks
+        7053.3  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        7053.4  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+        7059.3  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+        7059.3  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+        7101.8  ANOMALY_FLAG            spot=225 rule=R4_stale_seq cumulative_flags=1
+        7101.8  ANOMALY_FLAG            spot=225 rule=R5_rapid_state_flip cumulative_flags=2
+        7183.1  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+        7189.8  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=17
+        7232.4  ANOMALY_FLAG            spot=0 rule=R4_stale_seq cumulative_flags=1
+        7232.4  ANOMALY_FLAG            spot=0 rule=R5_rapid_state_flip cumulative_flags=2
+        7245.7  ANOMALY_FLAG            spot=476 rule=R4_stale_seq cumulative_flags=1
+        7245.7  ANOMALY_FLAG            spot=476 rule=R5_rapid_state_flip cumulative_flags=2
+        7365.5  ANOMALY_FLAG            spot=63 rule=R4_stale_seq cumulative_flags=1
+        7365.5  ANOMALY_FLAG            spot=63 rule=R5_rapid_state_flip cumulative_flags=2
+        7379.9  ANOMALY_RESOLVE         spot=292 rule=R4_stale_seq
+        7379.9  ANOMALY_RESOLVE         spot=292 rule=R5_rapid_state_flip
+        7396.4  ANOMALY_FLAG            spot=112 rule=R4_stale_seq cumulative_flags=1
+        7396.4  ANOMALY_FLAG            spot=112 rule=R5_rapid_state_flip cumulative_flags=2
+        7422.2  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        7422.2  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+        7422.2  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+        7422.2  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+        7422.3  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+        7477.0  ANOMALY_FLAG            spot=308 rule=R4_stale_seq cumulative_flags=1
+        7477.0  ANOMALY_FLAG            spot=308 rule=R5_rapid_state_flip cumulative_flags=2
+        7494.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        7494.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        7494.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=1
+        7494.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=2
+        7494.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=3
+        7494.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+        7516.2  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        7518.2  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+        7585.2  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+        7585.2  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+        7585.7  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+        7585.7  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+        7656.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=7
+        7656.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=8
+        7656.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=9
+        7667.1  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=1
+        7668.0  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+        7722.0  ANOMALY_RESOLVE         spot=225 rule=R4_stale_seq
+        7722.0  ANOMALY_RESOLVE         spot=225 rule=R5_rapid_state_flip
+        7748.6  ANOMALY_FLAG            spot=481 rule=R4_stale_seq cumulative_flags=1
+        7748.6  ANOMALY_FLAG            spot=481 rule=R5_rapid_state_flip cumulative_flags=2
+        7756.1  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+        7756.2  QUARANTINE_RELEASE      spot=124 reason=5 valid events
+        7756.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+        7756.9  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+        7773.9  ANOMALY_FLAG            spot=359 rule=R4_stale_seq cumulative_flags=1
+        7773.9  ANOMALY_FLAG            spot=359 rule=R5_rapid_state_flip cumulative_flags=2
+        7838.4  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        7838.4  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+        7840.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+        7840.7  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+        7841.0  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        7841.0  ANOMALY_FLAG            spot=404 rule=R4_stale_seq cumulative_flags=10
+        7841.0  ANOMALY_FLAG            spot=404 rule=R5_rapid_state_flip cumulative_flags=11
+        7924.5  ANOMALY_RESOLVE         spot=308 rule=R4_stale_seq
+        7924.5  ANOMALY_RESOLVE         spot=308 rule=R5_rapid_state_flip
+        8039.0  ANOMALY_FLAG            spot=157 rule=R4_stale_seq cumulative_flags=1
+        8039.0  ANOMALY_FLAG            spot=157 rule=R5_rapid_state_flip cumulative_flags=2
+        8051.5  ANOMALY_FLAG            spot=444 rule=R4_stale_seq cumulative_flags=1
+        8051.5  ANOMALY_FLAG            spot=444 rule=R5_rapid_state_flip cumulative_flags=2
+        8062.7  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        8062.7  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        8062.7  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        8062.8  QUARANTINE_RELEASE      spot=94 reason=5 valid events
+        8139.7  ANOMALY_FLAG            spot=96 rule=R3_rapid_arrival cumulative_flags=1
+        8160.5  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+        8160.5  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+        8160.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=22
+        8160.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=23
+        8160.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=24
+        8185.9  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        8185.9  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=7
+        8189.8  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+        8189.8  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=8
+        8190.0  QUARANTINE_RELEASE      spot=94 reason=5 clean anomaly ticks
+        8207.4  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        8207.4  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        8207.4  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        8207.4  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        8207.4  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        8207.4  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=15
+        8207.4  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=16
+        8207.8  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=17
+        8207.8  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=18
+        8207.8  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=19
+        8223.3  ANOMALY_RESOLVE         spot=404 rule=R4_stale_seq
+        8223.3  ANOMALY_RESOLVE         spot=404 rule=R5_rapid_state_flip
+        8223.4  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=30
+        8232.3  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        8232.3  ANOMALY_FLAG            spot=320 rule=R4_stale_seq cumulative_flags=19
+        8232.3  ANOMALY_FLAG            spot=320 rule=R5_rapid_state_flip cumulative_flags=20
+        8232.4  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=23
+        8232.4  ANOMALY_RESOLVE         spot=320 rule=R4_stale_seq
+        8232.4  ANOMALY_RESOLVE         spot=320 rule=R5_rapid_state_flip
+        8351.5  ANOMALY_RESOLVE         spot=481 rule=R4_stale_seq
+        8351.5  ANOMALY_RESOLVE         spot=481 rule=R5_rapid_state_flip
+        8370.8  ANOMALY_RESOLVE         spot=112 rule=R4_stale_seq
+        8370.8  ANOMALY_RESOLVE         spot=112 rule=R5_rapid_state_flip
+        8376.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        8376.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        8376.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=26
+        8376.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=27
+        8381.8  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        8381.8  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        8381.8  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        8389.6  ANOMALY_FLAG            spot=295 rule=R4_stale_seq cumulative_flags=1
+        8389.6  ANOMALY_FLAG            spot=295 rule=R5_rapid_state_flip cumulative_flags=2
+        8394.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=1
+        8394.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=2
+        8394.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=3
+        8394.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+        8417.9  ANOMALY_FLAG            spot=259 rule=R4_stale_seq cumulative_flags=1
+        8417.9  ANOMALY_FLAG            spot=259 rule=R5_rapid_state_flip cumulative_flags=2
+        8437.6  ANOMALY_RESOLVE         spot=352 rule=R4_stale_seq
+        8437.6  ANOMALY_RESOLVE         spot=352 rule=R5_rapid_state_flip
+        8445.5  ANOMALY_RESOLVE         spot=359 rule=R4_stale_seq
+        8445.5  ANOMALY_RESOLVE         spot=359 rule=R5_rapid_state_flip
+        8495.1  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        8495.1  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        8495.1  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        8495.1  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=9
+        8495.1  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=10
+        8502.0  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=13
+        8502.0  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=14
+        8502.0  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=15
+        8533.2  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=28
+        8533.2  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=29
+        8543.2  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+        8543.2  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+        8543.2  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+        8556.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+        8556.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+        8556.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=3
+        8556.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+        8574.7  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+        8574.8  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+        8579.7  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+        8579.7  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+        8704.0  ANOMALY_RESOLVE         spot=476 rule=R4_stale_seq
+        8704.0  ANOMALY_RESOLVE         spot=476 rule=R5_rapid_state_flip
+        8706.9  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+        8708.2  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=9
+        8750.1  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+        8753.4  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+        8760.2  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=1
+        8761.9  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+        8919.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        8919.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        8919.8  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=22
+        8919.8  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=23
+        8947.3  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+        8950.2  ANOMALY_RESOLVE         spot=0 rule=R4_stale_seq
+        8950.2  ANOMALY_RESOLVE         spot=0 rule=R5_rapid_state_flip
+        8955.8  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+        8955.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+        8955.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+        8958.7  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+        9044.6  ANOMALY_FLAG            spot=227 rule=R3_rapid_arrival cumulative_flags=1
+        9257.3  ANOMALY_FLAG            spot=401 rule=R4_stale_seq cumulative_flags=1
+        9257.3  ANOMALY_FLAG            spot=401 rule=R5_rapid_state_flip cumulative_flags=2
+        9259.5  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        9259.5  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        9259.5  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+        9259.5  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=9
+        9259.5  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=10
+        9260.2  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+        9260.2  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+        9260.2  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+        9358.8  ANOMALY_RESOLVE         spot=259 rule=R4_stale_seq
+        9358.8  ANOMALY_RESOLVE         spot=259 rule=R5_rapid_state_flip
+        9410.7  ANOMALY_RESOLVE         spot=227 rule=R3_rapid_arrival
+        9413.1  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        9413.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=39
+        9555.7  ANOMALY_FLAG            spot=376 rule=R4_stale_seq cumulative_flags=1
+        9555.7  ANOMALY_FLAG            spot=376 rule=R5_rapid_state_flip cumulative_flags=2
+        9889.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+        9889.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+        9889.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=15
+        9889.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=16
+        9889.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=17
+        9922.3  ANOMALY_FLAG            spot=38 rule=R4_stale_seq cumulative_flags=1
+        9922.3  ANOMALY_FLAG            spot=38 rule=R5_rapid_state_flip cumulative_flags=2
+        9940.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+        9941.0  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+        9941.5  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+        9941.5  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+        9954.4  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=2
+        9968.8  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       10021.9  ANOMALY_FLAG            spot=337 rule=R4_stale_seq cumulative_flags=1
+       10021.9  ANOMALY_FLAG            spot=337 rule=R5_rapid_state_flip cumulative_flags=2
+       10085.7  ANOMALY_RESOLVE         spot=295 rule=R4_stale_seq
+       10085.7  ANOMALY_RESOLVE         spot=295 rule=R5_rapid_state_flip
+       10251.1  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=21
+       10251.1  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=22
+       10253.8  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       10253.8  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       10253.8  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       10365.1  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=3
+       10367.6  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       10503.0  ANOMALY_RESOLVE         spot=63 rule=R4_stale_seq
+       10503.0  ANOMALY_RESOLVE         spot=63 rule=R5_rapid_state_flip
+       10589.0  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       10598.4  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       10598.5  QUARANTINE_RELEASE      spot=234 reason=5 valid events
+       10600.5  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=18
+       10606.5  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=1
+       10732.9  ANOMALY_FLAG            spot=209 rule=R4_stale_seq cumulative_flags=1
+       10732.9  ANOMALY_FLAG            spot=209 rule=R5_rapid_state_flip cumulative_flags=2
+       10901.8  ANOMALY_FLAG            spot=118 rule=R4_stale_seq cumulative_flags=1
+       10901.8  ANOMALY_FLAG            spot=118 rule=R5_rapid_state_flip cumulative_flags=2
+       10908.0  ANOMALY_RESOLVE         spot=376 rule=R4_stale_seq
+       10908.0  ANOMALY_RESOLVE         spot=376 rule=R5_rapid_state_flip
+       10930.3  ANOMALY_FLAG            spot=332 rule=R4_stale_seq cumulative_flags=1
+       10930.3  ANOMALY_FLAG            spot=332 rule=R5_rapid_state_flip cumulative_flags=2
+       10930.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=4
+       10942.3  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       10942.3  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=5
+       10942.3  QUARANTINE_ADD          spot=184 cumulative_flags=5 threshold=5
+       10944.8  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       10945.6  ANOMALY_RESOLVE         spot=337 rule=R4_stale_seq
+       10945.6  ANOMALY_RESOLVE         spot=337 rule=R5_rapid_state_flip
+       10994.9  ANOMALY_RESOLVE         spot=38 rule=R4_stale_seq
+       10994.9  ANOMALY_RESOLVE         spot=38 rule=R5_rapid_state_flip
+       11070.0  QUARANTINE_RELEASE      spot=184 reason=5 clean anomaly ticks
+       11094.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=28
+       11094.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=29
+       11094.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=30
+       11225.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       11225.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       11225.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=1
+       11225.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=2
+       11235.6  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       11235.6  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       11235.6  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       11235.6  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=5
+       11235.6  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       11235.6  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       11235.6  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       11235.7  QUARANTINE_RELEASE      spot=94 reason=5 valid events
+       11268.3  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       11268.4  QUARANTINE_RELEASE      spot=124 reason=5 valid events
+       11268.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       11268.9  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       11366.9  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       11367.2  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+       11371.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       11371.6  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=28
+       11492.6  ANOMALY_RESOLVE         spot=332 rule=R4_stale_seq
+       11492.6  ANOMALY_RESOLVE         spot=332 rule=R5_rapid_state_flip
+       11722.6  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       11722.6  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=8
+       11722.6  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=9
+       11880.9  ANOMALY_RESOLVE         spot=209 rule=R4_stale_seq
+       11880.9  ANOMALY_RESOLVE         spot=209 rule=R5_rapid_state_flip
+       11928.3  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       11928.3  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       11945.6  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       11945.6  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       12075.8  ANOMALY_FLAG            spot=240 rule=R4_stale_seq cumulative_flags=1
+       12075.8  ANOMALY_FLAG            spot=240 rule=R5_rapid_state_flip cumulative_flags=2
+       12248.3  ANOMALY_RESOLVE         spot=118 rule=R4_stale_seq
+       12248.3  ANOMALY_RESOLVE         spot=118 rule=R5_rapid_state_flip
+       12495.7  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       12500.3  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+       12549.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       12550.0  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       12589.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       12589.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       12589.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=27
+       12589.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=28
+       12589.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=29
+       12826.7  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       12832.4  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=2
+       12837.5  ANOMALY_FLAG            spot=95 rule=R4_stale_seq cumulative_flags=1
+       12837.5  ANOMALY_FLAG            spot=95 rule=R5_rapid_state_flip cumulative_flags=2
+       12894.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       12894.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       12894.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=12
+       12894.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=13
+       12894.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=14
+       12946.7  ANOMALY_FLAG            spot=215 rule=R4_stale_seq cumulative_flags=1
+       12946.7  ANOMALY_FLAG            spot=215 rule=R5_rapid_state_flip cumulative_flags=2
+       12978.8  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       12987.8  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       12987.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       12987.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       12987.8  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=18
+       12987.8  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=19
+       12997.3  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+       12997.3  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+       12997.3  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       13008.3  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       13008.3  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       13008.3  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       13008.3  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       13022.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       13029.8  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+       13191.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=2
+       13198.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       13198.5  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=3
+       13207.7  ANOMALY_RESOLVE         spot=401 rule=R4_stale_seq
+       13207.7  ANOMALY_RESOLVE         spot=401 rule=R5_rapid_state_flip
+       13223.3  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       13223.4  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       13245.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       13245.9  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       13303.7  ANOMALY_FLAG            spot=234 rule=R3_rapid_arrival cumulative_flags=3
+       13303.7  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=4
+       13489.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=7
+       13489.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=8
+       13489.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=9
+       13637.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       13637.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       13637.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       13637.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       13637.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       13637.6  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=15
+       13637.6  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=16
+       13702.9  ANOMALY_FLAG            spot=253 rule=R4_stale_seq cumulative_flags=1
+       13702.9  ANOMALY_FLAG            spot=253 rule=R5_rapid_state_flip cumulative_flags=2
+       13794.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       13794.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       13794.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=1
+       13794.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=2
+       13794.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=3
+       13794.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       13840.1  ANOMALY_RESOLVE         spot=234 rule=R3_rapid_arrival
+       13840.1  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       13840.4  ANOMALY_FLAG            spot=234 rule=R3_rapid_arrival cumulative_flags=5
+       13840.4  QUARANTINE_ADD          spot=234 cumulative_flags=5 threshold=5
+       13840.4  ANOMALY_RESOLVE         spot=234 rule=R3_rapid_arrival
+       13934.9  ANOMALY_RESOLVE         spot=240 rule=R4_stale_seq
+       13934.9  ANOMALY_RESOLVE         spot=240 rule=R5_rapid_state_flip
+       13980.0  QUARANTINE_RELEASE      spot=234 reason=5 clean anomaly ticks
+       14108.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=7
+       14108.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=8
+       14108.4  QUARANTINE_RELEASE      spot=94 reason=5 valid events
+       14122.4  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       14122.4  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       14122.4  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       14190.0  ANOMALY_FLAG            spot=321 rule=R4_stale_seq cumulative_flags=1
+       14190.0  ANOMALY_FLAG            spot=321 rule=R5_rapid_state_flip cumulative_flags=2
+       14196.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       14196.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       14196.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=7
+       14313.6  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       14313.6  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=9
+       14313.6  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=10
+       14389.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=17
+       14389.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=18
+       14389.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=19
+       14610.5  ANOMALY_RESOLVE         spot=215 rule=R4_stale_seq
+       14610.5  ANOMALY_RESOLVE         spot=215 rule=R5_rapid_state_flip
+       14623.9  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       14623.9  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       14623.9  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=25
+       14623.9  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=26
+       14633.3  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       14633.3  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       14633.3  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       14633.3  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=1
+       14633.3  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=2
+       14633.3  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=3
+       14633.3  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       14879.1  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       14901.7  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=4
+       15047.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       15051.1  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       15096.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=13
+       15096.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=14
+       15096.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=15
+       15162.1  ANOMALY_FLAG            spot=355 rule=R4_stale_seq cumulative_flags=1
+       15162.1  ANOMALY_FLAG            spot=355 rule=R5_rapid_state_flip cumulative_flags=2
+       15268.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       15268.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       15268.1  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       15268.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       15268.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       15268.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       15268.1  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=10
+       15268.1  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=11
+       15270.8  ANOMALY_RESOLVE         spot=95 rule=R4_stale_seq
+       15270.8  ANOMALY_RESOLVE         spot=95 rule=R5_rapid_state_flip
+       15380.0  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       15380.0  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       15380.0  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       15380.0  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       15380.0  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       15380.0  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=21
+       15380.0  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=22
+       15388.8  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=1
+       15388.8  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=2
+       15388.8  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=3
+       15388.8  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       15398.3  ANOMALY_RESOLVE         spot=253 rule=R4_stale_seq
+       15398.3  ANOMALY_RESOLVE         spot=253 rule=R5_rapid_state_flip
+       15441.7  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       15478.0  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=8
+       15521.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       15521.9  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       15533.0  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       15533.0  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       15786.1  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       15786.1  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       15786.1  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=10
+       15786.1  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=11
+       15786.2  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       15805.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       15805.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       15805.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       15830.3  ANOMALY_RESOLVE         spot=355 rule=R4_stale_seq
+       15830.3  ANOMALY_RESOLVE         spot=355 rule=R5_rapid_state_flip
+       15932.8  ANOMALY_FLAG            spot=76 rule=R4_stale_seq cumulative_flags=1
+       15932.8  ANOMALY_FLAG            spot=76 rule=R5_rapid_state_flip cumulative_flags=2
+       16097.1  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       16134.7  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=16
+       16139.1  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=1
+       16144.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       16144.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=2
+       16282.4  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       16296.7  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=5
+       16296.7  QUARANTINE_ADD          spot=114 cumulative_flags=5 threshold=5
+       16352.8  ANOMALY_FLAG            spot=398 rule=R4_stale_seq cumulative_flags=1
+       16352.8  ANOMALY_FLAG            spot=398 rule=R5_rapid_state_flip cumulative_flags=2
+       16404.6  ANOMALY_FLAG            spot=180 rule=R4_stale_seq cumulative_flags=1
+       16404.6  ANOMALY_FLAG            spot=180 rule=R5_rapid_state_flip cumulative_flags=2
+       16549.8  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       16549.9  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       16555.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       16555.9  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       16717.9  ANOMALY_RESOLVE         spot=398 rule=R4_stale_seq
+       16717.9  ANOMALY_RESOLVE         spot=398 rule=R5_rapid_state_flip
+       16772.5  ANOMALY_FLAG            spot=149 rule=R4_stale_seq cumulative_flags=1
+       16772.5  ANOMALY_FLAG            spot=149 rule=R5_rapid_state_flip cumulative_flags=2
+       16869.7  ANOMALY_RESOLVE         spot=180 rule=R4_stale_seq
+       16869.7  ANOMALY_RESOLVE         spot=180 rule=R5_rapid_state_flip
+       17089.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=12
+       17089.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=13
+       17089.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=14
+       17139.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       17262.0  ANOMALY_FLAG            spot=40 rule=R4_stale_seq cumulative_flags=1
+       17262.0  ANOMALY_FLAG            spot=40 rule=R5_rapid_state_flip cumulative_flags=2
+       17415.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       17415.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       17415.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       17415.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       17415.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       17415.1  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=20
+       17415.1  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=21
+       17415.4  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=24
+       17419.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       17419.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       17419.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       17419.1  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=27
+       17419.1  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=28
+       17419.1  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=29
+       17419.1  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=30
+       17460.9  ANOMALY_FLAG            spot=108 rule=R3_rapid_arrival cumulative_flags=1
+       17563.9  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       17563.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=6
+       17577.1  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       17700.0  QUARANTINE_RELEASE      spot=114 reason=5 clean anomaly ticks
+       17788.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       17788.1  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+       17788.1  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+       17788.1  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       17815.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       17815.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       17815.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       17815.2  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       17989.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=7
+       17989.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=8
+       17989.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=9
+       18096.0  ANOMALY_FLAG            spot=6 rule=R4_stale_seq cumulative_flags=1
+       18096.0  ANOMALY_FLAG            spot=6 rule=R5_rapid_state_flip cumulative_flags=2
+       18132.5  ANOMALY_FLAG            spot=144 rule=R4_stale_seq cumulative_flags=1
+       18132.5  ANOMALY_FLAG            spot=144 rule=R5_rapid_state_flip cumulative_flags=2
+       18135.5  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=3
+       18294.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=13
+       18294.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=14
+       18294.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=15
+       18294.5  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       18334.3  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=9
+       18367.1  ANOMALY_RESOLVE         spot=6 rule=R4_stale_seq
+       18367.1  ANOMALY_RESOLVE         spot=6 rule=R5_rapid_state_flip
+       18602.1  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       18602.1  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       18602.1  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       18602.1  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       18602.1  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       18703.8  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=1
+       18705.7  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       18705.7  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=2
+       18708.0  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       18746.4  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       18746.4  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       18746.4  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=15
+       18746.4  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=16
+       18750.0  QUARANTINE_RELEASE      spot=94 reason=5 clean anomaly ticks
+       18751.5  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       18751.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       18751.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       18830.6  ANOMALY_RESOLVE         spot=108 rule=R3_rapid_arrival
+       18889.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=21
+       18889.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=22
+       18889.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=23
+       19040.5  ANOMALY_RESOLVE         spot=144 rule=R4_stale_seq
+       19040.5  ANOMALY_RESOLVE         spot=144 rule=R5_rapid_state_flip
+       19070.2  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       19070.2  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       19070.2  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=26
+       19070.2  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=27
+       19070.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       19070.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       19070.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       19083.2  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=2
+       19112.5  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+       19112.5  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=3
+       19461.7  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       19471.0  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       19717.2  ANOMALY_RESOLVE         spot=40 rule=R4_stale_seq
+       19717.2  ANOMALY_RESOLVE         spot=40 rule=R5_rapid_state_flip
+       19789.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+       19789.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+       19789.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=3
+       19789.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       19845.7  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=4
+       19845.9  ANOMALY_RESOLVE         spot=76 rule=R4_stale_seq
+       19845.9  ANOMALY_RESOLVE         spot=76 rule=R5_rapid_state_flip
+       19848.1  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       19848.1  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=5
+       19848.1  QUARANTINE_ADD          spot=440 cumulative_flags=5 threshold=5
+       19903.1  ANOMALY_FLAG            spot=121 rule=R4_stale_seq cumulative_flags=1
+       19903.1  ANOMALY_FLAG            spot=121 rule=R5_rapid_state_flip cumulative_flags=2
+       19930.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       19934.9  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       20076.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       20076.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       20076.6  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       20079.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       20079.6  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       20079.6  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       20079.6  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=6
+       20079.6  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=7
+       20089.1  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=12
+       20090.9  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       20090.9  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       20286.6  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=1
+       20306.0  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       20306.0  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=2
+       20347.0  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+       20478.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       20478.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=18
+       20482.5  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       20482.5  ANOMALY_FLAG            spot=436 rule=R4_stale_seq cumulative_flags=25
+       20482.5  ANOMALY_FLAG            spot=436 rule=R5_rapid_state_flip cumulative_flags=26
+       20642.4  ANOMALY_RESOLVE         spot=121 rule=R4_stale_seq
+       20642.4  ANOMALY_RESOLVE         spot=121 rule=R5_rapid_state_flip
+       20649.7  ANOMALY_FLAG            spot=231 rule=R4_stale_seq cumulative_flags=1
+       20649.7  ANOMALY_FLAG            spot=231 rule=R5_rapid_state_flip cumulative_flags=2
+       20808.7  ANOMALY_RESOLVE         spot=436 rule=R4_stale_seq
+       20808.7  ANOMALY_RESOLVE         spot=436 rule=R5_rapid_state_flip
+       20808.8  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       20825.3  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       20825.3  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       20880.1  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       20880.2  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       20898.2  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       20898.2  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       20990.6  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       20990.6  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       20997.0  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       20997.0  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       21271.4  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       21271.4  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=6
+       21274.2  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       21420.0  QUARANTINE_RELEASE      spot=440 reason=5 clean anomaly ticks
+       21420.7  ANOMALY_FLAG            spot=431 rule=R4_stale_seq cumulative_flags=1
+       21420.7  ANOMALY_FLAG            spot=431 rule=R5_rapid_state_flip cumulative_flags=2
+       21428.0  ANOMALY_FLAG            spot=419 rule=R4_stale_seq cumulative_flags=1
+       21428.0  ANOMALY_FLAG            spot=419 rule=R5_rapid_state_flip cumulative_flags=2
+       21483.8  ANOMALY_RESOLVE         spot=96 rule=R3_rapid_arrival
+       21491.6  ANOMALY_FLAG            spot=154 rule=R4_stale_seq cumulative_flags=1
+       21491.6  ANOMALY_FLAG            spot=154 rule=R5_rapid_state_flip cumulative_flags=2
+       21852.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=11
+       21852.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=12
+       21852.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=13
+       21860.3  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       21860.3  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       21860.3  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       21860.3  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       21860.3  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       21861.9  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=16
+       21861.9  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=17
+       22009.2  ANOMALY_FLAG            spot=387 rule=R4_stale_seq cumulative_flags=1
+       22009.2  ANOMALY_FLAG            spot=387 rule=R5_rapid_state_flip cumulative_flags=2
+       22223.3  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       22228.8  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       22277.3  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       22280.3  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+       22341.9  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       22342.9  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+       22464.2  ANOMALY_RESOLVE         spot=387 rule=R4_stale_seq
+       22464.2  ANOMALY_RESOLVE         spot=387 rule=R5_rapid_state_flip
+       22514.7  ANOMALY_FLAG            spot=259 rule=R4_stale_seq cumulative_flags=3
+       22514.7  ANOMALY_FLAG            spot=259 rule=R5_rapid_state_flip cumulative_flags=4
+       22752.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=22
+       22752.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=23
+       22752.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=24
+       22770.7  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       22770.7  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       22770.7  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=1
+       22770.7  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=2
+       22770.7  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+       22771.4  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       22771.4  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       22771.4  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       22771.4  QUARANTINE_RELEASE      spot=142 reason=5 valid events
+       23331.3  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       23336.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       23652.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=7
+       23652.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=8
+       23652.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=9
+       23867.5  ANOMALY_FLAG            spot=454 rule=R4_stale_seq cumulative_flags=1
+       23867.5  ANOMALY_FLAG            spot=454 rule=R5_rapid_state_flip cumulative_flags=2
+       23897.4  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       23899.4  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+       23900.1  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       23900.1  ANOMALY_FLAG            spot=436 rule=R4_stale_seq cumulative_flags=28
+       23900.1  ANOMALY_FLAG            spot=436 rule=R5_rapid_state_flip cumulative_flags=29
+       23935.5  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       23940.2  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+       24117.1  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       24117.1  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       24118.8  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       24118.8  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       24135.3  ANOMALY_FLAG            spot=179 rule=R4_stale_seq cumulative_flags=3
+       24135.3  ANOMALY_FLAG            spot=179 rule=R5_rapid_state_flip cumulative_flags=4
+       24184.2  ANOMALY_RESOLVE         spot=419 rule=R4_stale_seq
+       24184.2  ANOMALY_RESOLVE         spot=419 rule=R5_rapid_state_flip
+       24357.4  ANOMALY_RESOLVE         spot=149 rule=R4_stale_seq
+       24357.4  ANOMALY_RESOLVE         spot=149 rule=R5_rapid_state_flip
+       24421.6  ANOMALY_RESOLVE         spot=179 rule=R4_stale_seq
+       24421.6  ANOMALY_RESOLVE         spot=179 rule=R5_rapid_state_flip
+       24437.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       24476.2  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+       24500.3  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       24500.3  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       24500.3  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=15
+       24500.3  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=16
+       24500.8  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       24500.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       24500.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       24552.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=21
+       24552.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=22
+       24552.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=23
+       24588.4  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       24588.4  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       24588.4  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       24588.4  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       24588.4  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       24588.4  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=29
+       24588.4  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=30
+       24596.3  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=1
+       24596.3  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=2
+       24596.3  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=3
+       24596.3  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+       24849.2  ANOMALY_FLAG            spot=440 rule=R4_stale_seq cumulative_flags=1
+       24849.2  ANOMALY_FLAG            spot=440 rule=R3_rapid_arrival cumulative_flags=2
+       24849.2  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=4
+       24852.7  ANOMALY_RESOLVE         spot=154 rule=R4_stale_seq
+       24852.7  ANOMALY_RESOLVE         spot=154 rule=R5_rapid_state_flip
+       25023.9  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       25037.5  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=19
+       25055.8  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       25055.9  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       25057.1  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       25057.1  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       25089.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       25089.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       25089.8  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       25089.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       25089.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       25089.8  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=10
+       25089.8  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=11
+       25089.9  QUARANTINE_RELEASE      spot=142 reason=5 valid events
+       25094.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       25102.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       25243.9  ANOMALY_FLAG            spot=442 rule=R4_stale_seq cumulative_flags=1
+       25243.9  ANOMALY_FLAG            spot=442 rule=R5_rapid_state_flip cumulative_flags=2
+       25260.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=1
+       25260.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=2
+       25260.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=3
+       25260.5  QUARANTINE_ADD          spot=176 cumulative_flags=5 threshold=5
+       25418.9  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       25423.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+       25452.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=14
+       25452.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=15
+       25452.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=16
+       25756.7  ANOMALY_RESOLVE         spot=436 rule=R4_stale_seq
+       25756.7  ANOMALY_RESOLVE         spot=436 rule=R5_rapid_state_flip
+       25756.8  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       25759.3  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       25759.3  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       25781.3  ANOMALY_RESOLVE         spot=321 rule=R4_stale_seq
+       25781.3  ANOMALY_RESOLVE         spot=321 rule=R5_rapid_state_flip
+       25838.7  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       25838.7  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       25838.7  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       25838.7  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       25838.7  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       25919.9  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       25919.9  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       25919.9  QUARANTINE_RELEASE      spot=176 reason=5 valid events
+       25919.9  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=9
+       25919.9  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=10
+       25924.4  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       25924.4  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       25924.4  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       25980.0  QUARANTINE_RELEASE      spot=142 reason=5 clean anomaly ticks
+       25989.8  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       25989.8  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=2
+       25990.5  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       25990.5  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=3
+       26071.9  ANOMALY_RESOLVE         spot=442 rule=R4_stale_seq
+       26071.9  ANOMALY_RESOLVE         spot=442 rule=R5_rapid_state_flip
+       26245.0  ANOMALY_RESOLVE         spot=444 rule=R4_stale_seq
+       26245.0  ANOMALY_RESOLVE         spot=444 rule=R5_rapid_state_flip
+       26295.2  ANOMALY_RESOLVE         spot=454 rule=R4_stale_seq
+       26295.2  ANOMALY_RESOLVE         spot=454 rule=R5_rapid_state_flip
+       26301.4  ANOMALY_FLAG            spot=129 rule=R4_stale_seq cumulative_flags=1
+       26301.4  ANOMALY_FLAG            spot=129 rule=R5_rapid_state_flip cumulative_flags=2
+       26331.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       26352.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=1
+       26352.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=2
+       26352.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=3
+       26352.6  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+       26376.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+       26457.3  ANOMALY_RESOLVE         spot=440 rule=R3_rapid_arrival
+       26457.3  ANOMALY_RESOLVE         spot=440 rule=R4_stale_seq
+       26457.3  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       26511.1  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       26511.2  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+       26522.5  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       26522.5  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       26556.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=15
+       26556.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=16
+       26556.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=17
+       26708.2  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=9
+       26708.2  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=10
+       26722.4  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       26722.4  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       26722.4  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       26796.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       26796.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       26796.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=16
+       26796.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=17
+       26796.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=18
+       26989.9  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       27004.1  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+       27018.1  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       27018.1  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       27018.1  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       27018.1  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       27018.1  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       27018.1  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=23
+       27018.1  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=24
+       27060.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=15
+       27060.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=16
+       27060.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=17
+       27064.5  ANOMALY_FLAG            spot=123 rule=R4_stale_seq cumulative_flags=1
+       27064.5  ANOMALY_FLAG            spot=123 rule=R5_rapid_state_flip cumulative_flags=2
+       27065.1  ANOMALY_RESOLVE         spot=129 rule=R4_stale_seq
+       27065.1  ANOMALY_RESOLVE         spot=129 rule=R5_rapid_state_flip
+       27179.8  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=5
+       27179.8  QUARANTINE_ADD          spot=440 cumulative_flags=5 threshold=5
+       27252.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=15
+       27252.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=16
+       27252.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=17
+       27295.0  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       27295.0  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       27295.0  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       27295.0  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=22
+       27295.0  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=23
+       27304.4  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       27310.6  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+       27319.2  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       27319.2  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       27319.2  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=23
+       27319.2  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=24
+       27322.2  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       27322.2  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       27322.2  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       27327.5  ANOMALY_FLAG            spot=225 rule=R4_stale_seq cumulative_flags=3
+       27327.5  ANOMALY_FLAG            spot=225 rule=R5_rapid_state_flip cumulative_flags=4
+       27402.0  ANOMALY_FLAG            spot=342 rule=R4_stale_seq cumulative_flags=1
+       27402.0  ANOMALY_FLAG            spot=342 rule=R5_rapid_state_flip cumulative_flags=2
+       27456.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       27456.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       27456.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=27
+       27456.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=28
+       27456.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=29
+       27584.5  ANOMALY_RESOLVE         spot=123 rule=R4_stale_seq
+       27584.5  ANOMALY_RESOLVE         spot=123 rule=R5_rapid_state_flip
+       27662.0  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       27662.0  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       27662.0  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       27662.0  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       27662.0  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       27662.0  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=23
+       27662.0  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=24
+       27671.2  ANOMALY_RESOLVE         spot=157 rule=R4_stale_seq
+       27671.2  ANOMALY_RESOLVE         spot=157 rule=R5_rapid_state_flip
+       27691.3  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       27707.0  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=10
+       27791.7  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       27799.3  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       27799.3  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=4
+       27815.0  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+       27823.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       27823.8  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       27837.1  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       27837.1  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=5
+       27837.1  QUARANTINE_ADD          spot=184 cumulative_flags=5 threshold=5
+       27864.3  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       27864.3  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       27864.3  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       27876.9  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       27876.9  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       27895.5  ANOMALY_FLAG            spot=258 rule=R4_stale_seq cumulative_flags=1
+       27895.5  ANOMALY_FLAG            spot=258 rule=R5_rapid_state_flip cumulative_flags=2
+       27960.5  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       27960.5  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       27960.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=29
+       27960.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=30
+       27960.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=31
+       27990.0  QUARANTINE_RELEASE      spot=230 reason=5 clean anomaly ticks
+       28009.2  ANOMALY_FLAG            spot=446 rule=R4_stale_seq cumulative_flags=1
+       28009.2  ANOMALY_FLAG            spot=446 rule=R5_rapid_state_flip cumulative_flags=2
+       28031.0  ANOMALY_RESOLVE         spot=225 rule=R4_stale_seq
+       28031.0  ANOMALY_RESOLVE         spot=225 rule=R5_rapid_state_flip
+       28151.0  ANOMALY_RESOLVE         spot=259 rule=R4_stale_seq
+       28151.0  ANOMALY_RESOLVE         spot=259 rule=R5_rapid_state_flip
+       28152.6  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       28152.6  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       28152.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=27
+       28152.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=28
+       28152.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=29
+       28187.0  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       28187.1  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       28188.5  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       28188.5  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       28189.2  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       28189.2  ANOMALY_FLAG            spot=436 rule=R4_stale_seq cumulative_flags=10
+       28189.2  ANOMALY_FLAG            spot=436 rule=R5_rapid_state_flip cumulative_flags=11
+       28286.5  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=1
+       28286.5  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=2
+       28286.5  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+       28385.3  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       28385.3  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       28385.3  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       28385.3  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=7
+       28385.3  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=8
+       28385.3  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=9
+       28385.4  QUARANTINE_RELEASE      spot=142 reason=5 valid events
+       28422.7  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       28431.8  ANOMALY_RESOLVE         spot=258 rule=R4_stale_seq
+       28431.8  ANOMALY_RESOLVE         spot=258 rule=R5_rapid_state_flip
+       28461.4  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=1
+       28461.4  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=2
+       28461.4  QUARANTINE_ADD          spot=176 cumulative_flags=5 threshold=5
+       28467.0  ANOMALY_RESOLVE         spot=446 rule=R4_stale_seq
+       28467.0  ANOMALY_RESOLVE         spot=446 rule=R5_rapid_state_flip
+       28489.2  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       28489.2  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       28489.2  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       28489.2  QUARANTINE_RELEASE      spot=176 reason=5 valid events
+       28503.3  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=19
+       28547.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       28634.1  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       28634.1  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       28634.1  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       28634.1  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       28634.1  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       28634.1  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=16
+       28634.1  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=17
+       28638.7  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       28711.6  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       28789.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=15
+       28789.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=16
+       28789.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=17
+       28795.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+       28836.2  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       28836.3  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       28838.8  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       28838.8  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       28860.5  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       28860.5  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       28860.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=7
+       28860.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=8
+       28860.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=9
+       29056.0  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       29056.0  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=23
+       29056.0  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=24
+       29057.1  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       29057.1  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       29057.1  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       29271.9  ANOMALY_FLAG            spot=449 rule=R4_stale_seq cumulative_flags=1
+       29271.9  ANOMALY_FLAG            spot=449 rule=R5_rapid_state_flip cumulative_flags=2
+       29289.7  ANOMALY_RESOLVE         spot=342 rule=R4_stale_seq
+       29289.7  ANOMALY_RESOLVE         spot=342 rule=R5_rapid_state_flip
+       29371.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       29375.5  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       29496.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       29496.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       29496.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=28
+       29496.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=29
+       29496.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=30
+       29676.6  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       29676.6  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       29676.6  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       29676.6  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+       29676.6  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+       29680.4  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       29689.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       29689.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       29689.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=29
+       29743.8  ANOMALY_RESOLVE         spot=449 rule=R4_stale_seq
+       29743.8  ANOMALY_RESOLVE         spot=449 rule=R5_rapid_state_flip
+       29760.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=13
+       29760.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=14
+       29768.1  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       29768.1  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=6
+       29809.0  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       29809.0  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=7
+       29849.4  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       29849.4  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       29849.4  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       29849.4  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=19
+       29849.4  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       29849.4  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       29849.4  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=20
+       29849.4  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=21
+       29849.4  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=22
+       29977.7  ANOMALY_FLAG            spot=81 rule=R3_rapid_arrival cumulative_flags=1
+       30166.2  ANOMALY_FLAG            spot=115 rule=R3_rapid_arrival cumulative_flags=1
+       30288.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       30288.6  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+       30288.6  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+       30309.7  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       30328.1  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       30328.1  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=6
+       30333.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       30333.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=7
+       30380.2  ANOMALY_FLAG            spot=442 rule=R4_stale_seq cumulative_flags=3
+       30380.2  ANOMALY_FLAG            spot=442 rule=R5_rapid_state_flip cumulative_flags=4
+       30396.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=5
+       30396.9  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       30396.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=6
+       30396.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=7
+       30464.8  ANOMALY_FLAG            spot=486 rule=R4_stale_seq cumulative_flags=1
+       30464.8  ANOMALY_FLAG            spot=486 rule=R5_rapid_state_flip cumulative_flags=2
+       30589.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       30589.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       30589.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=5
+       30589.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       30655.0  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       30655.0  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=26
+       30655.0  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=27
+       30655.9  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       30655.9  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       30655.9  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       30720.5  ANOMALY_FLAG            spot=285 rule=R4_stale_seq cumulative_flags=1
+       30720.5  ANOMALY_FLAG            spot=285 rule=R5_rapid_state_flip cumulative_flags=2
+       30739.6  ANOMALY_FLAG            spot=103 rule=R4_stale_seq cumulative_flags=1
+       30739.6  ANOMALY_FLAG            spot=103 rule=R5_rapid_state_flip cumulative_flags=2
+       30807.1  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=3
+       30809.6  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       30809.6  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=4
+       30851.0  ANOMALY_RESOLVE         spot=436 rule=R4_stale_seq
+       30851.0  ANOMALY_RESOLVE         spot=436 rule=R5_rapid_state_flip
+       30860.7  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=30
+       30913.4  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       30913.4  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       30913.4  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       30913.4  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       30913.4  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       30913.4  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=13
+       30913.4  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=14
+       30915.8  ANOMALY_FLAG            spot=180 rule=R4_stale_seq cumulative_flags=3
+       30915.8  ANOMALY_FLAG            spot=180 rule=R5_rapid_state_flip cumulative_flags=4
+       31000.8  ANOMALY_FLAG            spot=276 rule=R4_stale_seq cumulative_flags=1
+       31000.8  ANOMALY_FLAG            spot=276 rule=R5_rapid_state_flip cumulative_flags=2
+       31045.6  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       31072.2  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       31075.1  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=19
+       31147.9  ANOMALY_RESOLVE         spot=285 rule=R4_stale_seq
+       31147.9  ANOMALY_RESOLVE         spot=285 rule=R5_rapid_state_flip
+       31155.4  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       31155.4  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=8
+       31159.9  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       31159.9  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=9
+       31170.0  QUARANTINE_RELEASE      spot=45 reason=5 clean anomaly ticks
+       31196.7  ANOMALY_FLAG            spot=102 rule=R4_stale_seq cumulative_flags=1
+       31196.7  ANOMALY_FLAG            spot=102 rule=R5_rapid_state_flip cumulative_flags=2
+       31250.2  ANOMALY_RESOLVE         spot=103 rule=R4_stale_seq
+       31250.2  ANOMALY_RESOLVE         spot=103 rule=R5_rapid_state_flip
+       31296.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=15
+       31296.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=16
+       31296.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=17
+       31306.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       31306.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       31306.8  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       31306.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       31306.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       31306.8  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=23
+       31306.8  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=24
+       31307.6  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=25
+       31307.6  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       31307.6  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       31307.6  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=26
+       31307.6  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=27
+       31307.6  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=28
+       31337.2  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
+       31470.0  ANOMALY_RESOLVE         spot=276 rule=R4_stale_seq
+       31470.0  ANOMALY_RESOLVE         spot=276 rule=R5_rapid_state_flip
+       31489.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=1
+       31489.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=2
+       31489.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=3
+       31489.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       31532.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       31532.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=8
+       31537.5  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       31549.6  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       31549.6  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+       31549.6  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+       31549.6  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       31552.1  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       31552.1  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       31552.1  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       31552.1  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       31555.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=7
+       31555.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=8
+       31557.7  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       31557.7  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       31557.7  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       31560.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=1
+       31560.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=2
+       31560.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=3
+       31560.5  QUARANTINE_ADD          spot=176 cumulative_flags=5 threshold=5
+       31661.9  ANOMALY_RESOLVE         spot=102 rule=R4_stale_seq
+       31661.9  ANOMALY_RESOLVE         spot=102 rule=R5_rapid_state_flip
+       31680.0  QUARANTINE_RELEASE      spot=184 reason=5 clean anomaly ticks
+       31703.5  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       31703.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+       31794.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=1
+       31794.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=2
+       31794.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=3
+       31794.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       31797.9  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       31797.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=3
+       31814.8  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       31814.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       31814.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       31848.7  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       31919.6  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       31919.6  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       31919.6  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=9
+       31919.6  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=10
+       31919.7  QUARANTINE_RELEASE      spot=176 reason=5 valid events
+       31923.6  ANOMALY_RESOLVE         spot=176 rule=R3_rapid_arrival
+       31923.6  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       31923.6  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       31950.0  QUARANTINE_RELEASE      spot=94 reason=5 clean anomaly ticks
+       32169.4  ANOMALY_RESOLVE         spot=180 rule=R4_stale_seq
+       32169.4  ANOMALY_RESOLVE         spot=180 rule=R5_rapid_state_flip
+       32196.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=7
+       32196.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=8
+       32196.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=9
+       32234.7  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       32234.7  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=1
+       32234.8  QUARANTINE_RELEASE      spot=440 reason=5 valid events
+       32237.0  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       32237.0  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=2
+       32256.9  ANOMALY_FLAG            spot=319 rule=R4_stale_seq cumulative_flags=1
+       32256.9  ANOMALY_FLAG            spot=319 rule=R5_rapid_state_flip cumulative_flags=2
+       32263.9  ANOMALY_FLAG            spot=263 rule=R4_stale_seq cumulative_flags=1
+       32263.9  ANOMALY_FLAG            spot=263 rule=R5_rapid_state_flip cumulative_flags=2
+       32264.1  ANOMALY_RESOLVE         spot=263 rule=R4_stale_seq
+       32264.1  ANOMALY_RESOLVE         spot=263 rule=R5_rapid_state_flip
+       32282.7  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       32282.8  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+       32292.0  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       32292.0  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       32462.0  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       32462.0  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       32465.9  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       32465.9  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       32466.2  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       32466.2  ANOMALY_FLAG            spot=207 rule=R4_stale_seq cumulative_flags=10
+       32466.2  ANOMALY_FLAG            spot=207 rule=R5_rapid_state_flip cumulative_flags=11
+       32529.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       32529.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       32529.8  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=15
+       32529.8  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=16
+       32530.4  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       32530.4  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       32530.4  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       32530.4  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=23
+       32530.4  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       32530.4  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       32651.4  ANOMALY_FLAG            spot=294 rule=R4_stale_seq cumulative_flags=1
+       32651.4  ANOMALY_FLAG            spot=294 rule=R5_rapid_state_flip cumulative_flags=2
+       32694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=1
+       32694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=2
+       32694.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=3
+       32694.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=4
+       32753.3  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       32753.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=5
+       32753.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       32753.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=6
+       32765.5  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       32765.5  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       32765.5  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       32837.0  ANOMALY_RESOLVE         spot=442 rule=R4_stale_seq
+       32837.0  ANOMALY_RESOLVE         spot=442 rule=R5_rapid_state_flip
+       32878.0  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       32878.0  QUARANTINE_RELEASE      spot=124 reason=5 valid events
+       32886.1  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       32886.1  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       33007.7  ANOMALY_FLAG            spot=115 rule=R3_rapid_arrival cumulative_flags=2
+       33096.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=26
+       33096.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=27
+       33096.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=28
+       33158.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=1
+       33171.4  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       33232.4  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       33232.4  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=34
+       33232.4  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=35
+       33234.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       33234.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       33234.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       33290.6  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=4
+       33291.6  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       33418.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       33424.3  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=17
+       33427.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       33427.8  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=26
+       33435.4  ANOMALY_RESOLVE         spot=486 rule=R4_stale_seq
+       33435.4  ANOMALY_RESOLVE         spot=486 rule=R5_rapid_state_flip
+       33594.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=11
+       33594.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=12
+       33762.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       33762.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       33762.3  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       33762.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=18
+       33883.6  ANOMALY_FLAG            spot=19 rule=R4_stale_seq cumulative_flags=1
+       33883.6  ANOMALY_FLAG            spot=19 rule=R5_rapid_state_flip cumulative_flags=2
+       33996.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       33996.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       33996.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=38
+       34012.5  ANOMALY_FLAG            spot=487 rule=R4_stale_seq cumulative_flags=1
+       34012.5  ANOMALY_FLAG            spot=487 rule=R5_rapid_state_flip cumulative_flags=2
+       34075.5  ANOMALY_FLAG            spot=114 rule=R3_rapid_arrival cumulative_flags=5
+       34075.5  QUARANTINE_ADD          spot=114 cumulative_flags=5 threshold=5
+       34075.5  ANOMALY_RESOLVE         spot=114 rule=R3_rapid_arrival
+       34075.5  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=6
+       34087.1  ANOMALY_FLAG            spot=428 rule=R4_stale_seq cumulative_flags=1
+       34087.1  ANOMALY_FLAG            spot=428 rule=R5_rapid_state_flip cumulative_flags=2
+       34248.6  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       34248.6  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+       34248.6  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+       34248.7  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       34258.1  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=3
+       34258.1  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=4
+       34258.1  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=5
+       34258.1  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       34289.4  ANOMALY_FLAG            spot=473 rule=R4_stale_seq cumulative_flags=1
+       34289.4  ANOMALY_FLAG            spot=473 rule=R5_rapid_state_flip cumulative_flags=2
+       34398.4  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       34398.4  ANOMALY_RESOLVE         spot=207 rule=R4_stale_seq
+       34398.4  ANOMALY_RESOLVE         spot=207 rule=R5_rapid_state_flip
+       34398.5  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       34411.6  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=30
+       34417.5  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       34417.5  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       34466.8  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
+       34535.8  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       34539.8  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=39
+       34550.2  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       34550.2  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       34550.2  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=12
+       34550.2  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=13
+       34550.5  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       34550.5  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       34550.5  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       34612.3  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       34612.3  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=7
+       34615.2  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       34615.2  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=8
+       34619.3  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       34712.5  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       34714.7  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=39
+       34865.9  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       34896.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=16
+       34896.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=17
+       34896.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=18
+       34924.0  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       34929.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=10
+       34967.8  ANOMALY_RESOLVE         spot=473 rule=R4_stale_seq
+       34967.8  ANOMALY_RESOLVE         spot=473 rule=R5_rapid_state_flip
+       35008.1  ANOMALY_RESOLVE         spot=19 rule=R4_stale_seq
+       35008.1  ANOMALY_RESOLVE         spot=19 rule=R5_rapid_state_flip
+       35010.0  QUARANTINE_RELEASE      spot=114 reason=5 clean anomaly ticks
+       35066.1  ANOMALY_FLAG            spot=96 rule=R3_rapid_arrival cumulative_flags=2
+       35189.5  ANOMALY_FLAG            spot=403 rule=R4_stale_seq cumulative_flags=1
+       35189.5  ANOMALY_FLAG            spot=403 rule=R5_rapid_state_flip cumulative_flags=2
+       35271.7  ANOMALY_FLAG            spot=46 rule=R4_stale_seq cumulative_flags=1
+       35271.7  ANOMALY_FLAG            spot=46 rule=R5_rapid_state_flip cumulative_flags=2
+       35506.8  ANOMALY_FLAG            spot=141 rule=R4_stale_seq cumulative_flags=1
+       35506.8  ANOMALY_FLAG            spot=141 rule=R5_rapid_state_flip cumulative_flags=2
+       35659.5  ANOMALY_FLAG            spot=256 rule=R4_stale_seq cumulative_flags=1
+       35659.5  ANOMALY_FLAG            spot=256 rule=R5_rapid_state_flip cumulative_flags=2
+       35664.4  ANOMALY_FLAG            spot=227 rule=R3_rapid_arrival cumulative_flags=2
+       35722.1  ANOMALY_FLAG            spot=309 rule=R4_stale_seq cumulative_flags=1
+       35722.1  ANOMALY_FLAG            spot=309 rule=R5_rapid_state_flip cumulative_flags=2
+       35769.2  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       35769.2  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       35769.2  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=24
+       35769.2  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=25
+       35769.3  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       35769.3  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       35769.3  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       35775.9  ANOMALY_FLAG            spot=160 rule=R4_stale_seq cumulative_flags=1
+       35775.9  ANOMALY_FLAG            spot=160 rule=R5_rapid_state_flip cumulative_flags=2
+       35796.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       35796.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       35796.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=30
+       35796.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=31
+       35796.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=32
+       35929.8  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       35943.7  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=19
+       35960.1  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=2
+       35964.5  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       36025.9  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       36025.9  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=4
+       36026.1  ANOMALY_FLAG            spot=153 rule=R3_rapid_arrival cumulative_flags=5
+       36026.1  QUARANTINE_ADD          spot=153 cumulative_flags=5 threshold=5
+       36026.1  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       36026.1  ANOMALY_RESOLVE         spot=153 rule=R3_rapid_arrival
+       36026.1  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=6
+       36117.6  ANOMALY_RESOLVE         spot=309 rule=R4_stale_seq
+       36117.6  ANOMALY_RESOLVE         spot=309 rule=R5_rapid_state_flip
+       36152.7  ANOMALY_RESOLVE         spot=227 rule=R3_rapid_arrival
+       36196.1  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       36196.1  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       36198.0  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       36198.0  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       36529.9  ANOMALY_FLAG            spot=354 rule=R4_stale_seq cumulative_flags=1
+       36529.9  ANOMALY_FLAG            spot=354 rule=R5_rapid_state_flip cumulative_flags=2
+       36537.1  ANOMALY_FLAG            spot=387 rule=R4_stale_seq cumulative_flags=3
+       36537.1  ANOMALY_FLAG            spot=387 rule=R5_rapid_state_flip cumulative_flags=4
+       36581.7  ANOMALY_RESOLVE         spot=160 rule=R4_stale_seq
+       36581.7  ANOMALY_RESOLVE         spot=160 rule=R5_rapid_state_flip
+       36585.1  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+       36585.1  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+       36585.1  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       36586.8  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       36586.8  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       36586.8  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       36586.8  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       36619.8  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=1
+       36623.8  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       36695.4  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       36714.1  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       36762.2  ANOMALY_RESOLVE         spot=403 rule=R4_stale_seq
+       36762.2  ANOMALY_RESOLVE         spot=403 rule=R5_rapid_state_flip
+       36775.3  ANOMALY_RESOLVE         spot=141 rule=R4_stale_seq
+       36775.3  ANOMALY_RESOLVE         spot=141 rule=R5_rapid_state_flip
+       36800.5  ANOMALY_FLAG            spot=41 rule=R4_stale_seq cumulative_flags=1
+       36800.5  ANOMALY_FLAG            spot=41 rule=R5_rapid_state_flip cumulative_flags=2
+       36810.4  ANOMALY_RESOLVE         spot=294 rule=R4_stale_seq
+       36810.4  ANOMALY_RESOLVE         spot=294 rule=R5_rapid_state_flip
+       36839.0  ANOMALY_FLAG            spot=272 rule=R4_stale_seq cumulative_flags=1
+       36839.0  ANOMALY_FLAG            spot=272 rule=R5_rapid_state_flip cumulative_flags=2
+       36850.0  ANOMALY_FLAG            spot=310 rule=R4_stale_seq cumulative_flags=1
+       36850.0  ANOMALY_FLAG            spot=310 rule=R5_rapid_state_flip cumulative_flags=2
+       36910.6  ANOMALY_FLAG            spot=182 rule=R4_stale_seq cumulative_flags=1
+       36910.6  ANOMALY_FLAG            spot=182 rule=R5_rapid_state_flip cumulative_flags=2
+       37127.1  ANOMALY_FLAG            spot=72 rule=R4_stale_seq cumulative_flags=1
+       37127.1  ANOMALY_FLAG            spot=72 rule=R5_rapid_state_flip cumulative_flags=2
+       37162.7  ANOMALY_FLAG            spot=237 rule=R4_stale_seq cumulative_flags=1
+       37162.7  ANOMALY_FLAG            spot=237 rule=R5_rapid_state_flip cumulative_flags=2
+       37300.3  ANOMALY_RESOLVE         spot=256 rule=R4_stale_seq
+       37300.3  ANOMALY_RESOLVE         spot=256 rule=R5_rapid_state_flip
+       37301.4  ANOMALY_RESOLVE         spot=487 rule=R4_stale_seq
+       37301.4  ANOMALY_RESOLVE         spot=487 rule=R5_rapid_state_flip
+       37379.0  ANOMALY_RESOLVE         spot=46 rule=R4_stale_seq
+       37379.0  ANOMALY_RESOLVE         spot=46 rule=R5_rapid_state_flip
+       37396.9  ANOMALY_FLAG            spot=3 rule=R4_stale_seq cumulative_flags=1
+       37396.9  ANOMALY_FLAG            spot=3 rule=R5_rapid_state_flip cumulative_flags=2
+       37423.4  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       37424.6  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       37494.2  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=2
+       37580.8  ANOMALY_RESOLVE         spot=387 rule=R4_stale_seq
+       37580.8  ANOMALY_RESOLVE         spot=387 rule=R5_rapid_state_flip
+       37735.2  ANOMALY_RESOLVE         spot=96 rule=R3_rapid_arrival
+       37816.7  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       37816.8  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+       37823.9  ANOMALY_RESOLVE         spot=41 rule=R4_stale_seq
+       37823.9  ANOMALY_RESOLVE         spot=41 rule=R5_rapid_state_flip
+       37860.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=3
+       37862.6  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       37978.2  ANOMALY_FLAG            spot=328 rule=R4_stale_seq cumulative_flags=1
+       37978.2  ANOMALY_FLAG            spot=328 rule=R5_rapid_state_flip cumulative_flags=2
+       38026.2  ANOMALY_FLAG            spot=244 rule=R4_stale_seq cumulative_flags=1
+       38026.2  ANOMALY_FLAG            spot=244 rule=R5_rapid_state_flip cumulative_flags=2
+       38076.5  ANOMALY_FLAG            spot=256 rule=R4_stale_seq cumulative_flags=3
+       38076.5  ANOMALY_FLAG            spot=256 rule=R5_rapid_state_flip cumulative_flags=4
+       38094.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=23
+       38094.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=24
+       38094.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=25
+       38125.1  ANOMALY_RESOLVE         spot=237 rule=R4_stale_seq
+       38125.1  ANOMALY_RESOLVE         spot=237 rule=R5_rapid_state_flip
+       38127.2  ANOMALY_FLAG            spot=237 rule=R4_stale_seq cumulative_flags=3
+       38127.2  ANOMALY_FLAG            spot=237 rule=R5_rapid_state_flip cumulative_flags=4
+       38273.2  ANOMALY_RESOLVE         spot=3 rule=R4_stale_seq
+       38273.2  ANOMALY_RESOLVE         spot=3 rule=R5_rapid_state_flip
+       38379.8  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       38379.8  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       38380.2  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       38380.2  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       38438.5  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       38438.5  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       38438.5  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=28
+       38438.5  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=29
+       38448.5  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       38448.5  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       38448.5  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       38607.5  ANOMALY_RESOLVE         spot=72 rule=R4_stale_seq
+       38607.5  ANOMALY_RESOLVE         spot=72 rule=R5_rapid_state_flip
+       38662.4  ANOMALY_RESOLVE         spot=272 rule=R4_stale_seq
+       38662.4  ANOMALY_RESOLVE         spot=272 rule=R5_rapid_state_flip
+       38664.0  ANOMALY_FLAG            spot=255 rule=R4_stale_seq cumulative_flags=1
+       38664.0  ANOMALY_FLAG            spot=255 rule=R5_rapid_state_flip cumulative_flags=2
+       38757.1  ANOMALY_RESOLVE         spot=354 rule=R4_stale_seq
+       38757.1  ANOMALY_RESOLVE         spot=354 rule=R5_rapid_state_flip
+       38852.0  ANOMALY_FLAG            spot=441 rule=R4_stale_seq cumulative_flags=1
+       38852.0  ANOMALY_FLAG            spot=441 rule=R5_rapid_state_flip cumulative_flags=2
+       39134.1  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       39154.5  ANOMALY_RESOLVE         spot=428 rule=R4_stale_seq
+       39154.5  ANOMALY_RESOLVE         spot=428 rule=R5_rapid_state_flip
+       39164.4  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=18
+       39248.7  ANOMALY_RESOLVE         spot=256 rule=R4_stale_seq
+       39248.7  ANOMALY_RESOLVE         spot=256 rule=R5_rapid_state_flip
+       39315.7  ANOMALY_RESOLVE         spot=81 rule=R3_rapid_arrival
+       39368.4  ANOMALY_RESOLVE         spot=328 rule=R4_stale_seq
+       39368.4  ANOMALY_RESOLVE         spot=328 rule=R5_rapid_state_flip
+       39370.0  ANOMALY_FLAG            spot=227 rule=R3_rapid_arrival cumulative_flags=3
+       39373.9  ANOMALY_RESOLVE         spot=227 rule=R3_rapid_arrival
+       39432.0  ANOMALY_FLAG            spot=115 rule=R3_rapid_arrival cumulative_flags=3
+       39666.5  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=4
+       39792.0  ANOMALY_FLAG            spot=150 rule=R4_stale_seq cumulative_flags=1
+       39792.0  ANOMALY_FLAG            spot=150 rule=R5_rapid_state_flip cumulative_flags=2
+       39834.4  ANOMALY_RESOLVE         spot=244 rule=R4_stale_seq
+       39834.4  ANOMALY_RESOLVE         spot=244 rule=R5_rapid_state_flip
+       39894.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       39894.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       39894.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=34
+       39894.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=1
+       39894.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=2
+       39894.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=3
+       39947.8  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
+       39952.3  ANOMALY_RESOLVE         spot=431 rule=R4_stale_seq
+       39952.3  ANOMALY_RESOLVE         spot=431 rule=R5_rapid_state_flip
+       40105.5  ANOMALY_RESOLVE         spot=255 rule=R4_stale_seq
+       40105.5  ANOMALY_RESOLVE         spot=255 rule=R5_rapid_state_flip
+       40134.2  ANOMALY_FLAG            spot=166 rule=R3_rapid_arrival cumulative_flags=1
+       40229.9  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       40235.6  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=10
+       40296.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       40296.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       40296.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=7
+       40296.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=8
+       40296.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=9
+       40296.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=10
+       40415.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       40415.9  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       40416.5  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       40416.5  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       40474.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       40474.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=11
+       40474.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=12
+       40484.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       40484.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       40484.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       40495.4  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       40495.4  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=4
+       40495.4  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=5
+       40495.4  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       40495.5  QUARANTINE_RELEASE      spot=94 reason=5 valid events
+       40495.6  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       40495.6  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       40495.6  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       40763.7  ANOMALY_RESOLVE         spot=237 rule=R4_stale_seq
+       40763.7  ANOMALY_RESOLVE         spot=237 rule=R5_rapid_state_flip
+       40794.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=10
+       40794.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=11
+       40794.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=12
+       40992.9  ANOMALY_FLAG            spot=106 rule=R4_stale_seq cumulative_flags=1
+       40992.9  ANOMALY_FLAG            spot=106 rule=R5_rapid_state_flip cumulative_flags=2
+       41017.7  ANOMALY_RESOLVE         spot=166 rule=R3_rapid_arrival
+       41017.9  ANOMALY_FLAG            spot=166 rule=R3_rapid_arrival cumulative_flags=2
+       41051.0  ANOMALY_FLAG            spot=115 rule=R3_rapid_arrival cumulative_flags=4
+       41188.9  ANOMALY_RESOLVE         spot=150 rule=R4_stale_seq
+       41188.9  ANOMALY_RESOLVE         spot=150 rule=R5_rapid_state_flip
+       41203.9  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       41205.2  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       41292.6  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       41292.6  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       41292.6  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=18
+       41292.6  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=19
+       41295.1  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       41295.1  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       41295.1  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       41304.8  ANOMALY_RESOLVE         spot=115 rule=R3_rapid_arrival
+       41694.3  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       41694.3  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       41694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=24
+       41694.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=25
+       41694.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=26
+       41694.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=27
+       41732.7  ANOMALY_RESOLVE         spot=106 rule=R4_stale_seq
+       41732.7  ANOMALY_RESOLVE         spot=106 rule=R5_rapid_state_flip
+       41804.4  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       41804.4  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=7
+       41812.9  ANOMALY_RESOLVE         spot=153 rule=R5_rapid_state_flip
+       41870.4  ANOMALY_FLAG            spot=197 rule=R4_stale_seq cumulative_flags=1
+       41870.4  ANOMALY_FLAG            spot=197 rule=R5_rapid_state_flip cumulative_flags=2
+       41874.2  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       41876.5  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=19
+       41880.1  ANOMALY_FLAG            spot=87 rule=R4_stale_seq cumulative_flags=1
+       41880.1  ANOMALY_FLAG            spot=87 rule=R5_rapid_state_flip cumulative_flags=2
+       41940.0  QUARANTINE_RELEASE      spot=153 reason=5 clean anomaly ticks
+       42041.3  ANOMALY_FLAG            spot=98 rule=R4_stale_seq cumulative_flags=1
+       42041.3  ANOMALY_FLAG            spot=98 rule=R5_rapid_state_flip cumulative_flags=2
+       42075.2  ANOMALY_RESOLVE         spot=441 rule=R4_stale_seq
+       42075.2  ANOMALY_RESOLVE         spot=441 rule=R5_rapid_state_flip
+       42256.6  ANOMALY_FLAG            spot=163 rule=R4_stale_seq cumulative_flags=1
+       42256.6  ANOMALY_FLAG            spot=163 rule=R5_rapid_state_flip cumulative_flags=2
+       42277.0  ANOMALY_FLAG            spot=72 rule=R4_stale_seq cumulative_flags=3
+       42277.0  ANOMALY_FLAG            spot=72 rule=R5_rapid_state_flip cumulative_flags=4
+       42334.6  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       42334.6  QUARANTINE_RELEASE      spot=404 reason=5 valid events
+       42335.6  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       42335.6  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       42363.7  ANOMALY_FLAG            spot=5 rule=R4_stale_seq cumulative_flags=1
+       42363.7  ANOMALY_FLAG            spot=5 rule=R5_rapid_state_flip cumulative_flags=2
+       42449.4  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       42449.4  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=28
+       42449.4  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=29
+       42450.8  ANOMALY_RESOLVE         spot=94 rule=R3_rapid_arrival
+       42450.8  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       42450.8  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       42458.6  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       42458.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=5
+       42458.6  QUARANTINE_ADD          spot=184 cumulative_flags=5 threshold=5
+       42467.4  ANOMALY_FLAG            spot=96 rule=R3_rapid_arrival cumulative_flags=3
+       42517.4  ANOMALY_FLAG            spot=64 rule=R4_stale_seq cumulative_flags=1
+       42517.4  ANOMALY_FLAG            spot=64 rule=R5_rapid_state_flip cumulative_flags=2
+       42540.7  ANOMALY_RESOLVE         spot=197 rule=R4_stale_seq
+       42540.7  ANOMALY_RESOLVE         spot=197 rule=R5_rapid_state_flip
+       42675.8  ANOMALY_RESOLVE         spot=72 rule=R4_stale_seq
+       42675.8  ANOMALY_RESOLVE         spot=72 rule=R5_rapid_state_flip
+       42748.4  ANOMALY_RESOLVE         spot=87 rule=R4_stale_seq
+       42748.4  ANOMALY_RESOLVE         spot=87 rule=R5_rapid_state_flip
+       42836.9  ANOMALY_RESOLVE         spot=98 rule=R4_stale_seq
+       42836.9  ANOMALY_RESOLVE         spot=98 rule=R5_rapid_state_flip
+       42889.4  ANOMALY_RESOLVE         spot=64 rule=R4_stale_seq
+       42889.4  ANOMALY_RESOLVE         spot=64 rule=R5_rapid_state_flip
+       42932.7  ANOMALY_RESOLVE         spot=166 rule=R3_rapid_arrival
+       42946.3  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       42946.3  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=6
+       42952.2  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       42952.2  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=7
+       42995.0  ANOMALY_FLAG            spot=164 rule=R4_stale_seq cumulative_flags=1
+       42995.0  ANOMALY_FLAG            spot=164 rule=R5_rapid_state_flip cumulative_flags=2
+       43009.2  ANOMALY_RESOLVE         spot=5 rule=R4_stale_seq
+       43009.2  ANOMALY_RESOLVE         spot=5 rule=R5_rapid_state_flip
+       43017.1  ANOMALY_RESOLVE         spot=96 rule=R3_rapid_arrival
+       43193.7  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       43194.3  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=19
+       43288.3  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       43288.4  QUARANTINE_RELEASE      spot=124 reason=5 valid events
+       43294.5  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       43294.5  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       43647.5  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       43770.0  QUARANTINE_RELEASE      spot=184 reason=5 clean anomaly ticks
+       43889.7  ANOMALY_FLAG            spot=81 rule=R3_rapid_arrival cumulative_flags=2
+       43929.4  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=4
+       43931.1  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+       43972.6  ANOMALY_RESOLVE         spot=182 rule=R4_stale_seq
+       43972.6  ANOMALY_RESOLVE         spot=182 rule=R5_rapid_state_flip
+       43984.9  ANOMALY_FLAG            spot=456 rule=R4_stale_seq cumulative_flags=1
+       43984.9  ANOMALY_FLAG            spot=456 rule=R5_rapid_state_flip cumulative_flags=2
+       44127.9  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       44128.0  QUARANTINE_RELEASE      spot=111 reason=5 valid events
+       44129.5  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+       44129.5  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+       44304.5  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       44304.6  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       44308.1  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       44308.1  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       44308.4  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       44308.4  ANOMALY_FLAG            spot=207 rule=R4_stale_seq cumulative_flags=10
+       44308.4  ANOMALY_FLAG            spot=207 rule=R5_rapid_state_flip cumulative_flags=11
+       44396.5  ANOMALY_RESOLVE         spot=319 rule=R4_stale_seq
+       44396.5  ANOMALY_RESOLVE         spot=319 rule=R5_rapid_state_flip
+       44556.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+       44556.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+       44556.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=3
+       44556.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       44750.6  ANOMALY_RESOLVE         spot=81 rule=R3_rapid_arrival
+       44890.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       44890.5  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=3
+       45206.0  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       45206.7  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=10
+       45324.3  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       45324.3  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       45324.3  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       45324.3  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=6
+       45324.3  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=7
+       45432.2  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=1
+       45442.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       45442.7  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=2
+       45456.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       45456.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       45456.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=8
+       45509.5  ANOMALY_RESOLVE         spot=164 rule=R4_stale_seq
+       45509.5  ANOMALY_RESOLVE         spot=164 rule=R5_rapid_state_flip
+       45673.1  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       45810.0  QUARANTINE_RELEASE      spot=230 reason=5 clean anomaly ticks
+       45943.4  ANOMALY_FLAG            spot=371 rule=R4_stale_seq cumulative_flags=1
+       45943.4  ANOMALY_FLAG            spot=371 rule=R5_rapid_state_flip cumulative_flags=2
+       46023.4  ANOMALY_FLAG            spot=182 rule=R4_stale_seq cumulative_flags=3
+       46023.4  ANOMALY_FLAG            spot=182 rule=R5_rapid_state_flip cumulative_flags=4
+       46244.9  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       46244.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=4
+       46262.3  ANOMALY_RESOLVE         spot=182 rule=R4_stale_seq
+       46262.3  ANOMALY_RESOLVE         spot=182 rule=R5_rapid_state_flip
+       46269.7  ANOMALY_RESOLVE         spot=207 rule=R4_stale_seq
+       46269.7  ANOMALY_RESOLVE         spot=207 rule=R5_rapid_state_flip
+       46270.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=30
+       46286.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       46352.2  ANOMALY_FLAG            spot=386 rule=R4_stale_seq cumulative_flags=1
+       46352.2  ANOMALY_FLAG            spot=386 rule=R5_rapid_state_flip cumulative_flags=2
+       46356.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=1
+       46454.3  ANOMALY_RESOLVE         spot=231 rule=R4_stale_seq
+       46454.3  ANOMALY_RESOLVE         spot=231 rule=R5_rapid_state_flip
+       46789.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=11
+       46789.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=12
+       46789.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=13
+       46899.3  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       46899.3  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=3
+       46899.3  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=4
+       46899.3  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       46976.8  ANOMALY_FLAG            spot=28 rule=R4_stale_seq cumulative_flags=1
+       46976.8  ANOMALY_FLAG            spot=28 rule=R5_rapid_state_flip cumulative_flags=2
+       47002.5  ANOMALY_RESOLVE         spot=386 rule=R4_stale_seq
+       47002.5  ANOMALY_RESOLVE         spot=386 rule=R5_rapid_state_flip
+       47105.6  ANOMALY_FLAG            spot=361 rule=R4_stale_seq cumulative_flags=1
+       47105.6  ANOMALY_FLAG            spot=361 rule=R5_rapid_state_flip cumulative_flags=2
+       47256.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=9
+       47256.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=10
+       47256.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=11
+       47332.7  ANOMALY_RESOLVE         spot=371 rule=R4_stale_seq
+       47332.7  ANOMALY_RESOLVE         spot=371 rule=R5_rapid_state_flip
+       47422.5  ANOMALY_FLAG            spot=177 rule=R4_stale_seq cumulative_flags=1
+       47422.5  ANOMALY_FLAG            spot=177 rule=R5_rapid_state_flip cumulative_flags=2
+       47496.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       47496.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       47496.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=17
+       47496.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=18
+       47496.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=19
+       47496.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=20
+       47511.4  ANOMALY_FLAG            spot=434 rule=R4_stale_seq cumulative_flags=1
+       47511.4  ANOMALY_FLAG            spot=434 rule=R5_rapid_state_flip cumulative_flags=2
+       47513.1  ANOMALY_RESOLVE         spot=434 rule=R4_stale_seq
+       47513.1  ANOMALY_RESOLVE         spot=434 rule=R5_rapid_state_flip
+       47569.9  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       47569.9  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       47569.9  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=19
+       47569.9  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=20
+       47608.5  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       47608.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       47608.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       47668.3  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       47668.3  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=21
+       47668.3  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=22
+       47672.0  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       47672.0  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       47672.0  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       47688.2  ANOMALY_FLAG            spot=457 rule=R4_stale_seq cumulative_flags=1
+       47688.2  ANOMALY_FLAG            spot=457 rule=R5_rapid_state_flip cumulative_flags=2
+       47808.3  ANOMALY_FLAG            spot=487 rule=R4_stale_seq cumulative_flags=3
+       47808.3  ANOMALY_FLAG            spot=487 rule=R5_rapid_state_flip cumulative_flags=4
+       47878.6  ANOMALY_RESOLVE         spot=361 rule=R4_stale_seq
+       47878.6  ANOMALY_RESOLVE         spot=361 rule=R5_rapid_state_flip
+       47983.3  ANOMALY_RESOLVE         spot=456 rule=R4_stale_seq
+       47983.3  ANOMALY_RESOLVE         spot=456 rule=R5_rapid_state_flip
+       47985.2  ANOMALY_FLAG            spot=456 rule=R4_stale_seq cumulative_flags=3
+       47985.2  ANOMALY_FLAG            spot=456 rule=R5_rapid_state_flip cumulative_flags=4
+       48006.6  ANOMALY_RESOLVE         spot=28 rule=R4_stale_seq
+       48006.6  ANOMALY_RESOLVE         spot=28 rule=R5_rapid_state_flip
+       48033.7  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       48033.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       48033.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=17
+       48033.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=18
+       48041.0  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       48041.0  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       48041.0  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       48048.5  ANOMALY_FLAG            spot=47 rule=R4_stale_seq cumulative_flags=1
+       48048.5  ANOMALY_FLAG            spot=47 rule=R5_rapid_state_flip cumulative_flags=2
+       48144.2  ANOMALY_FLAG            spot=90 rule=R4_stale_seq cumulative_flags=1
+       48144.2  ANOMALY_FLAG            spot=90 rule=R5_rapid_state_flip cumulative_flags=2
+       48156.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       48156.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       48156.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=23
+       48156.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=24
+       48156.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=25
+       48156.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=26
+       48338.3  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       48345.4  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+       48396.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       48396.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       48396.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=1
+       48396.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=2
+       48396.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=3
+       48396.9  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       48418.8  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=5
+       48418.8  QUARANTINE_ADD          spot=114 cumulative_flags=5 threshold=5
+       48419.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       48419.5  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=6
+       48525.2  ANOMALY_RESOLVE         spot=177 rule=R4_stale_seq
+       48525.2  ANOMALY_RESOLVE         spot=177 rule=R5_rapid_state_flip
+       48586.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=7
+       48586.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=8
+       48587.0  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       48587.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       48587.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       48587.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       48587.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=13
+       48587.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=14
+       48587.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=15
+       48649.0  ANOMALY_FLAG            spot=353 rule=R4_stale_seq cumulative_flags=1
+       48649.0  ANOMALY_FLAG            spot=353 rule=R5_rapid_state_flip cumulative_flags=2
+       48692.8  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       48719.8  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=39
+       48746.9  ANOMALY_RESOLVE         spot=90 rule=R4_stale_seq
+       48746.9  ANOMALY_RESOLVE         spot=90 rule=R5_rapid_state_flip
+       48786.0  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       48834.5  ANOMALY_RESOLVE         spot=456 rule=R4_stale_seq
+       48834.5  ANOMALY_RESOLVE         spot=456 rule=R5_rapid_state_flip
+       48835.3  ANOMALY_FLAG            spot=98 rule=R4_stale_seq cumulative_flags=3
+       48835.3  ANOMALY_FLAG            spot=98 rule=R5_rapid_state_flip cumulative_flags=4
+       48836.9  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       48836.9  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       48836.9  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       48836.9  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       48836.9  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=27
+       48836.9  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=28
+       48882.4  ANOMALY_FLAG            spot=27 rule=R4_stale_seq cumulative_flags=1
+       48882.4  ANOMALY_FLAG            spot=27 rule=R5_rapid_state_flip cumulative_flags=2
+       48900.3  ANOMALY_FLAG            spot=376 rule=R4_stale_seq cumulative_flags=3
+       48900.3  ANOMALY_FLAG            spot=376 rule=R5_rapid_state_flip cumulative_flags=4
+       48953.4  ANOMALY_RESOLVE         spot=47 rule=R4_stale_seq
+       48953.4  ANOMALY_RESOLVE         spot=47 rule=R5_rapid_state_flip
+       48972.9  ANOMALY_FLAG            spot=432 rule=R4_stale_seq cumulative_flags=1
+       48972.9  ANOMALY_FLAG            spot=432 rule=R5_rapid_state_flip cumulative_flags=2
+       48978.4  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       48986.2  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=19
+       49056.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+       49056.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+       49056.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=3
+       49056.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       49209.7  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       49209.7  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       49209.7  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       49209.7  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       49209.7  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       49209.7  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=22
+       49209.7  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=23
+       49404.1  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       49404.2  QUARANTINE_RELEASE      spot=207 reason=5 valid events
+       49404.5  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       49404.5  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       49564.9  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=3
+       49569.9  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       49781.1  ANOMALY_RESOLVE         spot=376 rule=R4_stale_seq
+       49781.1  ANOMALY_RESOLVE         spot=376 rule=R5_rapid_state_flip
+       49817.6  ANOMALY_FLAG            spot=478 rule=R4_stale_seq cumulative_flags=1
+       49817.6  ANOMALY_FLAG            spot=478 rule=R5_rapid_state_flip cumulative_flags=2
+       49842.0  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       49871.2  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=19
+       49929.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       49929.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       49929.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=9
+       49929.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=10
+       49929.8  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+       49944.2  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       49944.2  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       49944.2  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       49956.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       49956.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       49956.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=15
+       50118.6  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       50118.6  QUARANTINE_RELEASE      spot=111 reason=5 valid events
+       50123.3  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+       50123.3  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+       50187.8  ANOMALY_RESOLVE         spot=432 rule=R4_stale_seq
+       50187.8  ANOMALY_RESOLVE         spot=432 rule=R5_rapid_state_flip
+       50386.3  ANOMALY_RESOLVE         spot=478 rule=R4_stale_seq
+       50386.3  ANOMALY_RESOLVE         spot=478 rule=R5_rapid_state_flip
+       50425.6  ANOMALY_FLAG            spot=227 rule=R3_rapid_arrival cumulative_flags=4
+       50430.0  ANOMALY_FLAG            spot=11 rule=R1_stuck_sensor cumulative_flags=1561
+       50430.0  ANOMALY_FLAG            spot=14 rule=R1_stuck_sensor cumulative_flags=1561
+       50430.0  ANOMALY_FLAG            spot=18 rule=R1_stuck_sensor cumulative_flags=1561
+       50430.0  ANOMALY_FLAG            spot=260 rule=R1_stuck_sensor cumulative_flags=1561
+       50430.0  ANOMALY_FLAG            spot=273 rule=R1_stuck_sensor cumulative_flags=1561
+       50430.0  ANOMALY_FLAG            spot=279 rule=R1_stuck_sensor cumulative_flags=1561
+       50528.3  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       50528.3  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=17
+       50528.3  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=18
+       50653.4  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       50653.4  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=7
+       50673.7  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       50673.7  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=8
+       50778.0  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       50778.1  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+       50790.0  ANOMALY_FLAG            spot=115 rule=R1_stuck_sensor cumulative_flags=5
+       50790.0  QUARANTINE_ADD          spot=115 cumulative_flags=5 threshold=5
+       50790.8  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       50790.8  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       50856.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       50856.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       50856.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=21
+       50856.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=22
+       50856.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=23
+       50910.0  ANOMALY_FLAG            spot=96 rule=R1_stuck_sensor cumulative_flags=4
+       50910.0  ANOMALY_FLAG            spot=166 rule=R1_stuck_sensor cumulative_flags=3
+       50934.6  ANOMALY_FLAG            spot=443 rule=R4_stale_seq cumulative_flags=1
+       50934.6  ANOMALY_FLAG            spot=443 rule=R5_rapid_state_flip cumulative_flags=2
+       50940.0  QUARANTINE_ADD          spot=96 cumulative_flags=5 threshold=5
+       50940.0  ANOMALY_FLAG            spot=108 rule=R1_stuck_sensor cumulative_flags=2
+       50970.0  QUARANTINE_ADD          spot=166 cumulative_flags=5 threshold=5
+       51030.0  QUARANTINE_ADD          spot=108 cumulative_flags=5 threshold=5
+       51120.0  ANOMALY_FLAG            spot=81 rule=R1_stuck_sensor cumulative_flags=3
+       51180.0  QUARANTINE_ADD          spot=81 cumulative_flags=5 threshold=5
+       51191.2  ANOMALY_RESOLVE         spot=227 rule=R3_rapid_arrival
+       51270.0  ANOMALY_FLAG            spot=227 rule=R1_stuck_sensor cumulative_flags=5
+       51270.0  QUARANTINE_ADD          spot=227 cumulative_flags=5 threshold=5
+       51389.0  ANOMALY_FLAG            spot=382 rule=R4_stale_seq cumulative_flags=1
+       51389.0  ANOMALY_FLAG            spot=382 rule=R5_rapid_state_flip cumulative_flags=2
+       51561.5  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       51561.5  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       51561.5  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       51561.5  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+       51561.5  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+       51577.8  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+       51648.9  ANOMALY_RESOLVE         spot=27 rule=R4_stale_seq
+       51648.9  ANOMALY_RESOLVE         spot=27 rule=R5_rapid_state_flip
+       51749.2  ANOMALY_RESOLVE         spot=353 rule=R4_stale_seq
+       51749.2  ANOMALY_RESOLVE         spot=353 rule=R5_rapid_state_flip
+       51875.4  ANOMALY_RESOLVE         spot=443 rule=R4_stale_seq
+       51875.4  ANOMALY_RESOLVE         spot=443 rule=R5_rapid_state_flip
+       52189.2  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       52210.7  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=10
+       52299.6  ANOMALY_FLAG            spot=54 rule=R4_stale_seq cumulative_flags=1
+       52299.6  ANOMALY_FLAG            spot=54 rule=R5_rapid_state_flip cumulative_flags=2
+       52483.5  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       52547.3  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=4
+       52620.0  QUARANTINE_RELEASE      spot=111 reason=5 clean anomaly ticks
+       52632.1  ANOMALY_FLAG            spot=348 rule=R4_stale_seq cumulative_flags=1
+       52632.1  ANOMALY_FLAG            spot=348 rule=R5_rapid_state_flip cumulative_flags=2
+       52656.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=5
+       52656.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       52656.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=6
+       52656.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=7
+       52717.8  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+       52717.8  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+       53046.9  ANOMALY_RESOLVE         spot=348 rule=R4_stale_seq
+       53046.9  ANOMALY_RESOLVE         spot=348 rule=R5_rapid_state_flip
+       53075.4  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       53075.4  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       53075.4  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=10
+       53075.4  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=11
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       53077.0  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=14
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       53077.0  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=17
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       53077.0  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       53079.4  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       53079.4  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=15
+       53079.4  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=16
+       53341.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       53360.0  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=3
+       53409.9  ANOMALY_RESOLVE         spot=382 rule=R4_stale_seq
+       53409.9  ANOMALY_RESOLVE         spot=382 rule=R5_rapid_state_flip
+       53413.6  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       53446.1  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       53481.3  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       53490.0  QUARANTINE_RELEASE      spot=436 reason=5 clean anomaly ticks
+       53541.0  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=10
+       53542.9  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       53542.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=19
+       53546.4  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       53546.4  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       53649.0  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       53649.0  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=4
+       53951.5  ANOMALY_RESOLVE         spot=54 rule=R4_stale_seq
+       53951.5  ANOMALY_RESOLVE         spot=54 rule=R5_rapid_state_flip
+       53952.6  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       53954.6  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=19
+       53957.5  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       53960.4  ANOMALY_RESOLVE         spot=98 rule=R4_stale_seq
+       53960.4  ANOMALY_RESOLVE         spot=98 rule=R5_rapid_state_flip
+       53978.8  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       54050.4  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=28
+       54110.6  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=10
+       54282.4  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       54291.9  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=10
+       54435.3  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       54435.3  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=5
+       54435.3  QUARANTINE_ADD          spot=234 cumulative_flags=5 threshold=5
+       54456.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=19
+       54456.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=20
+       54456.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=21
+       54460.6  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       54460.6  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=27
+       54460.6  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=28
+       54471.4  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       54471.4  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       54471.4  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       54497.3  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       54497.3  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=6
+       54553.0  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       54553.0  QUARANTINE_RELEASE      spot=124 reason=5 valid events
+       54578.5  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       54578.5  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       54637.0  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=5
+       54637.0  QUARANTINE_ADD          spot=152 cumulative_flags=5 threshold=5
+       54729.6  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+       54870.0  QUARANTINE_RELEASE      spot=152 reason=5 clean anomaly ticks
+       54926.8  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       54926.8  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=7
+       54962.1  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       55110.0  QUARANTINE_RELEASE      spot=234 reason=5 clean anomaly ticks
+       55152.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=20
+       55152.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=21
+       55152.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=22
+       55182.0  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       55182.0  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       55182.0  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=28
+       55182.0  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=29
+       55241.6  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       55241.6  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       55241.6  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       55276.8  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       55309.6  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       55311.9  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       55344.4  ANOMALY_RESOLVE         spot=457 rule=R4_stale_seq
+       55344.4  ANOMALY_RESOLVE         spot=457 rule=R5_rapid_state_flip
+       55356.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=33
+       55356.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=34
+       55356.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=35
+       55358.9  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=19
+       55440.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+       55459.7  ANOMALY_RESOLVE         spot=310 rule=R4_stale_seq
+       55459.7  ANOMALY_RESOLVE         spot=310 rule=R5_rapid_state_flip
+       55492.5  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       55620.0  QUARANTINE_RELEASE      spot=404 reason=5 clean anomaly ticks
+       55663.8  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       55663.8  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       55683.1  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       55683.1  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       55789.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       55789.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       55789.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=25
+       55789.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=26
+       55789.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=27
+       55903.8  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       55903.8  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       55903.8  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       55903.8  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       55903.8  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       55903.8  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+       55903.8  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+       55920.3  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+       56060.8  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       56094.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=1
+       56094.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=2
+       56094.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       56148.4  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       56218.1  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=10
+       56242.0  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       56242.0  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       56242.0  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       56242.1  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       56275.4  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       56281.9  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=9
+       56311.7  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       56316.8  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       56316.9  QUARANTINE_RELEASE      spot=320 reason=5 valid events
+       56320.7  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=17
+       56462.3  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       56462.3  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       56752.9  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=5
+       56752.9  QUARANTINE_ADD          spot=440 cumulative_flags=5 threshold=5
+       56848.4  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       56848.4  QUARANTINE_RELEASE      spot=436 reason=5 valid events
+       56952.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=1
+       56952.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=2
+       56952.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=3
+       56952.6  QUARANTINE_ADD          spot=142 cumulative_flags=5 threshold=5
+       57005.8  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       57005.8  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=6
+       57085.6  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       57085.7  QUARANTINE_RELEASE      spot=111 reason=5 valid events
+       57131.2  ANOMALY_FLAG            spot=394 rule=R4_stale_seq cumulative_flags=1
+       57131.2  ANOMALY_FLAG            spot=394 rule=R5_rapid_state_flip cumulative_flags=2
+       57156.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       57156.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       57156.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=5
+       57156.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       57156.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=6
+       57156.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=7
+       57156.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=8
+       57247.6  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=5
+       57247.6  QUARANTINE_ADD          spot=184 cumulative_flags=5 threshold=5
+       57270.8  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       57381.0  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       57393.1  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       57393.1  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       57393.1  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=9
+       57393.1  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=10
+       57393.2  QUARANTINE_RELEASE      spot=142 reason=5 valid events
+       57395.0  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       57395.0  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       57395.0  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       57395.0  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       57395.0  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=9
+       57395.0  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=10
+       57420.0  QUARANTINE_RELEASE      spot=440 reason=5 clean anomaly ticks
+       57496.0  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       57496.0  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       57510.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+       57555.4  ANOMALY_RESOLVE         spot=394 rule=R4_stale_seq
+       57555.4  ANOMALY_RESOLVE         spot=394 rule=R5_rapid_state_flip
+       57589.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       57589.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       57589.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=7
+       57637.3  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       57637.3  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=9
+       57637.3  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=10
+       57665.7  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=15
+       57665.7  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=16
+       57665.7  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=17
+       57703.9  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       57703.9  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       57703.9  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       57755.3  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       57900.0  QUARANTINE_RELEASE      spot=320 reason=5 clean anomaly ticks
+       58056.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       58056.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       58056.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=11
+       58171.4  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       58171.4  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       58171.4  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=24
+       58171.4  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=25
+       58189.8  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       58189.8  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       58216.1  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       58216.1  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       58313.3  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+       58313.3  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+       58471.5  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       58471.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       58471.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       58507.0  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       58507.0  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=13
+       58507.0  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=14
+       58731.6  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       58752.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=15
+       58752.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=16
+       58752.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=17
+       58799.4  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       58848.8  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       58860.0  QUARANTINE_RELEASE      spot=207 reason=5 clean anomaly ticks
+       58909.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       58909.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       58909.8  ANOMALY_RESOLVE         spot=142 rule=R3_rapid_arrival
+       58909.8  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       58909.8  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       58909.8  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=20
+       58909.8  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=21
+       58920.0  QUARANTINE_RELEASE      spot=111 reason=5 clean anomaly ticks
+       58980.0  QUARANTINE_RELEASE      spot=404 reason=5 clean anomaly ticks
+       59033.0  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       59033.0  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       59196.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       59196.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       59196.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=24
+       59196.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=25
+       59196.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=26
+       59217.0  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       59246.9  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       59340.0  QUARANTINE_RELEASE      spot=320 reason=5 clean anomaly ticks
+       59370.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+       59418.4  ANOMALY_FLAG            spot=320 rule=R3_rapid_arrival cumulative_flags=1
+       59418.4  QUARANTINE_ADD          spot=320 cumulative_flags=5 threshold=5
+       59527.4  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       59551.6  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=1
+       59582.2  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       59582.2  ANOMALY_FLAG            spot=184 rule=R5_rapid_state_flip cumulative_flags=6
+       59670.0  QUARANTINE_RELEASE      spot=436 reason=5 clean anomaly ticks
+       59756.5  ANOMALY_FLAG            spot=111 rule=R3_rapid_arrival cumulative_flags=1
+       59756.5  QUARANTINE_ADD          spot=111 cumulative_flags=5 threshold=5
+       60010.3  ANOMALY_RESOLVE         spot=487 rule=R4_stale_seq
+       60010.3  ANOMALY_RESOLVE         spot=487 rule=R5_rapid_state_flip
+       60051.6  ANOMALY_RESOLVE         spot=320 rule=R3_rapid_arrival
+       60096.9  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       60096.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       60096.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       60096.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=1
+       60096.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=2
+       60180.0  QUARANTINE_RELEASE      spot=320 reason=5 clean anomaly ticks
+       60206.5  ANOMALY_FLAG            spot=436 rule=R3_rapid_arrival cumulative_flags=1
+       60206.5  QUARANTINE_ADD          spot=436 cumulative_flags=5 threshold=5
+       60421.7  QUARANTINE_RELEASE      spot=214 reason=5 valid events
+       60542.7  ANOMALY_RESOLVE         spot=184 rule=R5_rapid_state_flip
+       60552.6  ANOMALY_RESOLVE         spot=142 rule=R4_stale_seq
+       60552.6  ANOMALY_RESOLVE         spot=142 rule=R5_rapid_state_flip
+       60552.6  ANOMALY_FLAG            spot=142 rule=R3_rapid_arrival cumulative_flags=24
+       60552.6  ANOMALY_FLAG            spot=142 rule=R4_stale_seq cumulative_flags=25
+       60552.6  ANOMALY_FLAG            spot=142 rule=R5_rapid_state_flip cumulative_flags=26
+       60682.0  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       60690.0  QUARANTINE_RELEASE      spot=184 reason=5 clean anomaly ticks
+       60756.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=1
+       60756.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=2
+       60756.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=3
+       60756.7  QUARANTINE_ADD          spot=230 cumulative_flags=5 threshold=5
+       60810.0  QUARANTINE_RELEASE      spot=207 reason=5 clean anomaly ticks
+       60996.9  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       60996.9  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       60996.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=5
+       60996.9  QUARANTINE_ADD          spot=214 cumulative_flags=5 threshold=5
+       60996.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=6
+       60996.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=7
+       61197.5  ANOMALY_RESOLVE         spot=163 rule=R4_stale_seq
+       61197.5  ANOMALY_RESOLVE         spot=163 rule=R5_rapid_state_flip
+       61467.8  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       61467.8  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       61467.9  QUARANTINE_RELEASE      spot=230 reason=5 valid events
+       61656.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=9
+       61656.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=10
+       62160.5  ANOMALY_RESOLVE         spot=176 rule=R4_stale_seq
+       62160.5  ANOMALY_RESOLVE         spot=176 rule=R5_rapid_state_flip
+       62160.5  ANOMALY_FLAG            spot=176 rule=R3_rapid_arrival cumulative_flags=11
+       62160.5  ANOMALY_FLAG            spot=176 rule=R4_stale_seq cumulative_flags=12
+       62160.5  ANOMALY_FLAG            spot=176 rule=R5_rapid_state_flip cumulative_flags=13
+       62256.2  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       62256.2  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       62256.2  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       62505.6  ANOMALY_RESOLVE         spot=111 rule=R3_rapid_arrival
+       62640.0  QUARANTINE_RELEASE      spot=111 reason=5 clean anomaly ticks
+       62796.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=11
+       62796.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=12
+       63456.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=15
+       63456.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=16
+       63456.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=17
+       63525.3  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       63525.3  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       63634.3  ANOMALY_RESOLVE         spot=214 rule=R3_rapid_arrival
+       63634.3  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       63634.3  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       63696.9  ANOMALY_FLAG            spot=214 rule=R4_stale_seq cumulative_flags=17
+       63696.9  ANOMALY_FLAG            spot=214 rule=R5_rapid_state_flip cumulative_flags=18
+       63696.9  ANOMALY_FLAG            spot=214 rule=R3_rapid_arrival cumulative_flags=19
+       63889.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       63889.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       63889.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=30
+       63889.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=1
+       63889.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=2
+       63889.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=3
+       64194.3  ANOMALY_FLAG            spot=94 rule=R4_stale_seq cumulative_flags=1
+       64194.3  ANOMALY_FLAG            spot=94 rule=R5_rapid_state_flip cumulative_flags=2
+       64194.3  ANOMALY_FLAG            spot=94 rule=R3_rapid_arrival cumulative_flags=3
+       64194.3  QUARANTINE_ADD          spot=94 cumulative_flags=5 threshold=5
+       64219.4  ANOMALY_RESOLVE         spot=94 rule=R4_stale_seq
+       64219.4  ANOMALY_RESOLVE         spot=94 rule=R5_rapid_state_flip
+       64219.5  QUARANTINE_RELEASE      spot=94 reason=5 valid events
+       64270.1  ANOMALY_RESOLVE         spot=214 rule=R4_stale_seq
+       64270.1  ANOMALY_RESOLVE         spot=214 rule=R5_rapid_state_flip
+       64448.5  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       64448.6  QUARANTINE_RELEASE      spot=45 reason=5 valid events
+       65256.7  ANOMALY_RESOLVE         spot=230 rule=R3_rapid_arrival
+       65256.7  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       65256.7  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       65256.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=23
+       65256.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=24
+       66156.7  ANOMALY_FLAG            spot=230 rule=R4_stale_seq cumulative_flags=27
+       66156.7  ANOMALY_FLAG            spot=230 rule=R5_rapid_state_flip cumulative_flags=28
+       66156.7  ANOMALY_FLAG            spot=230 rule=R3_rapid_arrival cumulative_flags=29
+       66381.5  ANOMALY_RESOLVE         spot=230 rule=R4_stale_seq
+       66381.5  ANOMALY_RESOLVE         spot=230 rule=R5_rapid_state_flip
+       68166.7  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=1
+       69117.0  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       69117.0  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=9
+       69277.1  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       69277.1  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       70663.8  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       70718.9  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       70718.9  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=1
+       70719.0  QUARANTINE_RELEASE      spot=114 reason=5 valid events
+       70722.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       70731.0  ANOMALY_RESOLVE         spot=436 rule=R3_rapid_arrival
+       70791.0  ANOMALY_RESOLVE         spot=234 rule=R5_rapid_state_flip
+       70800.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+       70860.0  QUARANTINE_RELEASE      spot=436 reason=5 clean anomaly ticks
+       71392.2  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=2
+       71797.0  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=1
+       73813.1  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       75268.4  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=2
+       78982.5  ANOMALY_RESOLVE         spot=114 rule=R5_rapid_state_flip
+       78982.5  ANOMALY_FLAG            spot=114 rule=R5_rapid_state_flip cumulative_flags=3
+       79180.4  ANOMALY_FLAG            spot=153 rule=R5_rapid_state_flip cumulative_flags=1
+       79989.1  ANOMALY_FLAG            spot=207 rule=R3_rapid_arrival cumulative_flags=1
+       79989.1  QUARANTINE_ADD          spot=207 cumulative_flags=5 threshold=5
+       80582.3  ANOMALY_FLAG            spot=404 rule=R3_rapid_arrival cumulative_flags=1
+       80582.3  QUARANTINE_ADD          spot=404 cumulative_flags=5 threshold=5
+       81121.6  ANOMALY_RESOLVE         spot=207 rule=R3_rapid_arrival
+       81270.0  QUARANTINE_RELEASE      spot=207 reason=5 clean anomaly ticks
+       81554.0  ANOMALY_RESOLVE         spot=404 rule=R3_rapid_arrival
+       81690.0  QUARANTINE_RELEASE      spot=404 reason=5 clean anomaly ticks
+       83036.5  ANOMALY_FLAG            spot=124 rule=R3_rapid_arrival cumulative_flags=1
+       83036.5  QUARANTINE_ADD          spot=124 cumulative_flags=5 threshold=5
+       83480.2  ANOMALY_RESOLVE         spot=124 rule=R3_rapid_arrival
+       83610.0  QUARANTINE_RELEASE      spot=124 reason=5 clean anomaly ticks
+       84125.0  ANOMALY_FLAG            spot=234 rule=R5_rapid_state_flip cumulative_flags=2
+       84185.2  ANOMALY_RESOLVE         spot=440 rule=R5_rapid_state_flip
+       84185.2  ANOMALY_FLAG            spot=440 rule=R5_rapid_state_flip cumulative_flags=3
+       84589.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=4
+       84589.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=5
+       84589.5  QUARANTINE_ADD          spot=45 cumulative_flags=5 threshold=5
+       85315.1  ANOMALY_RESOLVE         spot=152 rule=R5_rapid_state_flip
+       85315.1  ANOMALY_FLAG            spot=152 rule=R5_rapid_state_flip cumulative_flags=2
+       85425.4  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival
+       85425.4  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       85425.4  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       85489.5  ANOMALY_RESOLVE         spot=45 rule=R4_stale_seq
+       85489.5  ANOMALY_RESOLVE         spot=45 rule=R5_rapid_state_flip
+       85489.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=10
+       85489.5  ANOMALY_FLAG            spot=45 rule=R3_rapid_arrival cumulative_flags=11
+       85489.5  ANOMALY_FLAG            spot=45 rule=R4_stale_seq cumulative_flags=12
+       85489.5  ANOMALY_FLAG            spot=45 rule=R5_rapid_state_flip cumulative_flags=13
+       85853.7  ANOMALY_RESOLVE         spot=45 rule=R3_rapid_arrival

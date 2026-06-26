@@ -21,12 +21,13 @@ COAP_ACK_BYTES = COAP_HEADER_BYTES + COAP_TOKEN_BYTES
 
 class SimulatedCoAPBackend(ProtocolBackend):
 
-    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None) -> None:
+    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
         self.uplink_loss = loss_rate
         self.downlink_loss = loss_rate if downlink_loss_rate is None else downlink_loss_rate
+        self._loss_provider = loss_provider
         self._rng = random.Random(seed)
         self.bytes_sent = 0
         self.retransmitted = 0
@@ -41,6 +42,14 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
+
+    def _uplink_drop(self) -> bool:
+        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
+        return self._rng.random() < rate
+
+    def _downlink_drop(self) -> bool:
+        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.downlink_loss
+        return self._rng.random() < rate
 
     def _next_id(self) -> int:
         self._msg_seq += 1
@@ -85,7 +94,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
 
     def _send_non(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
         self.bytes_sent += self._frame_bytes(payload)
-        if self._rng.random() < self.uplink_loss:
+        if self._uplink_drop():
             self._drop(msg_id)
             return
         self._release(batch, payload, msg_id)
@@ -100,14 +109,14 @@ class SimulatedCoAPBackend(ProtocolBackend):
 
     def _send_con(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
         self.bytes_sent += self._frame_bytes(payload)
-        if self._rng.random() < self.uplink_loss:
+        if self._uplink_drop():
             self._retransmit(batch, payload, msg_id, attempt, timeout)
             return
         self._release(batch, payload, msg_id)
         self.bytes_sent += COAP_ACK_BYTES
 
         def ack() -> None:
-            if self._rng.random() < self.downlink_loss:
+            if self._downlink_drop():
                 self._retransmit(batch, payload, msg_id, attempt, timeout)
 
         self.clock.schedule(self._ack_delay(), ack)

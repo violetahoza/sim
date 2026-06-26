@@ -1,7 +1,7 @@
 {
   "scenario_name": "A1_cloud_only",
   "seed": 1001,
-  "run_id": "20260625T104031_8552f3",
+  "run_id": "20260626T133946_15c753",
   "protocol": "mqtt",
   "architecture": "cloud_only",
   "traffic_level": "peak",
@@ -53,5 +53,9 @@
   "adaptive_mode_switches": null,
   "quarantined_spots_final": null,
   "anomaly_detected_spots": null,
-  "fault_injected_count": null
+  "fault_injected_count": null,
+  "fault_true_count": null,
+  "anomaly_precision": null,
+  "anomaly_recall": null,
+  "anomaly_f1": null
 }

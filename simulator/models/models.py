@@ -151,6 +151,10 @@ class ExperimentMetrics:
     anomaly_detected_spots: int = 0
 
     fault_injected_count: int = 0
+    fault_true_count: int = 0
+    anomaly_precision: Optional[float] = None
+    anomaly_recall: Optional[float] = None
+    anomaly_f1: Optional[float] = None
 
     seed: int = 0
     run_id: str = ""
@@ -300,7 +304,8 @@ class ExperimentMetrics:
                 "heartbeats_suppressed", "heartbeats_forwarded", "quarantine_suppressed",
                 "anomalies_detected", "anomalies_resolved", "active_anomalies",
                 "adaptive_mode_switches", "quarantined_spots_final",
-                "anomaly_detected_spots", "fault_injected_count"
+                "anomaly_detected_spots", "fault_injected_count",
+                "fault_true_count", "anomaly_precision", "anomaly_recall", "anomaly_f1"
             )})
         else:
             d.update({
@@ -323,6 +328,10 @@ class ExperimentMetrics:
                 "adaptive_mode_switches": self.adaptive_mode_switches,
                 "quarantined_spots_final": self.quarantined_spots_final,
                 "anomaly_detected_spots": self.anomaly_detected_spots,
-                "fault_injected_count": self.fault_injected_count
+                "fault_injected_count": self.fault_injected_count,
+                "fault_true_count": self.fault_true_count,
+                "anomaly_precision": self.anomaly_precision,
+                "anomaly_recall": self.anomaly_recall,
+                "anomaly_f1": self.anomaly_f1
             })
         return d

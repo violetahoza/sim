@@ -22,12 +22,13 @@ AMQP_REQUEUE_DELAY_S = 0.2
 
 class SimulatedAMQPBackend(ProtocolBackend):
 
-    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None) -> None:
+    def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
         self.config = config
         self.clock = clock
         self._subscriber = subscriber_cb
         self.uplink_loss = loss_rate
         self.downlink_loss = loss_rate if downlink_loss_rate is None else downlink_loss_rate
+        self._loss_provider = loss_provider
         self._rng = random.Random(seed)
         self.bytes_sent = 0
         self.retransmitted = 0
@@ -42,6 +43,14 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
+
+    def _uplink_drop(self) -> bool:
+        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
+        return self._rng.random() < rate
+
+    def _downlink_drop(self) -> bool:
+        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.downlink_loss
+        return self._rng.random() < rate
 
     def _next_id(self) -> int:
         self._msg_seq += 1
@@ -72,6 +81,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
     def _release(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
         if msg_id in self._delivered:
             self.duplicates_delivered += 1
+            self._subscriber(batch, payload)
             return
         self._delivered.add(msg_id)
         self.frames_delivered += 1
@@ -96,7 +106,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
 
     def _do_publish(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
         self.bytes_sent += self._publish_bytes(batch, payload)
-        if self._rng.random() < self.uplink_loss:
+        if self._uplink_drop():
             if self.config.ack_mode == "auto":
                 self._drop(msg_id)
             else:
@@ -109,7 +119,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.bytes_sent += AMQP_ACK_FRAME
 
         def consumer_ack() -> None:
-            if self._rng.random() < self.downlink_loss:
+            if self._downlink_drop():
                 self._requeue(batch, payload, msg_id, attempt)
 
         self.clock.schedule(self._ack_delay(), consumer_ack)

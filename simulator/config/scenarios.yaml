@@ -83,22 +83,42 @@ scenarios:
   - name: A5_edge_anomaly
     description: >
       Edge Filtered + Anomaly Detection | Same link/traffic as A2, but all five anomaly rules active (R1 stuck, R2 silent, R3 rapid arrivals, R4 stale sequence, R5 rapid state flip).
-      Low quarantine_threshold (2 flags) and shorter silent_threshold (600 s) ensure quarantine visibly fires in the 3-hour window. Quarantined spots have their events 
-      suppressed, reducing cloud traffic below A2 while protecting cloud state from noisy sensors.
+      A 24-hour horizon is used so R1 (stuck) is reachable beyond the maximum plausible parking dwell. Faults are injected on disjoint, seeded spots to provide ground truth;
+      detection precision/recall/F1 are reported against that ground truth. silent_threshold (1800 s) exceeds the heartbeat interval (900 s) so healthy quiet sensors are not flagged;
+      stuck_threshold (50400 s, 14 h) exceeds the 12 h dwell clamp so legitimate long-stay parkers are not flagged.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
     num_spots: 500
     seed: 1001
     mqtt_qos: 1
-    sim_duration_s: 10800.0
-    use_time_of_day: false
+    sim_duration_s: 86400.0
+    use_time_of_day: true
+    start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.02
     anomaly_detection: true
-    quarantine_threshold: 2
+    quarantine_threshold: 5
     quarantine_recovery_events: 5
-    silent_threshold_s: 600.0
+    heartbeat_interval_s: 900.0
+    silent_threshold_s: 3600.0
+    stuck_threshold_s: 50400.0
+    rapid_arrival_threshold_s: 0.5
+    rapid_flip_min_dwell_s: 10.0
+    faults:
+      - type: silent
+        count: 6
+      - type: stuck_at
+        count: 6
+        stuck_state: occupied
+      - type: flapping
+        count: 6
+      - type: replay
+        count: 6
+        replay_count: 3
+      - type: flooding
+        count: 6
+        flood_count: 10
     group: "A - Architecture Comparison"
     group_order: 5
     is_builtin: true
@@ -121,7 +141,9 @@ scenarios:
     use_time_of_day: true
     start_hour: 6.0
     loss_rate: 0.05
-    backhaul_loss_rate: 0.20
+    backhaul_loss_rate: 0.02
+    backhaul_loss_peak_rate: 0.25
+    adaptive_min_window_samples: 20
     anomaly_detection: false
     adaptive_edge: true
     group: "A - Architecture Comparison"

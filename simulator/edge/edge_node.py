@@ -44,16 +44,25 @@ class EdgeNode:
 
         self._adaptive_prev_backhaul_sent: int = 0
         self._adaptive_prev_backhaul_recv: int = 0
+        self._backhaul_probe: Optional[Callable[[], tuple[int, int]]] = None
+        self._adaptive_prev_offered: int = 0
+        self._adaptive_prev_first_pass: int = 0
+        self._adaptive_dr_ewma: Optional[float] = None
 
         self._active_anomalies: set[tuple[int, str]] = set()
         self._resolved_anomalies: int = 0
         self._cumulative_flags: dict[int, int] = {}
         self._quarantine: set[int] = set()
+        self._ever_quarantined: set[int] = set()
         self._quarantine_clean_ticks: dict[int, int] = {}
         self._quarantine_valid_events: dict[int, int] = {}
         self._last_arrival_virtual: dict[int, float] = {}
 
         self._event_log: list[dict] = []
+
+        if self.edge_cfg.anomaly_detection:
+            for sid in range(config.num_spots):
+                self._cache[sid] = SensorState(spot_id=sid, last_updated=epoch, last_state_change_timestamp=epoch)
 
         if self._active_arch == "edge_aggregated":
             self.clock.schedule(self.edge_cfg.aggregation_interval_s, self._aggregation_tick)
@@ -67,6 +76,9 @@ class EdgeNode:
 
     def set_backhaul_link_stats(self, stats: LinkStats) -> None:
         self._backhaul_link_stats = stats
+
+    def set_backhaul_delivery_probe(self, cb: Callable[[], tuple[int, int]]) -> None:
+        self._backhaul_probe = cb
 
     def receive(self, event: ParkingEvent, raw_bytes: bytes) -> None:
         self.received_count += 1
@@ -112,6 +124,7 @@ class EdgeNode:
 
         if self.edge_cfg.anomaly_detection:
             self._check_r3_r4(event, cached, now_virtual)
+            self._check_r5(event, cached, now_virtual)
 
         if self._should_filter(event, cached):
             self.filtered_count += 1
@@ -123,9 +136,6 @@ class EdgeNode:
             self.filtered_count += 1
             self.quarantine_suppressed += 1
             return
-
-        if self.edge_cfg.anomaly_detection:
-            self._check_r5(event, cached, now_virtual)
 
         previous_state = cached.state
         state_changed = previous_state != event.state
@@ -238,25 +248,23 @@ class EdgeNode:
             self._resolve_anomaly(sid, "R4_stale_seq", now_virtual)
 
     def _check_r5(self, event: ParkingEvent, cached: SensorState, now_virtual: float) -> None:
-        if cached.last_state_change_timestamp > 0.0 and cached.state != event.state:
-            last_change_virtual = cached.last_state_change_timestamp - self._epoch
-            if (now_virtual - last_change_virtual) < self.edge_cfg.rapid_flip_min_dwell_s:
-                self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
-                return
-        self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+        if cached.last_event_seq > 0 and event.state != cached.state and event.sequence <= cached.last_event_seq:
+            self._flag_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
+        else:
+            self._resolve_anomaly(event.spot_id, "R5_rapid_state_flip", now_virtual)
 
     def _check_anomalies(self) -> None:
         now_virtual = self.clock.now
         silent_thr_s = self.edge_cfg.silent_threshold_s
         stuck_thr_s = self.edge_cfg.stuck_threshold_s
         for spot_id, state in self._cache.items():
-            if state.last_state_change_timestamp > 0.0:
+            if state.last_state_change_timestamp >= 0.0:
                 last_c_v = state.last_state_change_timestamp - self._epoch
                 if (now_virtual - last_c_v) > stuck_thr_s:
                     self._flag_anomaly(spot_id, "R1_stuck_sensor", now_virtual)
                 else:
                     self._resolve_anomaly(spot_id, "R1_stuck_sensor", now_virtual)
-            if state.last_updated > 0.0:
+            if state.last_updated >= 0.0:
                 last_u_v = state.last_updated - self._epoch
                 if (now_virtual - last_u_v) > silent_thr_s:
                     self._flag_anomaly(spot_id, "R2_silent_sensor", now_virtual)
@@ -265,16 +273,16 @@ class EdgeNode:
 
     def _flag_anomaly(self, spot_id: int, rule: str, t_virtual: float) -> None:
         key = (spot_id, rule)
-        if key in self._active_anomalies:
-            return
-        self._active_anomalies.add(key)
-        self.anomaly_count += 1
         flags = self._cumulative_flags.get(spot_id, 0) + 1
         self._cumulative_flags[spot_id] = flags
+        if key not in self._active_anomalies:
+            self._active_anomalies.add(key)
+            self.anomaly_count += 1
+            self._event_log.append({"t_virtual": round(t_virtual, 1), "event": "ANOMALY_FLAG", "detail": f"spot={spot_id} rule={rule} cumulative_flags={flags}"})
         threshold = self.edge_cfg.quarantine_threshold
-        self._event_log.append({"t_virtual": round(t_virtual, 1), "event": "ANOMALY_FLAG", "detail": f"spot={spot_id} rule={rule} cumulative_flags={flags}"})
         if flags >= threshold and spot_id not in self._quarantine:
             self._quarantine.add(spot_id)
+            self._ever_quarantined.add(spot_id)
             self._quarantine_clean_ticks[spot_id] = 0
             self._quarantine_valid_events[spot_id] = 0
             self._event_log.append({"t_virtual": round(t_virtual, 1), "event": "QUARANTINE_ADD", "detail": f"spot={spot_id} cumulative_flags={flags} threshold={threshold}"})
@@ -335,16 +343,30 @@ class EdgeNode:
         if not self.edge_cfg.adaptive_edge:
             return
 
-        ls = self._backhaul_link_stats if self._backhaul_link_stats is not None else self.stats
-        delta_sent = ls.sent - self._adaptive_prev_backhaul_sent
-        delta_recv = ls.received - self._adaptive_prev_backhaul_recv
-        self._adaptive_prev_backhaul_sent = ls.sent
-        self._adaptive_prev_backhaul_recv = ls.received
+        if self._backhaul_probe is not None:
+            offered, first_pass = self._backhaul_probe()
+            delta_sent = offered - self._adaptive_prev_offered
+            delta_recv = first_pass - self._adaptive_prev_first_pass
+            if delta_sent < self.edge_cfg.adaptive_min_window_samples:
+                return
+            self._adaptive_prev_offered = offered
+            self._adaptive_prev_first_pass = first_pass
+        else:
+            ls = self._backhaul_link_stats if self._backhaul_link_stats is not None else self.stats
+            delta_sent = ls.sent - self._adaptive_prev_backhaul_sent
+            delta_recv = ls.received - self._adaptive_prev_backhaul_recv
+            if delta_sent < self.edge_cfg.adaptive_min_window_samples:
+                return
+            self._adaptive_prev_backhaul_sent = ls.sent
+            self._adaptive_prev_backhaul_recv = ls.received
 
-        if delta_sent < self.edge_cfg.adaptive_min_window_samples:
-            return
-
-        dr = delta_recv / delta_sent
+        raw_dr = delta_recv / delta_sent
+        alpha = self.edge_cfg.adaptive_dr_smoothing
+        if self._adaptive_dr_ewma is None:
+            self._adaptive_dr_ewma = raw_dr
+        else:
+            self._adaptive_dr_ewma = alpha * raw_dr + (1.0 - alpha) * self._adaptive_dr_ewma
+        dr = self._adaptive_dr_ewma
 
         if self._active_arch == "edge_aggregated" and dr < self.edge_cfg.adaptive_degrade_threshold:
             detail = (
@@ -382,7 +404,9 @@ class EdgeNode:
             "active_arch": self._active_arch,
             "link_stats": self.stats.to_dict(),
             "quarantined": sorted(self._quarantine),
+            "ever_quarantined": sorted(self._ever_quarantined),
             "quarantined_count": len(self._quarantine),
             "detected_spots": len(self._cumulative_flags),
+            "detected_spot_ids": sorted(self._cumulative_flags.keys()),
             "event_log": list(self._event_log)
         }

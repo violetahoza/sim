@@ -49,6 +49,7 @@ class BackhaulLinkConfig:
     jitter_ms: float = 10.0
     packet_loss_rate: float = 0.02
     downlink_loss_rate: Optional[float] = None
+    loss_peak_rate: Optional[float] = None
     max_payload_bytes: int = 65535
     rate_limit_msgs_per_sec: float = 1000.0
     payload_encoding_ratio: float = 1.0
@@ -92,6 +93,7 @@ class EdgeConfig:
     adaptive_degrade_threshold: float = 0.85 
     adaptive_recover_threshold: float = 0.95 
     adaptive_min_window_samples: int = 3   
+    adaptive_dr_smoothing: float = 0.3
 
 
 @dataclass
@@ -165,6 +167,7 @@ class ScenarioConfig:
     group: str = ""
     group_order: int = 0
     is_builtin: bool = False
+    faults: list = field(default_factory=list)
 
     def to_save_dict(self) -> dict:
         d = asdict(self)
@@ -190,6 +193,7 @@ class ScenarioConfig:
             "backhaul_jitter_ms": self.backhaul_link.jitter_ms,
             "backhaul_loss_rate": self.backhaul_link.packet_loss_rate,
             "backhaul_downlink_loss_rate": self.backhaul_link.downlink_loss_rate,
+            "backhaul_loss_peak_rate": self.backhaul_link.loss_peak_rate,
             "payload_encoding_ratio": link["payload_encoding_ratio"],
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
@@ -210,6 +214,7 @@ class ScenarioConfig:
             "adaptive_degrade_threshold": edge["adaptive_degrade_threshold"],
             "adaptive_recover_threshold": edge["adaptive_recover_threshold"],
             "adaptive_min_window_samples": edge["adaptive_min_window_samples"],
+            "adaptive_dr_smoothing": edge["adaptive_dr_smoothing"],
             "mqtt_qos": mqtt["qos"],
             "coap_mode": coap["mode"],
             "coap_payload_size_factor": coap["payload_size_factor"],   # Step 1 knob
@@ -223,6 +228,7 @@ class ScenarioConfig:
             "start_hour": traffic["start_hour"],
             "initial_occupancy": traffic["initial_occupancy"],
             "tod_factors": traffic["tod_factors"],
+            "faults": self.faults,
             "use_dwell_mixture": traffic["use_dwell_mixture"],
             "heartbeat_interval_s": traffic["heartbeat_interval_s"],
             "duplicate_send_prob": traffic["duplicate_send_prob"]
@@ -257,6 +263,7 @@ class ScenarioConfig:
             adaptive_degrade_threshold=d.get("adaptive_degrade_threshold", 0.85),
             adaptive_recover_threshold=d.get("adaptive_recover_threshold", 0.95),
             adaptive_min_window_samples=d.get("adaptive_min_window_samples", 3),
+            adaptive_dr_smoothing=d.get("adaptive_dr_smoothing", 0.3),
             mqtt_qos=d.get("mqtt_qos", 1),
             coap_mode=d.get("coap_mode", "CON"),
             coap_payload_size_factor=d.get("coap_payload_size_factor", 1.0),   # Step 1 knob
@@ -277,6 +284,7 @@ class ScenarioConfig:
             backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
             backhaul_loss_rate=d.get("backhaul_loss_rate", 0.02),
             backhaul_downlink_loss_rate=d.get("backhaul_downlink_loss_rate"),
+            backhaul_loss_peak_rate=d.get("backhaul_loss_peak_rate"),
             mean_parking_duration_s=d.get("mean_parking_duration_s", 1800.0),
             parking_duration_cv=d.get("parking_duration_cv", 1.5),
             use_time_of_day=d.get("use_time_of_day", False),
@@ -286,7 +294,8 @@ class ScenarioConfig:
             use_dwell_mixture=d.get("use_dwell_mixture", True),
             heartbeat_interval_s=d.get("heartbeat_interval_s", 900.0),
             duplicate_send_prob=d.get("duplicate_send_prob", 0.05),
-            is_builtin=d.get("is_builtin", False)
+            is_builtin=d.get("is_builtin", False),
+            faults=d.get("faults", [])
         )
 
 
@@ -317,6 +326,7 @@ def make_scenario(
     adaptive_degrade_threshold: float = 0.85,
     adaptive_recover_threshold: float = 0.95,
     adaptive_min_window_samples: int = 3,
+    adaptive_dr_smoothing: float = 0.3,
     mqtt_qos: MQTTQoS = 1,
     coap_mode: CoAPMode = "CON",
     coap_payload_size_factor: float = 1.0,  
@@ -330,6 +340,7 @@ def make_scenario(
     rate_limit: Optional[float] = None,
     time_scale: float = DEFAULT_TIME_SCALE,
     is_builtin: bool = False,
+    faults: Optional[list] = None,
     base_delay_ms: float = 80.0,
     jitter_ms: float = 30.0,
     max_payload_bytes: int = 51,
@@ -337,6 +348,7 @@ def make_scenario(
     backhaul_jitter_ms: float = 10.0,
     backhaul_loss_rate: float = 0.02,
     backhaul_downlink_loss_rate: Optional[float] = None,
+    backhaul_loss_peak_rate: Optional[float] = None,
     payload_encoding_ratio: float = 0.15,
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
@@ -368,7 +380,8 @@ def make_scenario(
         base_delay_ms=backhaul_base_delay_ms,
         jitter_ms=backhaul_jitter_ms,
         packet_loss_rate=backhaul_loss_rate,
-        downlink_loss_rate=backhaul_downlink_loss_rate
+        downlink_loss_rate=backhaul_downlink_loss_rate,
+        loss_peak_rate=backhaul_loss_peak_rate
     )
 
     edge = EdgeConfig(
@@ -391,7 +404,8 @@ def make_scenario(
         adaptive_check_interval_s=adaptive_check_interval_s,
         adaptive_degrade_threshold=adaptive_degrade_threshold,
         adaptive_recover_threshold=adaptive_recover_threshold,
-        adaptive_min_window_samples=adaptive_min_window_samples
+        adaptive_min_window_samples=adaptive_min_window_samples,
+        adaptive_dr_smoothing=adaptive_dr_smoothing
     )
     traffic = TrafficConfig(
         num_spots=num_spots,
@@ -417,7 +431,8 @@ def make_scenario(
         amqp=AMQPConfig(exchange_type=amqp_exchange, ack_mode=amqp_ack, durable=amqp_durable),
         coap=CoAPConfig(mode=coap_mode, payload_size_factor=coap_payload_size_factor),
         traffic=traffic, random_seed=seed,
-        group=group, group_order=group_order, is_builtin=is_builtin
+        group=group, group_order=group_order, is_builtin=is_builtin,
+        faults=faults or []
     )
 
 

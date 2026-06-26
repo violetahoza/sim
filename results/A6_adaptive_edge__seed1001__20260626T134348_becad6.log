@@ -1,0 +1,24 @@
+Scenario Log: A6_adaptive_edge
+Architecture: edge_aggregated   Protocol: mqtt
+Traffic: peak   Spots: 500   Duration: 86400s
+========================================================================
+
+SUMMARY
+  Anomalies detected    : 0
+  Anomalies resolved    : 0
+  Active at end         : 0
+  Affected spots        : 0
+  Quarantined at end    : 0
+  Quarantine suppressed : 0
+  Heartbeats suppressed : 33799
+  Adaptive mode switches: 6
+
+EVENT LOG
+  t_virtual(s)  event                   detail
+------------------------------------------------------------------------
+         120.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.810 < 85% delta_sent=21 delta_recv=17
+       17430.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.961 >= 95% delta_sent=21 delta_recv=21
+       37260.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.800 < 85% delta_sent=22 delta_recv=15
+       54420.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.957 >= 95% delta_sent=29 delta_recv=29
+       84480.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.845 < 85% delta_sent=23 delta_recv=18
+       85050.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.951 >= 95% delta_sent=23 delta_recv=23
