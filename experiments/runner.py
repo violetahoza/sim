@@ -111,9 +111,9 @@ class ExperimentRunner:
 
     async def run(self) -> ExperimentMetrics:
         cfg = self.config
-        # if self._real_mode:
-        #     from experiments.run_real import run_real_for_runner
-        #     return await run_real_for_runner(self, cfg)
+        if self._real_mode:
+            from experiments.run_real import run_real_for_runner
+            return await run_real_for_runner(self, cfg)
         return await self._run_simulated(cfg)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
@@ -547,3 +547,95 @@ def run_scenario_sync(cfg: ScenarioConfig, steps: int = 1, real_mode: bool = Fal
     runner = ExperimentRunner(cfg, real_mode=real_mode)
     runner._des_steps = steps
     return asyncio.run(runner.run())
+
+
+def _cli_scenarios(include_custom: bool = False) -> list[ScenarioConfig]:
+    from simulator.config.config import PREDEFINED_SCENARIOS, load_custom_scenarios
+    scns = list(PREDEFINED_SCENARIOS)
+    if include_custom:
+        scns += load_custom_scenarios()
+    return scns
+
+
+def _group_key(cfg: ScenarioConfig) -> str:
+    return (cfg.group or "").split(" ")[0].upper()
+
+
+def _resolve_cli_scenarios(args) -> list[ScenarioConfig]:
+    registry = {s.name: s for s in _cli_scenarios(include_custom=True)}
+    chosen: list[ScenarioConfig] = []
+    if args.all:
+        chosen = _cli_scenarios(args.include_custom)
+    else:
+        for n in args.scenarios:
+            if n not in registry:
+                raise SystemExit(f"Unknown scenario: {n}\nUse --list to see available names.")
+            chosen.append(registry[n])
+        if args.group:
+            wanted = {g.upper() for g in args.group}
+            chosen += [s for s in _cli_scenarios(args.include_custom) if _group_key(s) in wanted]
+    seen: set[str] = set()
+    unique: list[ScenarioConfig] = []
+    for s in chosen:
+        if s.name not in seen:
+            seen.add(s.name)
+            unique.append(s)
+    return unique
+
+
+def _build_cli():
+    import argparse
+    ap = argparse.ArgumentParser(
+        prog="python -m experiments.runner",
+        description="Run one or more scenarios (single seed) and write their results JSON. " "For multi-seed runs with 95% confidence intervals, use 'python -m experiments.multiseed'."
+    )
+    ap.add_argument("scenarios", nargs="*", help="Scenario name(s) to run, e.g. B2_mqtt_qos1 E6_load_mqtt_peak.")
+    ap.add_argument("--all", action="store_true", help="Run every predefined scenario.")
+    ap.add_argument("--group", nargs="+", metavar="G", help="Run whole group(s) by leading letter, e.g. --group E A.")
+    ap.add_argument("--seed", type=int, default=None, help="Override the seed for every run (default: each scenario's own seed).")
+    ap.add_argument("--out-dir", default="results", help="Directory to write result JSONs (default: results).")
+    ap.add_argument("--steps", type=int, default=1, help="DES progress granularity (does not affect results).")
+    ap.add_argument("--include-custom", action="store_true", help="Include custom (user) scenarios with --all / --group.")
+    ap.add_argument("--list", action="store_true", help="List available scenarios and exit.")
+    ap.add_argument("--quiet", action="store_true", help="Silence per-run INFO logs (just print the summary line per run).")
+    return ap
+
+
+def main(argv: list[str] | None = None) -> None:
+    import time, copy, logging
+    args = _build_cli().parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
+    if args.quiet:
+        logging.getLogger().setLevel(logging.WARNING)
+
+    if args.list:
+        for s in _cli_scenarios(include_custom=True):
+            tag = "" if s.is_builtin else "  (custom)"
+            print(f"{s.name:24s} {s.protocol:5s} {s.architecture:16s} {s.traffic_level:7s} {s.group}{tag}")
+        return
+
+    scns = _resolve_cli_scenarios(args)
+    if not scns:
+        raise SystemExit("No scenarios selected. Pass scenario name(s), --group G, or --all (see --list).")
+
+    seed_note = args.seed if args.seed is not None else "scenario default"
+    print(f"Running {len(scns)} scenario(s) -> {args.out_dir}/  (seed: {seed_note})")
+    t0 = time.time()
+    for i, cfg in enumerate(scns, 1):
+        if args.seed is not None:
+            cfg = copy.deepcopy(cfg)
+            cfg.random_seed = int(args.seed)
+            if getattr(cfg, "traffic", None) is not None:
+                cfg.traffic.random_seed = int(args.seed)
+        t = time.time()
+        m = run_scenario_sync(cfg, steps=args.steps)
+        path = save_results(m, args.out_dir)
+        lat = m.latency_mean_ms if m.latency_mean_ms is not None else 0.0
+        e2e = m.e2e_unique_delivery_ratio
+        print(f"[{i:2d}/{len(scns)}] {cfg.name:24s} {time.time()-t:5.1f}s  "
+              f"lat_mean={lat:8.1f}ms  e2e={e2e}  -> {path}")
+    print(f"Done: {len(scns)} run(s) in {time.time()-t0:.1f}s. Results in {args.out_dir}/")
+
+
+if __name__ == "__main__":
+    main()
