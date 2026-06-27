@@ -7,7 +7,7 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import AMQPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.constants import (AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST,
+from simulator.config.constants import (AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST,
     AMQP_DURABLE_PROPERTY, AMQP_ACK_FRAME, TCP_TRANSPORT_OVERHEAD)
 
 logger = logging.getLogger(__name__)

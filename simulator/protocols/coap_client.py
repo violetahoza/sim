@@ -7,7 +7,7 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import CoAPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_BYTES, UDP_TRANSPORT_OVERHEAD
+from simulator.config.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_BYTES, UDP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
 

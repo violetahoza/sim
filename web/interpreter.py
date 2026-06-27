@@ -18,24 +18,33 @@ Traffic generation. Poisson arrivals scaled by an optional time-of-day curve, wi
 or a 90/10 short/long mixture (1500 s short, 14400 s long means). Each spot also emits periodic heartbeat messages at a configurable interval (default 60 s).\
 The arrival rate is num_spots * base_rate where base_rate is 0.0028 / 0.0102 / 0.0182 events/s/spot for low / medium / peak.
 
-Sensor → edge link. Configurable base delay + Gaussian jitter (one-way, ms), Gilbert-Elliot two-state loss model (good/bad), max payload bytes, 
-token-bucket rate limit, and a payload encoding ratio that shrinks the serialised JSON to a wire size meant to mimic a compact binary encoding. A bounded queue drops on overflow.
+Sensor → edge link. Configurable base delay + Gaussian jitter (one-way, ms) or LoRa airtime, Gilbert-Elliot two-state loss model (good/bad), max payload bytes, a FIXED
+gateway token-bucket rate limit (does not scale with deployment size). Payloads are serialised with msgpack (a compact binary format); a bounded queue drops on overflow.
+The sensors also share a fixed LoRa medium modelled as pure-ALOHA: overlapping transmissions on the same sub-channel collide and are lost, so collision loss and latency
+RISE with the number of spots (the scalability sweep C1-C5 relies on this; frames_s2e_collisions reports it). The backhaul is point-to-point and has no contention.
 
-Edge processing. Three modes: cloud_only (no edge - events forwarded raw direct to broker), edge_filtered (drop redundant repeats inside a duplicate window, drop quarantined 
+Edge processing. Three modes: cloud_only (no edge - events forwarded raw direct to broker), edge_filtered (drop redundant repeats inside a duplicate window, drop quarantined
 spots, forward singletons), edge_aggregated (batch events over aggregation_interval_s with max_batch_size and max_event_age_s caps, flush as one message).
-Anomaly detection runs five rules (R1 stuck, R2 silent, R3 rapid arrivals, R4 stale sequence, R5 rapid state flip), with a cumulative-flag quarantine and a recovery rule based on consecutive valid events.
+Anomaly detection is a statistical detector: a deterministic sequence-integrity check (replayed/duplicated/out-of-order sequence numbers -> replay, flooding, flapping faults),
+gap/dwell thresholds (silent sensor; stuck-in-occupied beyond the max plausible dwell), and population robust-z (MAD) outliers on per-spot event/flip rate. A spot is quarantined
+only when its count of anomaly INCIDENTS inside a rolling persistence window stays elevated, so transient flags age out (precision is reported against the injected-fault ground truth).
 
 Edge → broker link. A separate backhaul link with its own delay/jitter/loss, generally faster and more reliable than the sensor link (default 30 ms ± 10 ms, 0.1 % loss).
 
-Protocols. MQTT (QoS 0 fire-and-forget, QoS 1 with PUBACK retransmit, QoS 2 four-way handshake), CoAP (NON fire-and-forget, CON with ACK retransmit and exponential backoff per RFC 7252, with a CBOR encoding
-ratio of 0.65 applied to bytes), AMQP (direct/topic/fanout exchanges, auto or manual ACK, optional durable). For each, the simulator tracks bytes_sent on the wire, 
+Protocols. MQTT (QoS 0 fire-and-forget, QoS 1 with PUBACK retransmit, QoS 2 four-way handshake), CoAP (NON fire-and-forget, CON with ACK retransmit and exponential backoff per RFC 7252; the same msgpack
+payload as the others, with lighter UDP + CoAP framing overhead), AMQP (direct/topic/fanout exchanges, auto or manual ACK, optional durable). For each, the simulator tracks bytes_sent on the wire, 
 retransmissions, and duplicate deliveries. 
 
-What the latency numbers mean. End-to-end latency is sensor-emit timestamp to cloud-arrival timestamp, measured in virtual simulated time. It includes the 
+What the latency numbers mean. End-to-end latency is sensor-emit timestamp to cloud-arrival timestamp, measured in virtual simulated time. It includes the
 link propagation + jitter, the token-bucket wait under rate limiting, any aggregation window wait at the edge, and any protocol retransmit backoff. It does NOT include application-level processing on the cloud side.
+With periodic edge aggregation, an event waits a uniformly random 0..aggregation_interval_s before the next flush, so the MEAN added latency is ~interval/2 and the MAX is ~interval
+(NOT the full interval per event). A 15 s aggregation window therefore correctly yields a mean of ~7.5 s and a p95/max approaching 15 s, with the minimum near the bare network delay -
+latencies below the interval are expected, not a bug.
 
 aggregation_ratio = frames_e2c_sent / events_forwarded_total (≈1.0 means no batching; <1.0 means many forwarded events collapsed into fewer cloud frames).
 message_reduction_ratio = 1 - frames_e2c_sent / frames_s2e_delivered (end-to-end reduction from filtering + aggregation).
+Cloud intake: cloud_batches_received = protocol messages (batches) delivered; cloud_events_pre_dedup = events unpacked from them BEFORE the cloud deduplicates by (spot, sequence);
+duplicate_events_at_cloud = events removed by that dedup (non-zero mainly under MQTT QoS1 and the replay/flooding faults); cloud_events_post_dedup = unique events kept.
 e2e_unique_delivery_ratio = unique state changes applied at the cloud / state changes generated (event-flow reliability).
 cloud_reflection_ratio = fraction of spots whose final cloud state matches sensor ground truth (state consistency, NOT delivery).
 physical_delivery_ratio = first-pass survival (sensor-link × first-pass backhaul), before any retransmission.

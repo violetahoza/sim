@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal, Optional
 import yaml
 
-from simulator.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES
+from simulator.config.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES
 
 Protocol = Literal["mqtt", "amqp", "coap"]
 Architecture = Literal["cloud_only", "edge_filtered", "edge_aggregated"]
@@ -27,6 +27,9 @@ SIM_DURATION_S = 10_800.0
 DEFAULT_AGG_INTERVAL_S = 1.0
 DEFAULT_TIME_SCALE = 60.0
 
+DEFAULT_GATEWAY_RATE_MSGS_PER_SEC = 8.0
+DEFAULT_CONTENTION_CHANNELS = 3
+
 _SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
 _CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
 
@@ -42,6 +45,7 @@ class LinkConfig:
     rate_limit_msgs_per_sec: float = 5.0
     transport_overhead_bytes: int = LORAWAN_OVERHEAD_BYTES
     use_lora_airtime: bool = True
+    contention_channels: int = 0
 
 
 @dataclass
@@ -77,22 +81,26 @@ class EdgeConfig:
     filter_no_change: bool = True
     duplicate_window_s: float = 5.0
     heartbeat_forward_interval_s: float = 3600.0
-    resync_interval_s: float = 300.0
 
     anomaly_detection: bool = True
     adaptive_edge: bool = False
     silent_threshold_s: Optional[float] = None
     quarantine_threshold: int = 5
-    quarantine_recovery_events: int = 3
 
     stuck_threshold_s: Optional[float] = None
-    rapid_arrival_threshold_s: Optional[float] = None
-    rapid_flip_min_dwell_s: float = 10.0
     quarantine_release_clean_ticks: int = 5
     anomaly_check_interval_s: float = 30.0
 
+    anomaly_rate_window_s: float = 600.0
+    anomaly_robust_z: float = 4.5 
+    anomaly_min_window_events: int = 15 
+    anomaly_persistence_window_s: float = 7200.0 
+    anomaly_incident_spacing_s: float = 180.0 
+    anomaly_detect_score: float = 3.0 
+
     adaptive_check_interval_s: float = 30.0
-    adaptive_degrade_threshold: float = 0.85
+    adaptive_degrade_threshold: float = 0.90
+    adaptive_filtered_threshold: float = 0.80
     adaptive_recover_threshold: float = 0.95
     adaptive_min_window_samples: int = 10
     adaptive_dr_smoothing: float = 0.15
@@ -193,6 +201,7 @@ class ScenarioConfig:
             "group_order": self.group_order,
             "loss_rate": link["packet_loss_rate"],
             "rate_limit": link["rate_limit_msgs_per_sec"],
+            "contention_channels": link["contention_channels"],
             "base_delay_ms": link["base_delay_ms"],
             "jitter_ms": link["jitter_ms"],
             "max_payload_bytes": link["max_payload_bytes"],
@@ -201,7 +210,6 @@ class ScenarioConfig:
             "backhaul_loss_rate": self.backhaul_link.packet_loss_rate,
             "backhaul_downlink_loss_rate": self.backhaul_link.downlink_loss_rate,
             "backhaul_loss_peak_rate": self.backhaul_link.loss_peak_rate,
-            "payload_encoding_ratio": 1.0,
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
             "max_batch_size": edge["max_batch_size"],
@@ -211,14 +219,12 @@ class ScenarioConfig:
             "adaptive_edge": edge["adaptive_edge"],
             "silent_threshold_s": edge["silent_threshold_s"],
             "quarantine_threshold": edge["quarantine_threshold"],
-            "quarantine_recovery_events": edge["quarantine_recovery_events"],
             "stuck_threshold_s": edge["stuck_threshold_s"],
-            "rapid_arrival_threshold_s": edge["rapid_arrival_threshold_s"],
-            "rapid_flip_min_dwell_s": edge["rapid_flip_min_dwell_s"],
             "quarantine_release_clean_ticks": edge["quarantine_release_clean_ticks"],
             "anomaly_check_interval_s": edge["anomaly_check_interval_s"],
             "adaptive_check_interval_s": edge["adaptive_check_interval_s"],
             "adaptive_degrade_threshold": edge["adaptive_degrade_threshold"],
+            "adaptive_filtered_threshold": edge["adaptive_filtered_threshold"],
             "adaptive_recover_threshold": edge["adaptive_recover_threshold"],
             "adaptive_min_window_samples": edge["adaptive_min_window_samples"],
             "adaptive_dr_smoothing": edge["adaptive_dr_smoothing"],
@@ -266,14 +272,12 @@ class ScenarioConfig:
             adaptive_edge=d.get("adaptive_edge", False),
             silent_threshold_s=d.get("silent_threshold_s"),
             quarantine_threshold=d.get("quarantine_threshold", 5),
-            quarantine_recovery_events=d.get("quarantine_recovery_events", 3),
             stuck_threshold_s=d.get("stuck_threshold_s"),
-            rapid_arrival_threshold_s=d.get("rapid_arrival_threshold_s"),
-            rapid_flip_min_dwell_s=d.get("rapid_flip_min_dwell_s", 10.0),
             quarantine_release_clean_ticks=d.get("quarantine_release_clean_ticks", 5),
             anomaly_check_interval_s=d.get("anomaly_check_interval_s", 30.0),
             adaptive_check_interval_s=d.get("adaptive_check_interval_s", 30.0),
-            adaptive_degrade_threshold=d.get("adaptive_degrade_threshold", 0.85),
+            adaptive_degrade_threshold=d.get("adaptive_degrade_threshold", 0.90),
+            adaptive_filtered_threshold=d.get("adaptive_filtered_threshold", 0.80),
             adaptive_recover_threshold=d.get("adaptive_recover_threshold", 0.95),
             adaptive_min_window_samples=d.get("adaptive_min_window_samples", 10),
             adaptive_dr_smoothing=d.get("adaptive_dr_smoothing", 0.15),
@@ -284,7 +288,6 @@ class ScenarioConfig:
             coap_max_retransmit=d.get("coap_max_retransmit", 4),
             coap_ack_timeout_s=d.get("coap_ack_timeout_s", 2.0),
             coap_ack_random_factor=d.get("coap_ack_random_factor", 1.5),
-            coap_payload_size_factor=d.get("coap_payload_size_factor", 1.0),
             amqp_exchange=d.get("amqp_exchange", "direct"),
             amqp_ack=d.get("amqp_ack", "manual"),
             amqp_durable=d.get("amqp_durable", True),
@@ -295,11 +298,11 @@ class ScenarioConfig:
             group=d.get("group", ""),
             group_order=d.get("group_order", 0),
             rate_limit=d.get("rate_limit"),
+            contention_channels=d.get("contention_channels"),
             time_scale=d.get("time_scale", DEFAULT_TIME_SCALE),
             base_delay_ms=d.get("base_delay_ms", 80.0),
             jitter_ms=d.get("jitter_ms", 30.0),
             max_payload_bytes=d.get("max_payload_bytes", 222),
-            payload_encoding_ratio=d.get("payload_encoding_ratio", 0.15),
             backhaul_base_delay_ms=d.get("backhaul_base_delay_ms", 30.0),
             backhaul_jitter_ms=d.get("backhaul_jitter_ms", 10.0),
             backhaul_loss_rate=d.get("backhaul_loss_rate", 0.02),
@@ -340,14 +343,12 @@ def make_scenario(
     adaptive_edge: bool = False,
     silent_threshold_s: Optional[float] = None,
     quarantine_threshold: int = 5,
-    quarantine_recovery_events: int = 3,
     stuck_threshold_s: Optional[float] = None,
-    rapid_arrival_threshold_s: Optional[float] = None,
-    rapid_flip_min_dwell_s: float = 10.0,
     quarantine_release_clean_ticks: int = 5,
     anomaly_check_interval_s: float = 30.0,
     adaptive_check_interval_s: float = 30.0,
-    adaptive_degrade_threshold: float = 0.85,
+    adaptive_degrade_threshold: float = 0.90,
+    adaptive_filtered_threshold: float = 0.80,
     adaptive_recover_threshold: float = 0.95,
     adaptive_min_window_samples: int = 10,
     adaptive_dr_smoothing: float = 0.15,
@@ -358,7 +359,6 @@ def make_scenario(
     coap_max_retransmit: int = 4,
     coap_ack_timeout_s: float = 2.0,
     coap_ack_random_factor: float = 1.5,
-    coap_payload_size_factor: float = 1.0, 
     amqp_exchange: AMQPExchange = "direct",
     amqp_ack: AMQPAckMode = "manual",
     amqp_durable: bool = True,
@@ -369,6 +369,7 @@ def make_scenario(
     group: str = "",
     group_order: int = 0,
     rate_limit: Optional[float] = None,
+    contention_channels: Optional[int] = None,
     time_scale: float = DEFAULT_TIME_SCALE,
     is_builtin: bool = False,
     faults: Optional[list] = None,
@@ -380,7 +381,6 @@ def make_scenario(
     backhaul_loss_rate: float = 0.02,
     backhaul_downlink_loss_rate: Optional[float] = None,
     backhaul_loss_peak_rate: Optional[float] = None,
-    payload_encoding_ratio: float = 0.15,
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
     use_time_of_day: bool = False,
@@ -394,20 +394,23 @@ def make_scenario(
     arrival = ARRIVAL_RATES[traffic_level] * (num_spots / 50)
 
     if rate_limit is None:
-        rate_limit = max(2.0, num_spots / 10.0)
+        rate_limit = DEFAULT_GATEWAY_RATE_MSGS_PER_SEC
+
+    if contention_channels is None:
+        contention_channels = DEFAULT_CONTENTION_CHANNELS
 
     occ = initial_occupancy if initial_occupancy is not None else 0.0
 
     _silent = _derive_threshold(silent_threshold_s, 3.0 * heartbeat_interval_s)
     _stuck = _derive_threshold(stuck_threshold_s, 43_200.0 + heartbeat_interval_s)
-    _rapid = _derive_threshold(rapid_arrival_threshold_s, 15.0)
 
     link = LinkConfig(
         packet_loss_rate=loss_rate,
         rate_limit_msgs_per_sec=rate_limit,
         base_delay_ms=base_delay_ms,
         jitter_ms=jitter_ms,
-        max_payload_bytes=max_payload_bytes
+        max_payload_bytes=max_payload_bytes,
+        contention_channels=contention_channels
     )
 
     backhaul = BackhaulLinkConfig(
@@ -429,14 +432,12 @@ def make_scenario(
         adaptive_edge=adaptive_edge,
         silent_threshold_s=_silent,
         quarantine_threshold=quarantine_threshold,
-        quarantine_recovery_events=quarantine_recovery_events,
         stuck_threshold_s=_stuck,
-        rapid_arrival_threshold_s=_rapid,
-        rapid_flip_min_dwell_s=rapid_flip_min_dwell_s,
         quarantine_release_clean_ticks=quarantine_release_clean_ticks,
         anomaly_check_interval_s=anomaly_check_interval_s,
         adaptive_check_interval_s=adaptive_check_interval_s,
         adaptive_degrade_threshold=adaptive_degrade_threshold,
+        adaptive_filtered_threshold=adaptive_filtered_threshold,
         adaptive_recover_threshold=adaptive_recover_threshold,
         adaptive_min_window_samples=adaptive_min_window_samples,
         adaptive_dr_smoothing=adaptive_dr_smoothing

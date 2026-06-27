@@ -7,7 +7,7 @@ from simulator.des.engine import SimClock
 from simulator.cloud.cloud_backend import CloudBackend
 from simulator.edge.edge_node import EdgeNode
 from simulator.sensors.sensor_emulator import SensorEmulator
-from simulator.link.link_emulator import LinkEmulator, TokenBucket, GilbertElliotModel, QueueOverflowModel
+from simulator.link.link_emulator import LinkEmulator, TokenBucket, GilbertElliotModel, QueueOverflowModel, SharedMediumModel
 from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, ExperimentMetrics, LinkStats
 from simulator.protocols.mqtt_client import SimulatedMQTTBackend
 from simulator.protocols.amqp_client import SimulatedAMQPBackend
@@ -19,37 +19,17 @@ SEED = 20250607
 
 
 def _edge_scn(name: str, **kw):
-    """edge_filtered scenario with NO sensor-link loss and heavy backhaul loss, so protocol-level recovery is the only thing that separates the variants."""
-    base = dict(
-        name=name,
-        protocol="mqtt",
-        architecture="edge_filtered",
-        traffic_level="peak",
-        num_spots=200,
-        loss_rate=0.0,  
-        backhaul_loss_rate=0.30,  
-        sim_duration_s=3600.0,
-        seed=SEED,
-        heartbeat_interval_s=1_000_000.0, 
-        anomaly_detection=False
-    )
+    """edge_filtered scenario with no sensor-link loss and heavy backhaul loss, so protocol-level recovery is the only thing that separates the variants."""
+    base = dict(name=name, protocol="mqtt", architecture="edge_filtered", traffic_level="peak", num_spots=200, loss_rate=0.0, backhaul_loss_rate=0.30, sim_duration_s=3600.0, seed=SEED, heartbeat_interval_s=1_000_000.0,  anomaly_detection=False)
     base.update(kw)
     return make_scenario(**base)
 
 
 def test_workload_identity_partition():
-    cfg = make_scenario(
-        name="t_identity", protocol="mqtt", architecture="edge_filtered", traffic_level="medium", num_spots=100, loss_rate=0.0,
-        backhaul_loss_rate=0.05, sim_duration_s=3600.0, seed=SEED, anomaly_detection=False
-    )
+    cfg = make_scenario(name="t_identity", protocol="mqtt", architecture="edge_filtered", traffic_level="medium", num_spots=100, loss_rate=0.0, backhaul_loss_rate=0.05, sim_duration_s=3600.0, seed=SEED, anomaly_detection=False)
     m = run_scenario_sync(cfg)
     assert m.events_generated_total > 0
-    assert m.events_generated_total == (
-        m.state_changes_generated_total
-        + m.heartbeats_generated_total
-        + m.initial_snapshots_generated_total
-        + m.duplicate_sends_generated_total
-    )
+    assert m.events_generated_total == (m.state_changes_generated_total + m.heartbeats_generated_total + m.initial_snapshots_generated_total + m.duplicate_sends_generated_total)
     assert m.events_generated_total == m.events_generated
     assert m.state_changes_generated_total == m.valid_state_changes
 
@@ -62,8 +42,12 @@ def test_reliability_ordering_mqtt_qos():
         assert m.e2e_unique_delivery_ratio is not None
     assert q0.e2e_unique_delivery_ratio < q1.e2e_unique_delivery_ratio
     assert q0.e2e_unique_delivery_ratio < q2.e2e_unique_delivery_ratio
+    # QoS0 (fire & forget) and QoS2 (exactly-once) never deliver duplicates.
     assert q2.duplicate_deliveries == 0
     assert q0.duplicate_deliveries == 0
+    # QoS1 (at-least-once) delivers duplicates: a lost PUBACK retransmits the PUBLISH, so the broker re-delivers. The cloud dedupes them by (spot, seq).
+    assert q1.duplicate_deliveries > 0
+    assert q1.duplicate_events_at_cloud > 0
 
 
 def test_reliability_ordering_coap_non_vs_con():
@@ -118,10 +102,7 @@ def test_to_dict_emits_null_not_zero():
 
 
 def test_null_policy_end_to_end_no_state_changes():
-    cfg = make_scenario(
-        name="t_empty", protocol="mqtt", architecture="cloud_only", traffic_level="low", num_spots=1, loss_rate=0.0,
-        sim_duration_s=0.01, seed=SEED, heartbeat_interval_s=1_000_000.0, anomaly_detection=False
-    )
+    cfg = make_scenario(name="t_empty", protocol="mqtt", architecture="cloud_only", traffic_level="low", num_spots=1, loss_rate=0.0, sim_duration_s=0.01, seed=SEED, heartbeat_interval_s=1_000_000.0, anomaly_detection=False)
     m = run_scenario_sync(cfg)
     assert m.valid_state_changes == 0
     assert m.latency_mean_ms is None
@@ -228,10 +209,10 @@ def test_gilbert_elliot_zero_loss_never_drops():
     assert all(model.should_drop() is False for _ in range(1000))
 
 def test_token_bucket_spaces_out_when_rate_limited():
-    clock = SimClock()  # stays at now=0 for this unit test
-    bucket = TokenBucket(rate=2.0)  # 1 token every 0.5 s
+    clock = SimClock() # stays at now=0 for this unit test
+    bucket = TokenBucket(rate=2.0) # 1 token every 0.5 s
     assert bucket.consume(clock) == 0.0 # first token available immediately
-    assert abs(bucket.consume(clock) - 0.5) < 1e-9  # next must wait one interval
+    assert abs(bucket.consume(clock) - 0.5) < 1e-9 # next must wait one interval
 
 def test_token_bucket_disabled_when_rate_zero():
     clock = SimClock()
@@ -246,6 +227,46 @@ def test_queue_overflow_model_caps_depth():
     assert q.overflow_drops == 1
     q.dequeue()
     assert q.try_enqueue() is True # space freed
+
+
+def test_shared_medium_collides_on_overlap_not_when_spaced():
+    import random
+    m = SharedMediumModel(channels=1, rng=random.Random(0))
+    # two transmissions overlapping in time on the single shared channel -> both corrupted
+    t1 = m.begin(now=0.0, airtime=1.0)
+    t2 = m.begin(now=0.5, airtime=1.0) # starts while t1 is still on air
+    assert t1[0] is False and t2[0] is False
+    assert m.collisions == 1
+    # a transmission starting after the medium is free -> survives
+    t3 = m.begin(now=10.0, airtime=1.0)
+    assert t3[0] is True
+
+
+def test_anomaly_detector_precision_and_recall():
+    cfg = make_scenario(
+        name="t_anom", protocol="mqtt", architecture="edge_filtered", traffic_level="peak",
+        num_spots=150, mqtt_qos=1, sim_duration_s=14400.0, use_time_of_day=False,
+        loss_rate=0.02, backhaul_loss_rate=0.02, seed=SEED, anomaly_detection=True,
+        heartbeat_interval_s=900.0, silent_threshold_s=3600.0,
+        quarantine_threshold=5,
+        faults=[{"type": "flooding", "count": 5, "flood_count": 10},
+                {"type": "replay", "count": 5, "replay_count": 3},
+                {"type": "flapping", "count": 5},
+                {"type": "silent", "count": 5}]
+    )
+    m = run_scenario_sync(cfg)
+    assert m.fault_true_count == 20
+    assert m.anomaly_recall is not None and m.anomaly_recall >= 0.8
+    assert m.anomaly_precision is not None and m.anomaly_precision >= 0.7
+    assert m.anomaly_detected_spots < cfg.num_spots * 0.4
+
+
+def test_scalability_contention_degrades_with_scale():
+    def s2e(n: int) -> float:
+        cfg = make_scenario(name=f"sc{n}", protocol="mqtt", architecture="edge_filtered", traffic_level="peak", num_spots=n, mqtt_qos=1, sim_duration_s=3600.0, loss_rate=0.05, backhaul_loss_rate=0.02, seed=3001)
+        return run_scenario_sync(cfg).sensor_to_edge_delivery_ratio
+    dr_small, dr_large = s2e(50), s2e(2000)
+    assert dr_small > dr_large + 0.1  # clearly degraded by contention at scale
 
 
 
@@ -266,10 +287,7 @@ def test_sensor_event_classification_partition():
     assert sensors.duplicate_sends_generated == 1
     assert sensors.heartbeats_generated == 1
     assert sensors.total_generated == 4
-    assert sensors.total_generated == (
-        sensors.state_changes_generated + sensors.heartbeats_generated
-        + sensors.initial_snapshots_generated + sensors.duplicate_sends_generated
-    )
+    assert sensors.total_generated == (sensors.state_changes_generated + sensors.heartbeats_generated + sensors.initial_snapshots_generated + sensors.duplicate_sends_generated)
     # no fault injector -> every event passed through to callbacks
     assert len(seen) == 4
 
@@ -302,7 +320,7 @@ def test_edge_filtered_forwards_change_filters_same_state_in_window():
 
 def test_edge_heartbeat_suppressed_when_not_due():
     edge, clock, batches = _edge("edge_filtered", heartbeat_forward_interval_s=3600.0)
-    # first heartbeat (ts>0 so it isn't treated as "never forwarded") is forwarded
+    # first heartbeat (ts>0 so it isn't treated as never forwarded) is forwarded
     edge.receive(ParkingEvent("s0", 0, SpotState.FREE, timestamp=100.0, sequence=1, is_heartbeat_event=True), b"x")
     # second heartbeat well within the forward interval -> suppressed
     edge.receive(ParkingEvent("s0", 0, SpotState.FREE, timestamp=110.0, sequence=2, is_heartbeat_event=True), b"x")
@@ -331,8 +349,7 @@ def test_edge_record_cloud_drop_increments_dropped():
 def test_edge_summary_exposes_expected_keys():
     edge, clock, batches = _edge("edge_aggregated")
     s = edge.summary()
-    for key in ("received", "filtered", "forwarded_events", "heartbeats_suppressed", "quarantine_suppressed", "anomalies", "active_anomalies",
-                "mode_switches", "link_stats", "quarantined_count", "event_log"):
+    for key in ("received", "filtered", "forwarded_events", "heartbeats_suppressed", "quarantine_suppressed", "anomalies", "active_anomalies", "mode_switches", "link_stats", "quarantined_count", "event_log"):
         assert key in s
 
 
@@ -343,14 +360,13 @@ def _cloud(num_spots: int = 4) -> tuple[CloudBackend, SimClock]:
 
 def test_cloud_latency_only_state_changes_in_headline_bucket():
     cloud, clock = _cloud()
-    _advance(clock, 1.5)  # so arrival = epoch + now = 1.5
+    _advance(clock, 1.5) 
     cloud.receive_batch(BatchUpdate(edge_id="t", events=[ParkingEvent("s0", 0, SpotState.OCCUPIED, timestamp=0.0, sequence=1)]), b"x")
-    # heartbeat must NOT pollute the headline latency series
     cloud.receive_batch(BatchUpdate(edge_id="t", events=[ParkingEvent("s1", 1, SpotState.FREE, timestamp=0.0, sequence=1, is_heartbeat_event=True)]), b"x")
 
     samples = cloud.get_all_latency_samples()
     assert len(samples) == 1
-    assert abs(samples[0] - 1500.0) < 1e-6 # (1.5 - 0.0) s -> ms
+    assert abs(samples[0] - 1500.0) < 1e-6 
     assert cloud.transitions_received == 1
     assert cloud.received_events == 2
 
@@ -450,15 +466,14 @@ def test_mqtt_byte_overhead_increases_with_qos():
 
 
 def _short_cfg(name: str, seed: int, **kw) -> ScenarioConfig:
-    base = dict(name=name, protocol="mqtt", architecture="edge_filtered", traffic_level="medium", num_spots=30, loss_rate=0.05,
-                backhaul_loss_rate=0.05, sim_duration_s=600.0, seed=seed, anomaly_detection=False)
+    base = dict(name=name, protocol="mqtt", architecture="edge_filtered", traffic_level="medium", num_spots=30, loss_rate=0.05, backhaul_loss_rate=0.05, sim_duration_s=600.0, seed=seed, anomaly_detection=False)
     base.update(kw)
     return make_scenario(**base)
 
 
 def _comparable(metrics) -> dict:
     d = metrics.to_dict()
-    d.pop("run_id", None) # run_id embeds a timestamp/uuid and is expected to differ
+    d.pop("run_id", None)
     return d
 
 def test_same_seed_is_deterministic():

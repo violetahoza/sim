@@ -8,7 +8,7 @@ from ..models.models import ParkingEvent, BatchUpdate, LinkStats
 from ..config.config import LinkConfig
 from ..des.engine import SimClock
 from ..utils import encode_event
-from ..constants import compute_lora_airtime_s, LORAWAN_OVERHEAD_BYTES
+from ..config.constants import compute_lora_airtime_s, LORAWAN_OVERHEAD_BYTES
 
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
 ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
@@ -87,6 +87,34 @@ class GilbertElliotModel:
         return self.rng.random() < threshold
 
 
+class SharedMediumModel:
+    def __init__(self, channels: int = 1, rng: random.Random | None = None) -> None:
+        self.channels = max(1, channels)
+        self.rng = rng or random.Random()
+        self._active: list[list] = [] 
+        self.collisions: int = 0
+
+    def begin(self, now: float, airtime: float) -> list[bool]:
+        ch = self.rng.randrange(self.channels)
+        end = now + airtime
+        collided = False
+        survivors: list[list] = []
+        for entry in self._active:
+            _ch, _end, alive = entry
+            if _end <= now:
+                continue 
+            survivors.append(entry)
+            if _ch == ch:
+                alive[0] = False 
+                collided = True
+        token = [not collided]
+        survivors.append([ch, end, token])
+        self._active = survivors
+        if collided:
+            self.collisions += 1
+        return token
+
+
 class QueueOverflowModel:
     def __init__(self, capacity: int = 500) -> None:
         self._capacity = capacity
@@ -133,6 +161,13 @@ class LinkEmulator:
         self.stats = LinkStats(name="sensor_to_edge")
         self._bucket = TokenBucket(config.rate_limit_msgs_per_sec)
 
+        channels = getattr(config, "contention_channels", 0)
+        if channels and channels > 0:
+            _med_rng = random.Random(self.rng.randint(0, 2**32))
+            self._medium: Optional[SharedMediumModel] = SharedMediumModel(channels=channels, rng=_med_rng)
+        else:
+            self._medium = None
+
     def set_batch_callback(self, cb: ForwardBatchCallback) -> None:
         self._batch_cb = cb
 
@@ -176,8 +211,19 @@ class LinkEmulator:
         prop_delay = self._compute_delay(len(payload))
         total_delay = token_delay + prop_delay
 
+        medium_token: Optional[list[bool]] = None
+        if self._medium is not None:
+            airtime = compute_lora_airtime_s(len(payload))
+            medium_token = self._medium.begin(self.clock.now + token_delay, airtime)
+
         def deliver() -> None:
             self._queue.dequeue()
+            if medium_token is not None and not medium_token[0]:
+                self.stats.dropped += 1
+                self.stats.collisions += 1
+                if self.on_drop:
+                    self.on_drop()
+                return
             self.stats.received += 1
             self.stats.total_bytes_received += wire_bytes
             if self._callback:

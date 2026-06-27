@@ -66,7 +66,9 @@ function normalizeMetrics(raw) {
     duplicate_events_at_cloud: pick(raw, 'duplicate_events_at_cloud'),
     e2e_unique_delivery_ratio: pick(raw, 'e2e_unique_delivery_ratio'),
     cloud_reflection_ratio: pick(raw, 'cloud_reflection_ratio', 'cloud_state_agreement_ratio'),
-    cloud_msgs_received: pick(raw, 'cloud_msgs_received', 'cloud_msgs_received_total'),
+    cloud_msgs_received: pick(raw, 'cloud_events_pre_dedup', 'cloud_msgs_received', 'cloud_msgs_received_total'),
+    cloud_batches_received: pick(raw, 'cloud_batches_received'),
+    cloud_events_post_dedup: pick(raw, 'cloud_events_post_dedup'),
     physical_delivery_ratio: pick(raw, 'physical_delivery_ratio'),
 
     latency_mean_ms: pick(raw, 'latency_mean_ms'),
@@ -579,7 +581,9 @@ function _metricsCloudOnly(m) {
     _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries', _fmtInt(m.proto_duplicate_deliveries)),
     _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
-     _row('Total events received', _fmtInt(m.cloud_msgs_received), 'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
+    _group('Cloud intake'),
+    _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),
+    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup)),
     _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
 
     ..._reliabilityGroup(m),
@@ -636,7 +640,8 @@ function _metricsEdge(m) {
     _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
     _group('Cloud intake'),
-    _row('Total events received', _fmtInt(m.cloud_msgs_received), 'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
+    _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),
+    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup)),
     _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
 
     ..._reliabilityGroup(m),

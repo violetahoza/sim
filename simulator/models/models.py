@@ -62,6 +62,7 @@ class LinkStats:
     sent: int = 0
     received: int = 0
     dropped: int = 0
+    collisions: int = 0
     total_bytes_sent: int = 0
     total_bytes_received: int = 0
 
@@ -79,6 +80,7 @@ class LinkStats:
             "sent": self.sent,
             "received": self.received,
             "dropped": self.dropped,
+            "collisions": self.collisions,
             "total_bytes_sent": self.total_bytes_sent,
             "total_bytes_received": self.total_bytes_received,
             "delivery_ratio": self.delivery_ratio,
@@ -111,6 +113,7 @@ class ExperimentMetrics:
 
     sensor_to_edge_msgs: int = 0
     sensor_link_dropped: int = 0
+    sensor_link_collisions: int = 0
     sensor_to_edge_delivery_ratio: Optional[float] = None
     sensor_to_edge_bytes: int = 0
     bytes_s2e_received: int = 0
@@ -137,6 +140,8 @@ class ExperimentMetrics:
     duplicate_deliveries: int = 0
 
     cloud_msgs_received_total: int = 0
+    cloud_batches_received: int = 0 
+    cloud_events_post_dedup: int = 0 
     cloud_state_changes_reflected: int = 0
     duplicate_events_at_cloud: int = 0
     e2e_unique_delivery_ratio: Optional[float] = None
@@ -147,6 +152,8 @@ class ExperimentMetrics:
     anomalies_resolved: int = 0
     active_anomalies: int = 0
     adaptive_mode_switches: int = 0
+    adaptive_window_adjustments: int = 0
+    adaptive_min_window_dr: Optional[float] = None
     quarantined_spots_final: int = 0
     anomaly_detected_spots: int = 0
 
@@ -269,6 +276,7 @@ class ExperimentMetrics:
             "frames_s2e_sent": self.sensor_to_edge_msgs,
             "frames_s2e_delivered": frames_s2e_delivered,
             "frames_s2e_dropped": self.sensor_link_dropped,
+            "frames_s2e_collisions": self.sensor_link_collisions,
             "bytes_s2e_sent": self.sensor_to_edge_bytes,
             "bytes_s2e_received": self.bytes_s2e_received,
             "s2e_delivery_ratio": self.sensor_to_edge_delivery_ratio,
@@ -277,6 +285,9 @@ class ExperimentMetrics:
             "proto_retransmissions": self.retransmissions_total,
             "proto_duplicate_deliveries": self.duplicate_deliveries,
 
+            "cloud_batches_received": self.cloud_batches_received,
+            "cloud_events_pre_dedup": self.cloud_msgs_received_total,
+            "cloud_events_post_dedup": self.cloud_events_post_dedup,
             "cloud_msgs_received": self.cloud_msgs_received_total,
             "unique_state_changes_applied_at_cloud": self.cloud_state_changes_reflected,
             "duplicate_events_at_cloud": self.duplicate_events_at_cloud,
@@ -303,7 +314,8 @@ class ExperimentMetrics:
                 "aggregation_ratio", "message_reduction_ratio",
                 "heartbeats_suppressed", "heartbeats_forwarded", "quarantine_suppressed",
                 "anomalies_detected", "anomalies_resolved", "active_anomalies",
-                "adaptive_mode_switches", "quarantined_spots_final",
+                "adaptive_mode_switches", "adaptive_window_adjustments",
+                "adaptive_min_window_dr", "quarantined_spots_final",
                 "anomaly_detected_spots", "fault_injected_count",
                 "fault_true_count", "anomaly_precision", "anomaly_recall", "anomaly_f1"
             )})
@@ -327,6 +339,8 @@ class ExperimentMetrics:
                 "anomalies_resolved": self.anomalies_resolved,
                 "active_anomalies": self.active_anomalies,
                 "adaptive_mode_switches": self.adaptive_mode_switches,
+                "adaptive_window_adjustments": self.adaptive_window_adjustments,
+                "adaptive_min_window_dr": self.adaptive_min_window_dr,
                 "quarantined_spots_final": self.quarantined_spots_final,
                 "anomaly_detected_spots": self.anomaly_detected_spots,
                 "fault_injected_count": self.fault_injected_count,

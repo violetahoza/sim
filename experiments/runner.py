@@ -111,9 +111,9 @@ class ExperimentRunner:
 
     async def run(self) -> ExperimentMetrics:
         cfg = self.config
-        if self._real_mode:
-            from experiments.run_real import run_real_for_runner
-            return await run_real_for_runner(self, cfg)
+        # if self._real_mode:
+        #     from experiments.run_real import run_real_for_runner
+        #     return await run_real_for_runner(self, cfg)
         return await self._run_simulated(cfg)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
@@ -391,6 +391,7 @@ class ExperimentRunner:
 
             sensor_to_edge_msgs=s2e_msgs,
             sensor_link_dropped=s2e_dropped,
+            sensor_link_collisions=ls.collisions,
             sensor_to_edge_delivery_ratio=_r(s2e_dr, 4),
             sensor_to_edge_bytes=s2e_bytes,
             bytes_s2e_received=s2e_bytes_recv,
@@ -417,6 +418,8 @@ class ExperimentRunner:
             events_per_cloud_message=_r(events_per_cloud_message, 2),
 
             cloud_msgs_received_total=cloud_msgs_total,
+            cloud_batches_received=getattr(cloud, "received_batches", 0),
+            cloud_events_post_dedup=cloud_msgs_total - dup_events_at_cloud,
             cloud_state_changes_reflected=cloud_transitions,
             duplicate_events_at_cloud=dup_events_at_cloud,
             e2e_unique_delivery_ratio=_r(e2e_unique, 4),
@@ -427,6 +430,8 @@ class ExperimentRunner:
             anomalies_resolved=es.get("resolved_anomalies", 0),
             active_anomalies=es.get("active_anomalies", 0),
             adaptive_mode_switches=es.get("mode_switches", 0),
+            adaptive_window_adjustments=es.get("adaptive_window_adjustments", 0),
+            adaptive_min_window_dr=_r(es.get("adaptive_min_window_dr"), 4),
             quarantined_spots_final=es.get("quarantined_count", 0),
             anomaly_detected_spots=es.get("detected_spots", 0),
             fault_injected_count=fault_injected,

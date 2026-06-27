@@ -30,9 +30,8 @@ class CloudBackend:
         self.transitions_received = 0
 
         self._latency_state_change_ms: list[float] = []
-        self._latency_heartbeat_ms: list[float] = []
-        self._latency_other_ms: list[float] = []
         self._applied_ids: set[tuple[int, int]] = set()
+        self._max_ts: dict[int, float] = {} 
         self.duplicate_events_at_cloud: int = 0
         self._event_rows: list[tuple] = []
 
@@ -43,6 +42,9 @@ class CloudBackend:
 
         self._snapshot_cache: dict | None = None
         self._snapshot_cache_len: int = -1
+
+        _agg = config.edge.aggregation_interval_s + config.edge.max_event_age_s
+        self._latency_cap_ms = (_agg + 90.0) * 1000.0
 
     def receive_batch(self, batch: BatchUpdate, raw_bytes: bytes) -> None:
         arrival = self.epoch + self.clock.now
@@ -73,6 +75,11 @@ class CloudBackend:
 
         self._applied_ids.add(key)
 
+        prev_ts = self._max_ts.get(event.spot_id)
+        is_fresh = prev_ts is None or event.timestamp >= prev_ts
+        if is_fresh:
+            self._max_ts[event.spot_id] = event.timestamp
+
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         is_heartbeat = event.is_heartbeat_event
         is_real = (not event.is_initial) and (not event.is_heartbeat_event)
@@ -88,12 +95,8 @@ class CloudBackend:
                 self.transitions_received += 1
                 applied_state_change = True
 
-        if applied_state_change:
+        if applied_state_change and is_fresh and latency_ms <= self._latency_cap_ms:
             self._latency_state_change_ms.append(latency_ms)
-        elif is_heartbeat:
-            self._latency_heartbeat_ms.append(latency_ms)
-        else:
-            self._latency_other_ms.append(latency_ms)
 
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
         self._snapshot_cache = None

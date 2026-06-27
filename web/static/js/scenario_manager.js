@@ -254,15 +254,15 @@ function _buildCmpKpis(sel) {
   const bestLat = _pickBy(sel, r => r.latency_mean_ms, 'min');
   const bestCoverage = _pickBy(sel, r => r.cloud_reflection_ratio, 'max');
   const bestSavings = _pickBy(sel.filter(_isEdge), r => r.message_reduction_ratio, 'max');
-  const lowestCloudBw = _pickBy(sel, r => r.edge_to_cloud_bytes, 'min');
-  const fewestRetries = sel.length > 1 ? _pickBy(sel, r => r.retransmissions_total ?? 0, 'min') : null;
+  const lowestCloudBw = _pickBy(sel, r => r.bytes_e2c_sent ?? r.edge_to_cloud_bytes, 'min');
+  const fewestRetries = sel.length > 1 ? _pickBy(sel, r => r.proto_retransmissions ?? r.retransmissions_total ?? 0, 'min') : null;
 
   const cards = [
     bestLat && { label: 'FASTEST', icon: '⚡',  name: bestLat.scenario_name, val: `${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color: 'var(--cyan)' },
     bestCoverage && { label: 'MOST EVENTS CAPTURED', icon: '🎯', name: bestCoverage.scenario_name, val: `${(bestCoverage.cloud_reflection_ratio * 100).toFixed(1)}% of real events`, color: 'var(--green)' },
     bestSavings && { label: 'LEAST CLOUD TRAFFIC', icon: '💾', name: bestSavings.scenario_name, val: `${(bestSavings.message_reduction_ratio * 100).toFixed(1)}% saved`, color: 'var(--blue)' },
-    lowestCloudBw && { label: 'LOWEST BANDWIDTH', icon: '📡', name: lowestCloudBw.scenario_name, val: `${(lowestCloudBw.edge_to_cloud_bytes / 1024).toFixed(1)} KB`, color: 'var(--purple)' },
-    fewestRetries && { label: 'FEWEST RETRIES', icon: '🔁', name: fewestRetries.scenario_name, val: `${fewestRetries.retransmissions_total ?? 0} retries`, color: 'var(--green)' },
+    lowestCloudBw && { label: 'LOWEST BANDWIDTH', icon: '📡', name: lowestCloudBw.scenario_name, val: `${((lowestCloudBw.bytes_e2c_sent ?? lowestCloudBw.edge_to_cloud_bytes ?? 0) / 1024).toFixed(1)} KB`, color: 'var(--purple)' },
+    fewestRetries && { label: 'FEWEST RETRIES', icon: '🔁', name: fewestRetries.scenario_name, val: `${fewestRetries.proto_retransmissions ?? fewestRetries.retransmissions_total ?? 0} retries`, color: 'var(--green)' },
   ].filter(Boolean);
 
   strip.innerHTML = cards.map(k => `
@@ -313,14 +313,14 @@ function _buildCmpCharts(sel) {
     scales:  { y: { min: 0, max: 100, title: { display: true, text: '%', color: '#555a72', font: { size: 9 } } } } });
 
   const msgDatasets = [
-    { label: 'Generated', data: sel.map(r => r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
-    { label: 'Sensor Sent', data: sel.map(r => r.sensor_to_edge_msgs ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
-    { label: 'Reached Cloud', data: sel.map(r => r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
+    { label: 'Generated', data: sel.map(r => r.events_generated_total ?? r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
+    { label: 'Sensor Sent', data: sel.map(r => r.frames_s2e_sent ?? r.sensor_to_edge_msgs ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
+    { label: 'Reached Cloud', data: sel.map(r => r.cloud_events_pre_dedup ?? r.cloud_msgs_received ?? r.cloud_msgs_received_total ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
   ];
   if (anyEdge) {
     msgDatasets.push({
       label: 'Filtered (edge)',
-      data: sel.map(r => _isCloudOnly(r) ? 0 : (r.filtered_events ?? 0)),
+      data: sel.map(r => _isCloudOnly(r) ? 0 : (r.events_filtered_total ?? r.filtered_events ?? 0)),
       backgroundColor: pal[2]+'88', borderColor: pal[2], borderWidth: 1, borderRadius: 4,
     });
   }
@@ -335,10 +335,10 @@ function _buildCmpCharts(sel) {
     labels,
     datasets: [
       { label: onlyCloud ? 'Sensor → Cloud (KB)' : 'Sensor → Edge (KB)',
-        data: sel.map(r => +((r.sensor_to_edge_bytes ?? 0) / 1024).toFixed(2)),
+        data: sel.map(r => +(((r.bytes_s2e_sent ?? r.sensor_to_edge_bytes ?? 0)) / 1024).toFixed(2)),
         backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
       { label: onlyCloud ? 'Reached Cloud (KB)' : 'Edge → Cloud (KB)',
-        data: sel.map(r => +((r.edge_to_cloud_bytes  ?? 0) / 1024).toFixed(2)),
+        data: sel.map(r => +(((r.bytes_e2c_sent ?? r.edge_to_cloud_bytes ?? 0)) / 1024).toFixed(2)),
         backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
     ],
   }, { ...base,
@@ -359,35 +359,35 @@ function _metricsList() {
     { label: 'Duration', value: r => r.sim_duration_s ?? null, applies: _always, fmt: _dur },
 
     G('Sensor Activity'),
-    { label: 'Sensor messages emitted', value: r => r.events_generated ?? null, applies: _always, fmt: _int },
-    { label: 'Real arrivals & departures', value: r => r.valid_state_changes ?? null, applies: _always, fmt: _int },
-    { label: 'Startup occupancy snapshots', value: r => r.initial_snapshots_generated ?? null, applies: _always, fmt: _int },
-    { label: 'Duplicate retransmits', value: r => r.duplicate_sends_generated ?? null, applies: _always, fmt: _int },
-    { label: 'Heartbeats emitted', value: r => r.heartbeats_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Sensor messages emitted', value: r => r.events_generated_total ?? r.events_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Real arrivals & departures', value: r => r.state_changes_generated_total ?? r.valid_state_changes ?? null, applies: _always, fmt: _int },
+    { label: 'Startup occupancy snapshots', value: r => r.initial_snapshots_generated_total ?? r.initial_snapshots_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Duplicate retransmits', value: r => r.duplicate_sends_generated_total ?? r.duplicate_sends_generated ?? null, applies: _always, fmt: _int },
+    { label: 'Heartbeats emitted', value: r => r.heartbeats_generated_total ?? r.heartbeats_generated ?? null, applies: _always, fmt: _int },
     { label: 'Heartbeat interval (s)', value: r => r.heartbeat_interval_s ?? null, applies: _always, fmt: _f2 },
 
     G('Wireless link (sensor → first hop)'),
-    { label: 'Unique messages sent', value: r => r.sensor_to_edge_msgs ?? null, applies: _always, fmt: _int },
-    { label: 'Lost on the radio', value: r => r.sensor_link_dropped ?? null, applies: _always, fmt: _int, better: 'low'  },
-    { label: 'Wireless delivery', value: r => r.sensor_to_edge_delivery_ratio ?? null,  applies: _always, fmt: _pct, better: 'high' },
+    { label: 'Unique messages sent', value: r => r.frames_s2e_sent ?? r.sensor_to_edge_msgs ?? null, applies: _always, fmt: _int },
+    { label: 'Lost on the radio', value: r => r.frames_s2e_dropped ?? r.sensor_link_dropped ?? null, applies: _always, fmt: _int, better: 'low'  },
+    { label: 'Wireless delivery', value: r => r.s2e_delivery_ratio ?? r.sensor_to_edge_delivery_ratio ?? null,  applies: _always, fmt: _pct, better: 'high' },
 
     G('Edge processing'),
-    { label: 'Filtered as redundant', value: r => r.filtered_events ?? null, applies: _isEdge, fmt: _int,  better: 'high' },
-    { label: 'Forwarded to broker', value: r => r.edge_to_cloud_msgs ?? null, applies: _isEdge, fmt: _int,  better: 'low'  },
+    { label: 'Filtered as redundant', value: r => r.events_filtered_total ?? r.filtered_events ?? null, applies: _isEdge, fmt: _int,  better: 'high' },
+    { label: 'Forwarded to broker', value: r => r.frames_e2c_sent ?? r.edge_to_cloud_msgs ?? null, applies: _isEdge, fmt: _int,  better: 'low'  },
     { label: 'Cloud traffic saved', value: r => r.message_reduction_ratio ?? null, applies: _isEdge, fmt: _pct1, better: 'high' },
     { label: 'Avg events per batch', value: r => r.events_per_cloud_message ?? null, applies: _isAggregated, fmt: _f2, better: 'high' },
 
     G('Backhaul link (edge → broker)'),
-    { label: 'Backhaul delivery', value: r => r.edge_to_cloud_delivery_ratio ?? null, applies: _isEdge, fmt: _pct, better: 'high' },
-    { label: 'Lost on backhaul', value: r => r.edge_to_cloud_dropped ?? null, applies: _isEdge, fmt: _int, better: 'low'  },
+    { label: 'Backhaul delivery', value: r => r.backhaul_delivery_ratio ?? r.edge_to_cloud_delivery_ratio ?? null, applies: _isEdge, fmt: _pct, better: 'high' },
+    { label: 'Lost on backhaul', value: r => r.frames_e2c_dropped ?? r.edge_to_cloud_dropped ?? null, applies: _isEdge, fmt: _int, better: 'low'  },
 
     G('Broker layer (MQTT/AMQP/CoAP)'),
-    { label: 'Broker retries (QoS)', value: r => r.retransmissions_total ?? null, applies: _always, fmt: _int, better: 'low' },
-    { label: 'Duplicates caught by protocol', value: r => r.duplicate_deliveries ?? null, applies: _always, fmt: _int },
- 
+    { label: 'Broker retries (QoS)', value: r => r.proto_retransmissions ?? r.retransmissions_total ?? null, applies: _always, fmt: _int, better: 'low' },
+    { label: 'Duplicates caught by protocol', value: r => r.proto_duplicate_deliveries ?? r.duplicate_deliveries ?? null, applies: _always, fmt: _int },
+
     G('Cloud State'),
-    { label: 'Total msgs received', value: r => r.cloud_msgs_received_total ?? r.cloud_msgs_received ?? null, applies: _always, fmt: _int },
-    { label: 'State transitions reflected', value: r => r.cloud_state_changes_reflected ?? null, applies: _isEdge, fmt: _int },
+    { label: 'Total msgs received', value: r => r.cloud_events_pre_dedup ?? r.cloud_msgs_received ?? r.cloud_msgs_received_total ?? null, applies: _always, fmt: _int },
+    { label: 'State transitions reflected', value: r => r.unique_state_changes_applied_at_cloud ?? r.cloud_state_changes_reflected ?? null, applies: _isEdge, fmt: _int },
     { label: 'Real events captured', value: r => r.cloud_reflection_ratio ?? null, applies: _always, fmt: _pct, better: 'high' },
     
     G('Latency (sensor emits → cloud stores)'),
@@ -408,9 +408,9 @@ function _metricsList() {
     { label: 'Faults injected', value: r => r.fault_injected_count ?? null, applies: r => _isEdge(r) && (r.fault_injected_count ?? 0) > 0, fmt: _int },
 
     G('Bandwidth'),
-    { label: 'Sensor → first hop (KB)', value: r => r.sensor_to_edge_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
-    { label: 'To cloud (KB)', value: r => r.edge_to_cloud_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
-    { label: 'Protocol overhead (KB)', value: r => r.protocol_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'Sensor → first hop (KB)', value: r => r.bytes_s2e_sent ?? r.sensor_to_edge_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'To cloud (KB)', value: r => r.bytes_e2c_sent ?? r.edge_to_cloud_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
+    { label: 'Protocol overhead (KB)', value: r => r.proto_bytes_sent ?? r.protocol_bytes ?? null, applies: _always, fmt: _kb, better: 'low' },
   ];
 }
 

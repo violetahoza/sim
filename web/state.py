@@ -97,7 +97,6 @@ def make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         base_delay_ms = float(body.get("base_delay_ms", 80.0)),
         jitter_ms = float(body.get("jitter_ms", 30.0)),
         max_payload_bytes = int(body.get("max_payload_bytes", 51)),
-        payload_encoding_ratio = float(body.get("payload_encoding_ratio", 0.15)),
         parking_duration_cv = float(body.get("parking_duration_cv", 1.5)),
         time_scale = float(body.get("time_scale", 60.0)),
         use_time_of_day = bool(body.get("use_time_of_day", False)),

@@ -7,7 +7,7 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import MQTTConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_BYTES, TCP_TRANSPORT_OVERHEAD
+from simulator.config.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_BYTES, TCP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
 
@@ -136,12 +136,13 @@ class SimulatedMQTTBackend(ProtocolBackend):
             self._deliver(batch, payload, msg_id)
             return
         if qos == 1:
+            self._deliver(batch, payload, msg_id)
+
             def puback() -> None:
                 if self._downlink_drop():
                     self._retry_publish(batch, payload, msg_id, qos, attempt)
                 else:
                     self.bytes_sent += MQTT_ACK_BYTES
-                    self._deliver(batch, payload, msg_id)
 
             self.clock.schedule(self._ack_delay(), puback)
             return

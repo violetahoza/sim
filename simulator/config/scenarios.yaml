@@ -2,8 +2,7 @@ scenarios:
 
   - name: A1_cloud_only
     description: >
-      Cloud-Only Baseline | Every sensor event goes straight to the cloud broker via MQTT QoS 0 (fire-and-forget, no retransmits). Maximum cloud bandwidth and lowest
-      added latency - the reference ceiling for comparisons.
+      Cloud-Only Baseline | Every sensor event goes straight to the cloud broker via MQTT QoS 0 (fire-and-forget, no retransmits). 
     protocol: mqtt
     architecture: cloud_only
     traffic_level: peak
@@ -61,7 +60,7 @@ scenarios:
 
   - name: A4_edge_agg_15s
     description: >
-      Edge Aggregated - 15 s window | Wider window ≈ 3x more events per batch vs A3. Clearer bandwidth saving, larger latency penalty. The headline latency-vs-bandwidth trade-off.
+      Edge Aggregated - 15 s window | Wider window ~3x more events per batch vs A3. Clearer bandwidth saving, larger latency penalty. The headline latency-vs-bandwidth trade-off.
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -82,10 +81,7 @@ scenarios:
 
   - name: A5_edge_anomaly
     description: >
-      Edge Filtered + Anomaly Detection | Same link/traffic as A2, but all five anomaly rules active (R1 stuck, R2 silent, R3 rapid arrivals, R4 stale sequence, R5 rapid state flip).
-      A 24-hour horizon is used so R1 (stuck) is reachable beyond the maximum plausible parking dwell. Faults are injected on disjoint, seeded spots to provide ground truth;
-      detection precision/recall/F1 are reported against that ground truth. silent_threshold (1800 s) exceeds the heartbeat interval (900 s) so healthy quiet sensors are not flagged;
-      stuck_threshold (50400 s, 14 h) exceeds the 12 h dwell clamp so legitimate long-stay parkers are not flagged.
+      Edge Filtered + Anomaly Detection | Same link/traffic as A2, with a statistical anomaly detector.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -99,12 +95,9 @@ scenarios:
     backhaul_loss_rate: 0.02
     anomaly_detection: true
     quarantine_threshold: 5
-    quarantine_recovery_events: 5
     heartbeat_interval_s: 900.0
-    silent_threshold_s: 3600.0
+    silent_threshold_s: 7200.0
     stuck_threshold_s: 50400.0
-    rapid_arrival_threshold_s: 0.5
-    rapid_flip_min_dwell_s: 10.0
     faults:
       - type: silent
         count: 6
@@ -126,8 +119,7 @@ scenarios:
   - name: A6_adaptive_edge
     description: >
       Adaptive Edge | Starts in edge_aggregated (5 s window). The gateway evaluates backhaul delivery in a rolling 30 s window: when it drops below 85%
-      it switches to edge_filtered to limit retransmit amplification; it recovers when the window DR climbs back above 95%. High backhaul loss
-      (20%) with time-of-day variation guarantees multiple switches per day.
+      it switches to edge_filtered to limit retransmit amplification; it recovers when the window DR climbs back above 95%. 
     protocol: mqtt
     architecture: edge_aggregated
     traffic_level: peak
@@ -143,7 +135,10 @@ scenarios:
     loss_rate: 0.05
     backhaul_loss_rate: 0.02
     backhaul_loss_peak_rate: 0.25
-    adaptive_min_window_samples: 20
+    adaptive_min_window_samples: 8
+    adaptive_degrade_threshold: 0.90
+    adaptive_filtered_threshold: 0.80
+    adaptive_recover_threshold: 0.92
     anomaly_detection: false
     adaptive_edge: true
     group: "A - Architecture Comparison"
@@ -172,7 +167,8 @@ scenarios:
 
   - name: B2_mqtt_qos1
     description: >
-      MQTT QoS 1 - At-least-once | One PUBACK round-trip; a lost ACK triggers a retransmit (duplicate suppressed at subscriber). Reliable under moderate loss.
+      MQTT QoS 1 - At-least-once | One PUBACK round-trip; a lost PUBACK triggers a PUBLISH retransmit, so the broker re-delivers the message (a duplicate). The cloud
+      deduplicates by (spot, sequence) so state is still applied once. Reliable under moderate loss, at the cost of occasional duplicate deliveries.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -191,7 +187,7 @@ scenarios:
 
   - name: B3_mqtt_qos2
     description: >
-      MQTT QoS 2 - Exactly-once (4-way handshake) | Three ACK legs; highest byte overhead of the MQTT family. ~9% chance of a retransmit per message at 3% backhaul loss.
+      MQTT QoS 2 - Exactly-once (4-way handshake) | Three ACK legs; highest byte overhead of the MQTT family. 
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -229,7 +225,7 @@ scenarios:
 
   - name: B5_coap_con
     description: >
-      CoAP Confirmable (CON) | ACK round-trip per RFC 7252; up to 4 retransmits with exponential backoff. Comparable delivery to MQTT QoS 1 on roughly half the bytes (CBOR encoding).
+      CoAP Confirmable (CON) | ACK round-trip per RFC 7252; up to 4 retransmits with exponential backoff. 
     protocol: coap
     architecture: edge_filtered
     traffic_level: peak
@@ -270,7 +266,6 @@ scenarios:
   - name: B7_amqp_manual_durable
     description: >
       AMQP direct exchange - manual ACK, durable | Consumer ACK travels back over the lossy backhaul; lost ACKs cause requeue. Equivalent to MQTT QoS 1 with stronger persistence.
-      Highest byte overhead overall.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -313,8 +308,7 @@ scenarios:
 
   - name: C1_scale_50
     description: >
-      Scalability - 50 spots | MQTT QoS1 / edge_filtered baseline at small deployment size. Anchor point for the scalability sweep (C1-C5): same protocol, architecture, and traffic
-      mix, only num_spots changes. Use alongside C2-C5 to see how latency, message volume, and bandwidth scale with deployment size.
+      Scalability - 50 spots | MQTT QoS1 / edge_filtered baseline at small deployment size.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -386,8 +380,7 @@ scenarios:
 
   - name: C5_scale_2000
     description: >
-      Scalability - 2000 spots | Same configuration as C1, largest deployment in the sweep (40x C1). Watch for queueing/rate-limit effects as token-bucket and broker throughput
-      assumptions are stressed at this size.
+      Scalability - 2000 spots | Same configuration as C1, largest deployment in the sweep (40x C1). 
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -406,8 +399,7 @@ scenarios:
  
   - name: D1_mqtt_loss_low
     description: >
-      Reliability - MQTT QoS1 at 5% backhaul loss | Baseline recovery behavior at modest loss. Part of the D1-D3 MQTT sub-sweep; compare against D4-D6 (CoAP CON) and D7-D9 (AMQP
-      manual+durable) at matching loss levels to compare protocol recovery mechanisms head to head.
+      Reliability - MQTT QoS1 at 5% backhaul loss | Baseline recovery behavior at modest loss. 
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -425,7 +417,7 @@ scenarios:
 
   - name: D2_mqtt_loss_med
     description: >
-      Reliability - MQTT QoS1 at 25% backhaul loss | Same as D1 with backhaul loss raised to 25%; QoS1's bounded retry budget (3 attempts) should start showing real delivery loss.
+      Reliability - MQTT QoS1 at 25% backhaul loss | Same as D1 with backhaul loss raised to 25%; 
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -497,7 +489,7 @@ scenarios:
 
   - name: D6_coap_loss_high
     description: >
-      Reliability - CoAP CON at 45% backhaul loss | Matches D3's loss level; backoff growth (timeout doubling per attempt) should push tail latency higher than MQTT at this loss rate.
+      Reliability - CoAP CON at 45% backhaul loss | Matches D3's loss level; 
     protocol: coap
     architecture: edge_filtered
     traffic_level: peak
@@ -535,8 +527,7 @@ scenarios:
 
   - name: D8_amqp_loss_med
     description: >
-      Reliability - AMQP manual+durable at 25% backhaul loss | Matches D2/D5's loss level. AMQP's requeue has no fixed retry cap (unlike MQTT/CoAP), so delivery ratio 
-      should hold up better at the cost of higher latency and byte overhead.
+      Reliability - AMQP manual+durable at 25% backhaul loss | Matches D2/D5's loss level.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -556,7 +547,7 @@ scenarios:
 
   - name: D9_amqp_loss_high
     description: >
-      Reliability - AMQP manual+durable at 45% backhaul loss | Matches D3/D6's loss level; the headline scenario for "which protocol degrades most gracefully" under severe loss.
+      Reliability - AMQP manual+durable at 45% backhaul loss | Matches D3/D6's loss level; 
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -572,4 +563,294 @@ scenarios:
     anomaly_detection: false
     group: "D - Reliability vs Loss Sweep"
     group_order: 9
+    is_builtin: true
+
+
+  - name: E1_load_cloud_low
+    description: >
+      Load sweep - Cloud-only at LOW load | Cloud-centric baseline (every event straight to the broker, MQTT QoS1) at low traffic. Pair with E4/E7 for the architecture
+      contrast at this load and with E2/E3 for the cloud-only load trend.
+    protocol: mqtt
+    architecture: cloud_only
+    traffic_level: low
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 1
+    is_builtin: true
+
+  - name: E2_load_cloud_med
+    description: >
+      Load sweep - Cloud-only at MEDIUM load | Cloud-centric baseline (MQTT QoS1) at medium traffic.
+    protocol: mqtt
+    architecture: cloud_only
+    traffic_level: medium
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 2
+    is_builtin: true
+
+  - name: E3_load_cloud_peak
+    description: >
+      Load sweep - Cloud-only at PEAK load | Cloud-centric baseline (MQTT QoS1) at peak traffic. Upper anchor of the cloud-only load trend.
+    protocol: mqtt
+    architecture: cloud_only
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 3
+    is_builtin: true
+
+  - name: E4_load_mqtt_low
+    description: >
+      Load sweep - Edge-filtered / MQTT QoS1 at LOW load | Edge filtering (suppress redundant repeats) over MQTT QoS1. Serves both the architecture contrast vs E1/E7 (RQ1/RQ2)
+      and the MQTT anchor of the protocol comparison vs E10 (CoAP) / E13 (AMQP) at this load.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: low
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 4
+    is_builtin: true
+
+  - name: E5_load_mqtt_med
+    description: >
+      Load sweep - Edge-filtered / MQTT QoS1 at MEDIUM load | Architecture contrast vs E2/E8 and MQTT protocol anchor vs E11/E14.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: medium
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 5
+    is_builtin: true
+
+  - name: E6_load_mqtt_peak
+    description: >
+      Load sweep - Edge-filtered / MQTT QoS1 at PEAK load | Architecture contrast vs E3/E9 and MQTT protocol anchor vs E12/E15.
+    protocol: mqtt
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 6
+    is_builtin: true
+
+  - name: E7_load_agg_low
+    description: >
+      Load sweep - Edge-aggregated 15 s / MQTT QoS1 at LOW load | Edge batching over a 15 s window. Compare cloud_only (E1) -> filtered (E4) -> aggregated (E7) to quantify the
+      message/bandwidth reduction and its latency cost at low load.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: low
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 7
+    is_builtin: true
+
+  - name: E8_load_agg_med
+    description: >
+      Load sweep - Edge-aggregated 15 s / MQTT QoS1 at MEDIUM load | Reduction-vs-cloud contrast (E2 -> E5 -> E8) at medium load.
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: medium
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 8
+    is_builtin: true
+
+  - name: E9_load_agg_peak
+    description: >
+      Load sweep - Edge-aggregated 15 s / MQTT QoS1 at PEAK load | Reduction-vs-cloud contrast (E3 -> E6 -> E9) at peak load; 
+    protocol: mqtt
+    architecture: edge_aggregated
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    mqtt_qos: 1
+    aggregation_interval: 15.0
+    max_event_age_s: 30.0
+    max_batch_size: 2000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 9
+    is_builtin: true
+
+  - name: E10_load_coap_low
+    description: >
+      Load sweep - CoAP CON / edge-filtered at LOW load | Confirmable CoAP (UDP, ACK + exponential backoff). Compare with E4 (MQTT) and E13 (AMQP) at low load for the
+      protocol latency/reliability contrast.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: low
+    num_spots: 500
+    seed: 5001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 10
+    is_builtin: true
+
+  - name: E11_load_coap_med
+    description: >
+      Load sweep - CoAP CON / edge-filtered at MEDIUM load | Protocol contrast vs E5 (MQTT) / E14 (AMQP) at medium load.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: medium
+    num_spots: 500
+    seed: 5001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 11
+    is_builtin: true
+
+  - name: E12_load_coap_peak
+    description: >
+      Load sweep - CoAP CON / edge-filtered at PEAK load | Protocol contrast vs E6 (MQTT) / E15 (AMQP) at peak load.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    coap_mode: CON
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 12
+    is_builtin: true
+
+  - name: E13_load_amqp_low
+    description: >
+      Load sweep - AMQP manual+durable / edge-filtered at LOW load | Manual-ack durable AMQP (requeue on lost ack). Compare with E4 (MQTT) and E10 (CoAP) at low load.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: low
+    num_spots: 500
+    seed: 5001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 13
+    is_builtin: true
+
+  - name: E14_load_amqp_med
+    description: >
+      Load sweep - AMQP manual+durable / edge-filtered at MEDIUM load | Protocol contrast vs E5 (MQTT) / E11 (CoAP) at medium load.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: medium
+    num_spots: 500
+    seed: 5001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 14
+    is_builtin: true
+
+  - name: E15_load_amqp_peak
+    description: >
+      Load sweep - AMQP manual+durable / edge-filtered at PEAK load | Protocol contrast vs E6 (MQTT) / E12 (CoAP) at peak load.
+    protocol: amqp
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 5001
+    amqp_exchange: direct
+    amqp_ack: manual
+    amqp_durable: true
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.03
+    anomaly_detection: false
+    group: "E - Load Level Sweep"
+    group_order: 15
     is_builtin: true
