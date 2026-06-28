@@ -20,7 +20,7 @@ from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, Experi
 from simulator.protocols.mqtt_client import SimulatedMQTTBackend
 from simulator.protocols.amqp_client import SimulatedAMQPBackend
 from simulator.protocols.coap_client import SimulatedCoAPBackend
-from simulator.utils import encode_event, encode_batch, deserialize_batch
+from simulator.utils import encode_event, encode_batch
 from experiments.runner import run_scenario_sync, save_results, _stats, _make_loss_provider
 from experiments.aggregate import _summarise, _is_number, aggregate
 
@@ -600,19 +600,6 @@ def test_encode_batch_grows_with_event_count():
     many = encode_batch(BatchUpdate(edge_id="e", events=[_ev(spot=i, seq=i) for i in range(20)]))
     assert len(many) > len(one)
     assert len(msgpack.unpackb(many, raw=False)["events"]) == 20
-
-
-def test_deserialize_batch_reconstructs_events():
-    batch = BatchUpdate(edge_id="edge_01", events=[
-        _ev(spot=0, state=SpotState.OCCUPIED, ts=1.0, seq=1),
-        _ev(spot=1, state=SpotState.FREE, ts=2.0, seq=2, is_initial=True)
-    ])
-    back = deserialize_batch(json.dumps(batch.to_dict()).encode())
-    assert back.edge_id == "edge_01"
-    assert [e.spot_id for e in back.events] == [0, 1]
-    assert back.events[1].is_initial is True
-    assert back.events[0].state == SpotState.OCCUPIED
-
 
 
 def test_lora_airtime_positive_and_monotonic_in_payload():

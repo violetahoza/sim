@@ -30,21 +30,6 @@ def get_groq_api_key() -> str:
     load_dotenv()
     return os.environ.get("AI_API_KEY", "").strip()
 
-def deserialize_batch(payload: bytes) -> BatchUpdate:
-    obj = json.loads(payload.decode())
-    events = []
-    for e in obj.get("events", []):
-        events.append(ParkingEvent(
-            sensor_id=e["sensor_id"],
-            spot_id=int(e["spot_id"]),
-            state=SpotState(e["state"]),
-            timestamp=float(e.get("timestamp", 0.0)),
-            sequence=int(e.get("sequence", 0)),
-            is_initial=bool(e.get("is_initial", False)),
-            is_heartbeat_event=bool(e.get("is_heartbeat_event", False))
-        ))
-    return BatchUpdate(edge_id=obj.get("edge_id", "edge"), events=events)
-
 def encode_event(event: ParkingEvent) -> bytes:
     return msgpack.packb(event.to_dict(), use_bin_type=True)
 
