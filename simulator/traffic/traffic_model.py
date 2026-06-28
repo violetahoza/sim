@@ -7,7 +7,7 @@ from typing import Callable, Optional
 from ..models.models import ParkingEvent, SpotState
 from ..config.config import TrafficConfig
 from ..des.engine import SimClock
-
+from ..config.constants import DWELL_SHORT_MU_S, DWELL_SHORT_CV, DWELL_LONG_MU_S, DWELL_LONG_CV, DWELL_SHORT_PROB
 
 class TrafficModel:
 
@@ -61,11 +61,10 @@ class TrafficModel:
         return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
 
     def _sample_dwell_mixture(self) -> float:
-        P_SHORT = 0.90
-        if self.rng.random() < P_SHORT:
-            mu, cv = 1500.0, 0.9
+        if self.rng.random() < DWELL_SHORT_PROB:
+            mu, cv = DWELL_SHORT_MU_S, DWELL_SHORT_CV
         else:
-            mu, cv = 14400.0, 0.5
+            mu, cv = DWELL_LONG_MU_S, DWELL_LONG_CV
 
         sigma_sq = math.log(1.0 + cv * cv)
         sigma = math.sqrt(sigma_sq)

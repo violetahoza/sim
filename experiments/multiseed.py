@@ -167,7 +167,7 @@ def _write_report_csv(path: Path, summary: dict, details: dict) -> None:
         w.writerows(rows)
 
 
-def _write_report_log(path: Path, summary: dict, details: dict, seeds: list[int], timings: list, failures: list, wall: float, args: argparse.Namespace) -> None:
+def _write_report_log(path: Path, summary: dict, details: dict, seeds: list[int], failures: list, wall: float, args: argparse.Namespace) -> None:
     lines: list[str] = []
     lines.append("Multi-seed confidence-interval report")
     lines.append("=" * 78)
@@ -227,7 +227,7 @@ def write_reports(batch_dir: Path, details: dict, seeds: list[int], timings: lis
     report_csv = batch_dir / "multiseed_report.csv"
     report_log = batch_dir / "multiseed_report.log"
     _write_report_csv(report_csv, summary, details)
-    _write_report_log(report_log, summary, details, seeds, timings, failures, wall, args)
+    _write_report_log(report_log, summary, details, seeds, failures, wall, args)
 
     manifest = {
         "batch_dir": str(batch_dir),

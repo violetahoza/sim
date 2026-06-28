@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import math
 
+SIM_DURATION_S: float = 10_800.0
+DEFAULT_AGG_INTERVAL_S: float = 1.0
+DEFAULT_TIME_SCALE: float = 60.0
+
+DEFAULT_GATEWAY_RATE_MSGS_PER_SEC: float = 8.0
+DEFAULT_CONTENTION_CHANNELS: int = 3
+
 LORAWAN_OVERHEAD_BYTES: int = 13  
 
 LORA_SF: int = 7
 LORA_BW_HZ: int = 125_000
 LORA_CR: int = 1    
 LORA_PREAMBLE_SYMBOLS: int = 8
-LORA_DUTY_CYCLE: float = 0.01  
 
 IPV4_HEADER_BYTES: int = 20  
 TCP_HEADER_BYTES: int = 20 
 UDP_HEADER_BYTES: int = 8 
-ETHERNET_HEADER_BYTES: int = 14 
 TCP_TRANSPORT_OVERHEAD: int = IPV4_HEADER_BYTES + TCP_HEADER_BYTES
 UDP_TRANSPORT_OVERHEAD: int = IPV4_HEADER_BYTES + UDP_HEADER_BYTES  
 
@@ -37,6 +42,14 @@ AMQP_ACK_FRAME: int = 21
 
 ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
 
+DEFAULT_TOD_FACTORS: list[float] = [
+    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,
+    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,
+    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,
+    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,
+]
+
+
 DWELL_SHORT_MU_S: float = 1500.0
 DWELL_SHORT_CV: float = 0.9
 DWELL_LONG_MU_S: float = 14400.0
@@ -56,7 +69,3 @@ def compute_lora_airtime_s(payload_bytes: int, sf: int = LORA_SF, bw: int = LORA
     t_payload = n_payload * t_sym
     return t_preamble + t_payload
 
-
-def lora_duty_cycle_rate(max_payload_bytes: int = 51, duty_cycle: float = LORA_DUTY_CYCLE, **airtime_kw) -> float:
-    airtime = compute_lora_airtime_s(max_payload_bytes, **airtime_kw)
-    return duty_cycle / airtime if airtime > 0 else 1.0

@@ -96,12 +96,6 @@ function normalizeMetrics(raw) {
   return m;
 }
 
-const METRIC_DEFS = {
-  e2e_unique_delivery_ratio: { label: 'Event delivery', help: 'Unique state changes applied at cloud ÷ generated (event-flow completeness).' },
-  cloud_reflection_ratio:    { label: 'State agreement', help: 'Fraction of spots whose final cloud state matches sensor ground truth (NOT delivery).' },
-  physical_delivery_ratio:   { label: 'First-pass survival', help: 'Sensor-link × first-pass backhaul survival, before retransmission.' },
-  backhaul_delivery_ratio:   { label: 'Backhaul delivery', help: 'Backend delivered ÷ offered (after retransmission).' },
-};
 
 const isCloudOnly = r => r?.architecture === 'cloud_only';
 const isEdgeAgg = r => r?.architecture === 'edge_aggregated';
@@ -174,7 +168,7 @@ async function loadSavedResults() {
   results.forEach(r => addResultRow(r, false));
   if (results.length) {
     allResults = results;
-    showResult(results[results.length - 1], false);
+    showResult(results[results.length - 1]);
     updateComparisonChart();
     updateDeliveryChart();
     updateAIBadge();
@@ -302,7 +296,7 @@ function connectSSE() {
     if (txt) txt.textContent = 'DONE';
     allResults.push(r);
     addResultRow(r, true);
-    showResult(r, true);
+    showResult(r);
     updateComparisonChart();
     updateDeliveryChart();
     updateAIBadge();
@@ -457,7 +451,7 @@ function addResultRow(r, scrollIntoView) {
   row.onclick = () => {
     document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
     row.classList.add('active');
-    showResult(r, false);
+    showResult(r);
   };
   container.insertBefore(row, container.firstChild);
   if (scrollIntoView) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -472,7 +466,7 @@ function updateAIBadge() {
   badge.style.display = allResults.length > 0 ? 'inline-flex' : 'none';
 }
 
-function showResult(r, animate) {
+function showResult(r) {
   currentResult = r;
   const m = normalizeMetrics(r);
   renderKpiStrip(m);

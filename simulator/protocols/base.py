@@ -10,7 +10,6 @@ CloudRecvCallback = Callable[[BatchUpdate, bytes], None]
 class ProtocolBackend(abc.ABC):
     """Publish batches from edge to cloud and receive them on the cloud side."""
 
-    # Total wire bytes handed to the broker (not counting broker-internal overhead).
     bytes_sent: int = 0
 
     @abc.abstractmethod

@@ -1,21 +1,32 @@
 from __future__ import annotations
 import json
 import math
+import random
 
-from simulator.config.config import make_scenario, ScenarioConfig, TrafficConfig, LinkConfig, MQTTConfig, AMQPConfig, CoAPConfig, ARRIVAL_RATES
+import msgpack
+import pytest
+
+import simulator.config.config as config_mod
+from simulator.config.config import make_scenario, ScenarioConfig, TrafficConfig, LinkConfig, MQTTConfig, AMQPConfig, CoAPConfig, PREDEFINED_SCENARIOS, save_custom_scenarios, load_custom_scenarios
+from simulator.config.constants import compute_lora_airtime_s
 from simulator.des.engine import SimClock
 from simulator.cloud.cloud_backend import CloudBackend
 from simulator.edge.edge_node import EdgeNode
 from simulator.sensors.sensor_emulator import SensorEmulator
+from simulator.sensors.fault_injector import FaultInjector, FaultSpec, FaultType
+from simulator.traffic.traffic_model import TrafficModel
 from simulator.link.link_emulator import LinkEmulator, TokenBucket, GilbertElliotModel, QueueOverflowModel, SharedMediumModel
-from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, ExperimentMetrics, LinkStats
+from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, ExperimentMetrics
 from simulator.protocols.mqtt_client import SimulatedMQTTBackend
 from simulator.protocols.amqp_client import SimulatedAMQPBackend
 from simulator.protocols.coap_client import SimulatedCoAPBackend
-from experiments.runner import run_scenario_sync, _stats
-from experiments.aggregate import _summarise, _is_number, aggregate, _t_critical, load_runs, HEADLINE_METRICS
+from simulator.utils import encode_event, encode_batch, deserialize_batch
+from experiments.runner import run_scenario_sync, save_results, _stats, _make_loss_provider
+from experiments.aggregate import _summarise, _is_number, aggregate
 
 SEED = 20250607
+ARCH = ["cloud_only", "edge_filtered", "edge_aggregated"]
+PROTOCOLS = ["mqtt", "amqp", "coap"]
 
 
 def _edge_scn(name: str, **kw):
@@ -42,7 +53,7 @@ def test_reliability_ordering_mqtt_qos():
         assert m.e2e_unique_delivery_ratio is not None
     assert q0.e2e_unique_delivery_ratio < q1.e2e_unique_delivery_ratio
     assert q0.e2e_unique_delivery_ratio < q2.e2e_unique_delivery_ratio
-    # QoS0 (fire & forget) and QoS2 (exactly-once) never deliver duplicates.
+    # QoS0 (fire & forget) and QoS2 (exactly-once) never deliver duplicates
     assert q2.duplicate_deliveries == 0
     assert q0.duplicate_deliveries == 0
     # QoS1 (at-least-once) delivers duplicates: a lost PUBACK retransmits the PUBLISH, so the broker re-delivers. The cloud dedupes them by (spot, seq).
@@ -454,7 +465,6 @@ def test_coap_con_retransmits_non_does_not_under_total_loss():
     assert con.retransmitted > 0 # CON retransmits with backoff
 
 def test_mqtt_byte_overhead_increases_with_qos():
-    # Same payload + topic; only the QoS control-packet overhead differs.
     def bytes_for(qos: int) -> int:
         clock = SimClock()
         b = SimulatedMQTTBackend(MQTTConfig(qos=qos), clock, lambda *_: None, 0.0, 0, 0.03, 0.0)
@@ -504,3 +514,355 @@ def test_edge_aggregation_reduces_cloud_messages_vs_cloud_only():
     assert 0.0 < aggregated.aggregation_ratio <= 1.0
     assert aggregated.events_per_cloud_message is not None
     assert aggregated.events_per_cloud_message >= 1.0
+
+
+def _ev(spot=0, state=SpotState.OCCUPIED, ts=0.0, seq=1, **kw) -> ParkingEvent:
+    return ParkingEvent(sensor_id=f"s{spot}", spot_id=spot, state=state, timestamp=ts, sequence=seq, **kw)
+
+
+def test_fault_none_passes_event_through_unchanged():
+    fi = FaultInjector(rng=random.Random(0))
+    out = fi.apply(_ev())
+    assert out == [out[0]] and len(out) == 1
+    assert out[0].state == SpotState.OCCUPIED
+    assert fi.injected_count == 0
+
+
+def test_fault_silent_drops_event():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.SILENT))
+    assert fi.apply(_ev()) == []
+    assert fi.injected_count == 1
+
+
+def test_fault_stuck_at_forces_state_and_counts_only_on_change():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.STUCK_AT, stuck_state="occupied"))
+    # incoming FREE is forced to OCCUPIED -> counted
+    out = fi.apply(_ev(state=SpotState.FREE))
+    assert len(out) == 1 and out[0].state == SpotState.OCCUPIED
+    assert fi.injected_count == 1
+    # incoming already-OCCUPIED matches the stuck state -> no new injection counted
+    out2 = fi.apply(_ev(state=SpotState.OCCUPIED, seq=2))
+    assert out2[0].state == SpotState.OCCUPIED
+    assert fi.injected_count == 1
+
+
+def test_fault_flapping_emits_original_plus_flipped():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.FLAPPING))
+    out = fi.apply(_ev(state=SpotState.OCCUPIED))
+    assert len(out) == 2
+    assert out[0].state == SpotState.OCCUPIED
+    assert out[1].state == SpotState.FREE  # the spurious flip
+    assert fi.injected_count == 1
+
+
+def test_fault_replay_repeats_previous_event():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.REPLAY, replay_count=3))
+    first = fi.apply(_ev(state=SpotState.OCCUPIED, seq=1))
+    assert len(first) == 1  # nothing to replay yet
+    second = fi.apply(_ev(state=SpotState.FREE, seq=2))
+    assert len(second) == 4  # the real event + 3 replays of the previous one
+    assert all(e.state == SpotState.OCCUPIED for e in second[1:])
+    assert fi.injected_count == 3
+
+
+def test_fault_flooding_emits_flood_count_total():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.FLOODING, flood_count=10))
+    out = fi.apply(_ev())
+    assert len(out) == 10
+    assert all(e.state == SpotState.OCCUPIED for e in out)
+    assert fi.injected_count == 9  # the original is not an injection
+
+
+def test_fault_clear_restores_passthrough():
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.SILENT))
+    assert fi.active_faults() == {0: "silent"}
+    fi.clear_fault(0)
+    assert fi.active_faults() == {}
+    assert len(fi.apply(_ev())) == 1
+
+
+def test_encode_event_msgpack_roundtrip():
+    ev = _ev(spot=3, state=SpotState.FREE, ts=12.5, seq=7, is_heartbeat_event=True)
+    d = msgpack.unpackb(encode_event(ev), raw=False)
+    assert d["spot_id"] == 3 and d["sequence"] == 7
+    assert d["state"] == "free" and d["timestamp"] == 12.5
+    assert d["is_heartbeat_event"] is True
+
+
+def test_encode_batch_grows_with_event_count():
+    one = encode_batch(BatchUpdate(edge_id="e", events=[_ev(seq=1)]))
+    many = encode_batch(BatchUpdate(edge_id="e", events=[_ev(spot=i, seq=i) for i in range(20)]))
+    assert len(many) > len(one)
+    assert len(msgpack.unpackb(many, raw=False)["events"]) == 20
+
+
+def test_deserialize_batch_reconstructs_events():
+    batch = BatchUpdate(edge_id="edge_01", events=[
+        _ev(spot=0, state=SpotState.OCCUPIED, ts=1.0, seq=1),
+        _ev(spot=1, state=SpotState.FREE, ts=2.0, seq=2, is_initial=True)
+    ])
+    back = deserialize_batch(json.dumps(batch.to_dict()).encode())
+    assert back.edge_id == "edge_01"
+    assert [e.spot_id for e in back.events] == [0, 1]
+    assert back.events[1].is_initial is True
+    assert back.events[0].state == SpotState.OCCUPIED
+
+
+
+def test_lora_airtime_positive_and_monotonic_in_payload():
+    sizes = [1, 10, 20, 50, 100, 200]
+    times = [compute_lora_airtime_s(n) for n in sizes]
+    assert all(t > 0 for t in times)
+    assert times == sorted(times)
+    assert times[0] < times[-1]
+
+
+def test_lora_airtime_increases_with_spreading_factor():
+    # higher SF = slower data rate = longer airtime for the same payload
+    assert compute_lora_airtime_s(40, sf=7) < compute_lora_airtime_s(40, sf=10) < compute_lora_airtime_s(40, sf=12)
+
+
+def test_lora_airtime_decreases_with_bandwidth():
+    assert compute_lora_airtime_s(40, bw=125_000) > compute_lora_airtime_s(40, bw=250_000)
+
+
+def test_scenario_to_save_dict_from_dict_roundtrip():
+    cfg = make_scenario(
+        name="rt", protocol="coap", architecture="edge_aggregated", traffic_level="peak",
+        num_spots=120, loss_rate=0.07, backhaul_loss_rate=0.04, coap_mode="NON",
+        aggregation_interval=2.5, mqtt_qos=2, seed=99
+    )
+    back = ScenarioConfig.from_dict(cfg.to_save_dict())
+    assert back.name == "rt"
+    assert back.protocol == "coap"
+    assert back.architecture == "edge_aggregated"
+    assert back.traffic_level == "peak"
+    assert back.num_spots == 120
+    assert back.random_seed == 99
+    assert back.coap.mode == "NON"
+    assert abs(back.link.packet_loss_rate - 0.07) < 1e-9
+    assert abs(back.edge.aggregation_interval_s - 2.5) < 1e-9
+
+
+def test_make_scenario_arrival_rate_scales_with_spots():
+    small = make_scenario(name="s", traffic_level="medium", num_spots=50)
+    large = make_scenario(name="l", traffic_level="medium", num_spots=200)
+    # arrival rate scales linearly with the number of spots (n/50)
+    assert abs(large.arrival_rate - 4 * small.arrival_rate) < 1e-9
+
+
+def test_save_and_load_custom_scenarios_roundtrip(tmp_path, monkeypatch):
+    target = tmp_path / "custom_scenarios.json"
+    monkeypatch.setattr(config_mod, "_CUSTOM_SCENARIOS_FILE", target)
+    scns = [
+        make_scenario(name="c1", protocol="mqtt", num_spots=10, seed=1),
+        make_scenario(name="c2", protocol="amqp", architecture="cloud_only", num_spots=20, seed=2),
+    ]
+    save_custom_scenarios(scns)
+    assert target.exists()
+    loaded = load_custom_scenarios()
+    assert {s.name for s in loaded} == {"c1", "c2"}
+    assert {s.protocol for s in loaded} == {"mqtt", "amqp"}
+
+
+def test_load_custom_scenarios_missing_file_returns_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_mod, "_CUSTOM_SCENARIOS_FILE", tmp_path / "does_not_exist.json")
+    assert load_custom_scenarios() == []
+
+
+def _traffic(seed=SEED, **cfg_kw):
+    cfg = TrafficConfig(num_spots=cfg_kw.pop("num_spots", 20), random_seed=seed, **cfg_kw)
+    clock = SimClock()
+    events: list[ParkingEvent] = []
+    tm = TrafficModel(cfg, arrival_rate=0.05, clock=clock, event_cb=events.append, epoch=0.0)
+    return tm, clock, events
+
+
+def test_dwell_samples_within_bounds():
+    tm, _, _ = _traffic(use_dwell_mixture=True)
+    samples = [tm._sample_dwell() for _ in range(2000)]
+    assert all(TrafficModel.MIN_DWELL_S <= s <= TrafficModel.MAX_DWELL_S for s in samples)
+    # mixture should yield a spread, not a constant
+    assert len(set(round(s) for s in samples)) > 50
+
+
+def test_tod_factor_flat_when_disabled_varies_when_enabled():
+    flat, _, _ = _traffic(use_time_of_day=False)
+    assert all(flat._tod_factor(h * 3600.0) == 1.0 for h in range(24))
+    tod, _, _ = _traffic(use_time_of_day=True, start_hour=0.0)
+    factors = {round(tod._tod_factor(h * 3600.0), 4) for h in range(24)}
+    assert len(factors) > 1 # genuinely time-varying
+    assert all(f >= 0.001 for f in factors)
+
+
+def test_schedule_run_emits_initial_snapshots_for_occupied_spots():
+    tm, clock, events = _traffic(num_spots=30, initial_occupancy=1.0, heartbeat_interval_s=0.0)
+    tm.schedule_run(duration_s=1.0)
+    initial = [e for e in events if e.is_initial]
+    assert len(initial) == 30 # every spot starts occupied -> one snapshot each
+    assert all(e.state == SpotState.OCCUPIED for e in initial)
+
+
+def test_traffic_model_is_deterministic_for_same_seed():
+    def run(seed):
+        cfg = TrafficConfig(num_spots=25, random_seed=seed, initial_occupancy=0.5)
+        clock = SimClock()
+        out: list[tuple] = []
+        tm = TrafficModel(cfg, 0.05, clock, lambda e: out.append((e.spot_id, e.state.value, round(e.timestamp, 3))), epoch=0.0)
+        tm.schedule_run(600.0)
+        clock.env.run(until=600.0)
+        return out
+    assert run(SEED) == run(SEED)
+    assert run(SEED) != run(SEED + 1)
+
+
+def test_traffic_arrivals_and_departures_are_generated():
+    cfg = TrafficConfig(num_spots=40, random_seed=SEED, initial_occupancy=0.3, heartbeat_interval_s=0.0)
+    clock = SimClock()
+    events: list[ParkingEvent] = []
+    tm = TrafficModel(cfg, arrival_rate=0.5, clock=clock, event_cb=events.append, epoch=0.0)
+    tm.schedule_run(1800.0)
+    clock.env.run(until=1800.0)
+    arrivals = [e for e in events if not e.is_initial and e.state == SpotState.OCCUPIED]
+    departures = [e for e in events if not e.is_initial and e.state == SpotState.FREE]
+    assert len(arrivals) > 0 and len(departures) > 0
+    assert all(0.0 <= e.timestamp <= 1800.0 for e in events)
+
+
+def test_loss_provider_none_for_cloud_only_or_no_peak():
+    assert _make_loss_provider(make_scenario(name="co", architecture="cloud_only")) is None
+    edge_no_peak = make_scenario(name="np", architecture="edge_filtered", backhaul_loss_rate=0.05)
+    assert _make_loss_provider(edge_no_peak) is None
+
+
+def test_loss_provider_peaks_at_congestion_hours():
+    floor, peak = 0.05, 0.5
+    cfg = make_scenario(name="lp", architecture="edge_filtered", backhaul_loss_rate=floor,
+                        backhaul_loss_peak_rate=peak, start_hour=8.0)
+    p = _make_loss_provider(cfg)
+    assert p is not None
+    # start_hour=8 is a congestion peak -> loss near the peak at t=0
+    assert p(0.0) == pytest.approx(peak, abs=1e-6)
+    # mid-afternoon lull (hour 13) -> loss near the floor
+    off = p(5 * 3600.0)
+    assert floor <= off < 0.1
+    # always bounded between floor and peak
+    assert all(floor - 1e-9 <= p(t) <= peak + 1e-9 for t in range(0, 24 * 3600, 1800))
+
+
+def _assert_metrics_invariants(m, arch: str) -> None:
+    assert m.events_generated > 0
+    assert m.events_generated == (m.valid_state_changes + m.heartbeats_generated + m.initial_snapshots_generated + m.duplicate_sends_generated)
+
+    assert m.sensor_to_edge_msgs >= 0
+    assert 0 <= m.sensor_link_dropped <= m.sensor_to_edge_msgs
+    assert m.bytes_s2e_received <= m.sensor_to_edge_bytes
+    if m.sensor_to_edge_delivery_ratio is not None:
+        assert 0.0 <= m.sensor_to_edge_delivery_ratio <= 1.0
+
+    lat = [m.latency_min_ms, m.latency_p50_ms, m.latency_p95_ms, m.latency_p99_ms, m.latency_max_ms]
+    if any(v is not None for v in lat):
+        assert all(v is not None for v in lat), "latency stats should be all-set or all-None"
+        assert m.latency_min_ms <= m.latency_p50_ms <= m.latency_p95_ms <= m.latency_p99_ms <= m.latency_max_ms
+        assert m.latency_min_ms <= m.latency_mean_ms <= m.latency_max_ms
+
+    for r in (m.e2e_unique_delivery_ratio, m.cloud_reflection_ratio, m.physical_delivery_ratio, m.backhaul_delivery_ratio):
+        assert r is None or 0.0 <= r <= 1.0
+
+    assert m.cloud_events_post_dedup == m.cloud_msgs_received_total - m.duplicate_events_at_cloud
+    assert m.cloud_state_changes_reflected >= 0
+
+    if arch == "cloud_only":
+        assert m.aggregation_ratio is None
+        assert m.message_reduction_ratio is None
+    else:
+        assert m.edge_to_cloud_msgs >= 0
+        if m.aggregation_ratio is not None:
+            assert 0.0 < m.aggregation_ratio <= 1.0
+        if m.message_reduction_ratio is not None:
+            assert 0.0 <= m.message_reduction_ratio <= 1.0
+        if m.events_per_cloud_message is not None:
+            assert m.events_per_cloud_message >= 1.0
+
+    json.dumps(m.to_dict())
+
+
+@pytest.mark.parametrize("arch", ARCH)
+@pytest.mark.parametrize("proto", PROTOCOLS)
+def test_full_run_completes_with_valid_metrics(arch, proto):
+    cfg = make_scenario(
+        name=f"smoke_{arch}_{proto}", protocol=proto, architecture=arch,
+        traffic_level="medium", num_spots=25, loss_rate=0.05, backhaul_loss_rate=0.05,
+        sim_duration_s=300.0, seed=SEED, heartbeat_interval_s=120.0
+    )
+    m = run_scenario_sync(cfg)
+    assert m.scenario_name == f"smoke_{arch}_{proto}"
+    assert m.protocol == proto and m.architecture == arch
+    _assert_metrics_invariants(m, arch)
+
+
+def test_edge_architectures_reduce_cloud_load_vs_cloud_only():
+    common = dict(protocol="mqtt", traffic_level="medium", num_spots=40, loss_rate=0.0,
+                  backhaul_loss_rate=0.0, sim_duration_s=600.0, seed=SEED, heartbeat_interval_s=60.0,
+                  anomaly_detection=False)
+    cloud = run_scenario_sync(make_scenario(name="cl", architecture="cloud_only", **common))
+    filt = run_scenario_sync(make_scenario(name="fl", architecture="edge_filtered", **common))
+    agg = run_scenario_sync(make_scenario(name="ag", architecture="edge_aggregated", aggregation_interval=5.0, **common))
+    # both edge variants must put no more load on the cloud than cloud-only
+    assert filt.cloud_msgs_received_total <= cloud.cloud_msgs_received_total
+    assert agg.cloud_msgs_received_total <= cloud.cloud_msgs_received_total
+
+
+def test_lossless_run_delivers_everything_end_to_end():
+    cfg = make_scenario(
+        name="perfect", protocol="mqtt", architecture="edge_filtered", traffic_level="medium",
+        num_spots=30, loss_rate=0.0, backhaul_loss_rate=0.0, sim_duration_s=600.0, seed=SEED,
+        heartbeat_interval_s=1_000_000.0, anomaly_detection=False
+    )
+    m = run_scenario_sync(cfg)
+    # with zero loss every offered frame is delivered on both hops
+    assert m.sensor_to_edge_delivery_ratio == pytest.approx(1.0, abs=1e-9)
+    assert m.backhaul_delivery_ratio == pytest.approx(1.0, abs=1e-9)
+    # every generated state change is reflected at the cloud
+    assert m.e2e_unique_delivery_ratio == pytest.approx(1.0, abs=1e-9)
+    assert m.duplicate_deliveries == 0
+
+
+def test_latency_tail_is_not_capped():
+    """A state change delivered with a very large latency (>> the old 93s cap) must still be recorded, so p99/max reflect the true tail."""
+    cfg = make_scenario(name="taillat", num_spots=2, loss_rate=0.0, sim_duration_s=1.0, seed=SEED)
+    clock = SimClock()
+    cloud = CloudBackend(cfg, clock, epoch=0.0)
+    clock.env.run(until=200.0)  # 200 s of virtual time elapse before arrival
+    cloud.receive_batch(BatchUpdate(edge_id="t", events=[ParkingEvent("s0", 0, SpotState.OCCUPIED, timestamp=0.0, sequence=1)]), b"x")
+    samples = cloud.get_all_latency_samples()
+    assert len(samples) == 1
+    assert samples[0] == pytest.approx(200_000.0, abs=1.0)
+
+
+def test_save_results_writes_loadable_json(tmp_path):
+    cfg = make_scenario(name="persist", protocol="mqtt", architecture="edge_filtered", traffic_level="low", num_spots=10, loss_rate=0.0, sim_duration_s=120.0, seed=SEED)
+    m = run_scenario_sync(cfg)
+    path = save_results(m, str(tmp_path))
+    data = json.loads(open(path).read())
+    assert data["scenario_name"] == "persist"
+    assert data["seed"] == SEED
+    assert "latency_mean_ms" in data
+
+
+def test_predefined_scenarios_are_wellformed():
+    assert len(PREDEFINED_SCENARIOS) > 0
+    names = [s.name for s in PREDEFINED_SCENARIOS]
+    assert len(names) == len(set(names)) 
+    for s in PREDEFINED_SCENARIOS:
+        assert s.protocol in PROTOCOLS
+        assert s.architecture in ARCH
+        assert s.num_spots > 0
+        assert s.arrival_rate > 0
+        assert s.sim_duration_s > 0

@@ -13,6 +13,7 @@ from ..config.constants import compute_lora_airtime_s
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
 ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
 
+_DEFAULT_RNG_SEED = 0x1B2C3D4E
 
 class TokenBucket:
     def __init__(self, rate: float) -> None:
@@ -68,9 +69,6 @@ class GilbertElliotModel:
         self._in_bad = self.rng.random() < pi_bad
         self._bernoulli_rate = 0.0
 
-    @property
-    def in_burst(self) -> bool:
-        return self._in_bad
 
     def should_drop(self) -> bool:
         if not self.burst_enabled:
@@ -149,7 +147,7 @@ class LinkEmulator:
         self._callback = forward_cb
         self._batch_cb: Optional[ForwardBatchCallback] = None
         self.on_drop: Optional[Callable[[], None]] = None
-        self.rng = rng or random.Random(hash(config.packet_loss_rate))
+        self.rng = rng or random.Random(_DEFAULT_RNG_SEED)
         self._wall_clock = wall_clock
 
         _chan_rng = random.Random(self.rng.randint(0, 2**32))
@@ -273,9 +271,6 @@ class LinkEmulator:
         else:
             self.clock.schedule(total_delay, deliver)
 
-    @property
-    def queue_depth(self) -> int:
-        return self._queue.depth
 
     @property
     def overflow_drops(self) -> int:

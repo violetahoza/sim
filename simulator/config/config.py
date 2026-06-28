@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal, Optional
 import yaml
 
-from simulator.config.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES
+from simulator.config.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES, DEFAULT_TOD_FACTORS, SIM_DURATION_S, DEFAULT_AGG_INTERVAL_S, DEFAULT_TIME_SCALE, DEFAULT_GATEWAY_RATE_MSGS_PER_SEC, DEFAULT_CONTENTION_CHANNELS
 
 Protocol = Literal["mqtt", "amqp", "coap"]
 Architecture = Literal["cloud_only", "edge_filtered", "edge_aggregated"]
@@ -15,20 +15,6 @@ MQTTQoS = Literal[0, 1, 2]
 CoAPMode = Literal["CON", "NON"]
 AMQPExchange = Literal["direct", "fanout", "topic"]
 AMQPAckMode = Literal["auto", "manual"]
-
-DEFAULT_TOD_FACTORS: list[float] = [
-    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,  
-    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,  
-    1.70, 1.50, 1.30, 1.50, 1.80, 2.20, 
-    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,  
-]
-
-SIM_DURATION_S = 10_800.0
-DEFAULT_AGG_INTERVAL_S = 1.0
-DEFAULT_TIME_SCALE = 60.0
-
-DEFAULT_GATEWAY_RATE_MSGS_PER_SEC = 8.0
-DEFAULT_CONTENTION_CHANNELS = 3
 
 _SCENARIOS_YAML = Path(__file__).parent / "scenarios.yaml"
 _CUSTOM_SCENARIOS_FILE = Path(__file__).parent.parent / "data" / "custom_scenarios.json"
@@ -491,8 +477,6 @@ def _load_builtin_scenarios() -> list[ScenarioConfig]:
 
 
 PREDEFINED_SCENARIOS: list[ScenarioConfig] = _load_builtin_scenarios()
-SCENARIO_REGISTRY: dict[str, ScenarioConfig] = {s.name: s for s in PREDEFINED_SCENARIOS}
-
 
 def load_custom_scenarios() -> list[ScenarioConfig]:
     if not _CUSTOM_SCENARIOS_FILE.exists():

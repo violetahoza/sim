@@ -107,9 +107,9 @@ class ExperimentRunner:
 
     async def run(self) -> ExperimentMetrics:
         cfg = self.config
-        if self._real_mode:
-            from experiments.run_real import run_real_for_runner
-            return await run_real_for_runner(self, cfg)
+        # if self._real_mode:
+        #     from experiments.run_real import run_real_for_runner
+        #     return await run_real_for_runner(self, cfg)
         return await self._run_simulated(cfg)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
@@ -120,6 +120,9 @@ class ExperimentRunner:
         self._run_id = _make_run_id()
         epoch = 0.0
 
+        _sub = np.random.SeedSequence(seed).spawn(5)
+        (sensor_seed, backend_seed, backhaul_seed, fault_shuffle_seed, fault_inject_seed) = (int(s.generate_state(1)[0]) for s in _sub)
+
         clock = SimClock()
         arrival_rate = cfg.arrival_rate
 
@@ -127,9 +130,9 @@ class ExperimentRunner:
         self._fault_true_spots = set()
         if cfg.faults:
             from simulator.sensors.fault_injector import FaultInjector, FaultSpec, FaultType
-            fi = FaultInjector(rng=random.Random(seed + 9001))
+            fi = FaultInjector(rng=random.Random(fault_inject_seed))
             pool = list(range(cfg.num_spots))
-            random.Random(seed + 9000).shuffle(pool)
+            random.Random(fault_shuffle_seed).shuffle(pool)
             idx = 0
             for spec_dict in cfg.faults:
                 count = int(spec_dict.get("count", 1))
@@ -153,10 +156,10 @@ class ExperimentRunner:
             import json as _json
             cloud.open_run(engine, config_json=_json.dumps(cfg.to_save_dict()))
 
-        backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, seed)
+        backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, backend_seed)
         arch = cfg.architecture
 
-        _sensor_rng = random.Random(seed + 1)
+        _sensor_rng = random.Random(sensor_seed)
 
         if arch == "cloud_only":
             backhaul_link = None
@@ -173,7 +176,7 @@ class ExperimentRunner:
         else:
             _bh_link_cfg = cfg.backhaul_link.to_link_config()
             _bh_link_cfg.packet_loss_rate = 0.0
-            _backhaul_rng = random.Random(seed + 5000)
+            _backhaul_rng = random.Random(backhaul_seed)
             backhaul_link = LinkEmulator(_bh_link_cfg, clock, rng=_backhaul_rng)
             backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
             backhaul_link.set_batch_callback(backend.publish)
@@ -530,11 +533,11 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     loss_provider = _make_loss_provider(cfg)
     proto = cfg.protocol
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     elif proto == "coap":
-        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed + 2, ack_one_way, ack_jitter, downlink_loss, loss_provider)
+        return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     raise ValueError(f"Unknown protocol: {proto}")
 
 

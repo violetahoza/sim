@@ -1,5 +1,4 @@
 (function () {
-  const GRID_DEFAULT = '270px 1fr 300px';
   let leftCollapsed = false;
   let rightCollapsed = false;
 
