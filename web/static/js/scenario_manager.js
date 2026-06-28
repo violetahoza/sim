@@ -297,7 +297,7 @@ function _buildCmpCharts(sel) {
     ],
   }, { ...base,
     plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
-    scales:  { y: { beginAtZero: true, title: { display: true, text: 'ms', color: '#555a72', font: { size: 9 } } } } });
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'ms', color: '#555a72', font: { size: 9 } } } } });
 
   _makeChart('cmpDelChart', 'bar', {
     labels,
@@ -310,7 +310,7 @@ function _buildCmpCharts(sel) {
     }],
   }, { ...base,
     plugins: { legend: { display: false } },
-    scales:  { y: { min: 0, max: 100, title: { display: true, text: '%', color: '#555a72', font: { size: 9 } } } } });
+    scales: { y: { min: 0, max: 100, title: { display: true, text: '%', color: '#555a72', font: { size: 9 } } } } });
 
   const msgDatasets = [
     { label: 'Generated', data: sel.map(r => r.events_generated_total ?? r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
@@ -476,7 +476,7 @@ function _renderMetricRow(m, sel) {
   values.forEach(v => {
     const display = m.fmt(v);
     let cls = '';
-    if (bestVal  !== null && v === bestVal)  cls = 'cmp-best';
+    if (bestVal !== null && v === bestVal)  cls = 'cmp-best';
     else if (worstVal !== null && v === worstVal) cls = 'cmp-worst';
     html += `<div class="cmp-table-cell ${cls}">${display}</div>`;
   });

@@ -23,20 +23,10 @@ logger = logging.getLogger("multiseed")
 DEFAULT_BASE_SEED = 1000
 DEFAULT_NUM_SEEDS = 5
 
-PRIMARY_METRICS = [
-    "latency_mean_ms",
-    "latency_p99_ms",
-    "e2e_unique_delivery_ratio",
-    "message_reduction_ratio",
-    "proto_bytes_sent"
-]
+PRIMARY_METRICS = ["latency_mean_ms", "latency_p99_ms", "e2e_unique_delivery_ratio", "message_reduction_ratio", "proto_bytes_sent"]
 
-DETAIL_COLS = [
-    "protocol", "architecture", "traffic_level", "num_spots", "sim_duration_s",
-    "access_loss", "backhaul_loss", "agg_interval_s",
-    "mqtt_qos", "coap_mode", "amqp_exchange", "amqp_ack", "amqp_durable",
-    "heartbeat_interval_s"
-]
+DETAIL_COLS = ["protocol", "architecture", "traffic_level", "num_spots", "sim_duration_s", "access_loss", "backhaul_loss", "agg_interval_s",
+                "mqtt_qos", "coap_mode", "amqp_exchange",  "amqp_ack", "amqp_durable", "heartbeat_interval_s"]
 
 
 def _all_scenarios(include_custom: bool) -> list[ScenarioConfig]:
@@ -98,7 +88,7 @@ def _scenario_details(cfg: ScenarioConfig) -> dict:
         "amqp_exchange": getattr(getattr(cfg, "amqp", None), "exchange_type", None),
         "amqp_ack": getattr(getattr(cfg, "amqp", None), "ack_mode", None),
         "amqp_durable": getattr(getattr(cfg, "amqp", None), "durable", None),
-        "heartbeat_interval_s": getattr(getattr(cfg, "traffic", None), "heartbeat_interval_s", None),
+        "heartbeat_interval_s": getattr(getattr(cfg, "traffic", None), "heartbeat_interval_s", None)
     }
 
 
@@ -230,9 +220,7 @@ def _write_report_log(path: Path, summary: dict, details: dict, seeds: list[int]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def write_reports(batch_dir: Path, details: dict, seeds: list[int],
-                  timings: list, failures: list, wall: float,
-                  args: argparse.Namespace) -> tuple[dict, Path, Path]:
+def write_reports(batch_dir: Path, details: dict, seeds: list[int], timings: list, failures: list, wall: float, args: argparse.Namespace) -> tuple[dict, Path, Path]:
     agg_dir = batch_dir / "aggregated"
     summary = aggregate(batch_dir, agg_dir)
 

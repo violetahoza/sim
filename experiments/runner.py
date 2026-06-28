@@ -32,10 +32,6 @@ def _r(value: Optional[float], ndigits: int = 2) -> Optional[float]:
     return round(value, ndigits) if value is not None else None
 
 
-def _protocol_seed_offset(protocol: str) -> int:
-    return {"mqtt": 0, "coap": 1000, "amqp": 2000}.get(protocol, 0)
-
-
 def save_results(metrics: ExperimentMetrics, output_dir: str = "results") -> str:
     out = Path(output_dir)
     out.mkdir(exist_ok=True)
@@ -160,7 +156,7 @@ class ExperimentRunner:
         backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, seed)
         arch = cfg.architecture
 
-        _sensor_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol))
+        _sensor_rng = random.Random(seed + 1)
 
         if arch == "cloud_only":
             backhaul_link = None
@@ -177,7 +173,7 @@ class ExperimentRunner:
         else:
             _bh_link_cfg = cfg.backhaul_link.to_link_config()
             _bh_link_cfg.packet_loss_rate = 0.0
-            _backhaul_rng = random.Random(seed + _protocol_seed_offset(cfg.protocol) + 5000)
+            _backhaul_rng = random.Random(seed + 5000)
             backhaul_link = LinkEmulator(_bh_link_cfg, clock, rng=_backhaul_rng)
             backhaul_link.stats = backhaul_link.stats.__class__(name="edge_to_cloud_backhaul")
             backhaul_link.set_batch_callback(backend.publish)

@@ -102,7 +102,7 @@ def make_cfg_from_body(name: str, body: dict) -> ScenarioConfig:
         use_time_of_day = bool(body.get("use_time_of_day", False)),
         start_hour = float(body.get("start_hour", 8.0)),
         initial_occupancy = float(initial_occ_raw) if initial_occ_raw is not None else None,
-        heartbeat_interval_s=heartbeat_interval_s,
+        heartbeat_interval_s=heartbeat_interval_s
     )
 
 async def run_simulation(cfg: ScenarioConfig) -> None:

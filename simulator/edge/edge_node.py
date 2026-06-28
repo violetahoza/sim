@@ -108,11 +108,7 @@ class EdgeNode:
 
         if event.is_heartbeat_event:
             hb_forward_interval = self.edge_cfg.heartbeat_forward_interval_s
-            hb_due = (
-                hb_forward_interval <= 0
-                or cached.last_heartbeat_forwarded_timestamp == 0.0
-                or (event.timestamp - cached.last_heartbeat_forwarded_timestamp) >= hb_forward_interval
-            )
+            hb_due = (hb_forward_interval <= 0 or cached.last_heartbeat_forwarded_timestamp == 0.0 or (event.timestamp - cached.last_heartbeat_forwarded_timestamp) >= hb_forward_interval)
             if not hb_due:
                 cached.last_updated = event.timestamp
                 self.filtered_count += 1

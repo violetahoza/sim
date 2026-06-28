@@ -92,9 +92,7 @@
     const stripped = toSend.map(r => { const c = {...r}; delete c.latency_samples; return c; });
 
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Thinking…'; }
-    const thinkingLabel = stripped.length === 1
-      ? `Analysing “${stripped[0].scenario_name || 'this run'}”…`
-      : `Analysing ${stripped.length} runs…`;
+    const thinkingLabel = stripped.length === 1 ? `Analysing “${stripped[0].scenario_name || 'this run'}”…` : `Analysing ${stripped.length} runs…`;
     _setModalOutput(`<div class="ai-thinking"><span class="ai-spinner"></span> ${thinkingLabel}</div>`);
 
     try {

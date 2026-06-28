@@ -8,7 +8,7 @@ from ..models.models import ParkingEvent, BatchUpdate, LinkStats
 from ..config.config import LinkConfig
 from ..des.engine import SimClock
 from ..utils import encode_event
-from ..config.constants import compute_lora_airtime_s, LORAWAN_OVERHEAD_BYTES
+from ..config.constants import compute_lora_airtime_s
 
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
 ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]

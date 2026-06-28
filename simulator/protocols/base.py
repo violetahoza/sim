@@ -22,8 +22,8 @@ class ProtocolBackend(abc.ABC):
         """
 
 
-    async def start(self) -> None:
-        """Connect to broker and start consuming."""
+    # async def start(self) -> None:
+    #     """Connect to broker and start consuming."""
 
-    async def stop(self) -> None:
-        """Disconnect cleanly."""
+    # async def stop(self) -> None:
+    #     """Disconnect cleanly."""

@@ -14,8 +14,7 @@ class TrafficModel:
     MIN_DWELL_S: float = 30.0
     MAX_DWELL_S: float = 43_200.0
 
-    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None],
-                epoch: float, rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
+    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None], epoch: float, rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
         self.num_spots = config.num_spots
@@ -97,14 +96,7 @@ class TrafficModel:
             if is_occ:
                 n_initial += 1
                 ts = self._make_timestamp(0.0)
-                event = ParkingEvent(
-                    sensor_id=f"sensor_{spot_id:04d}",
-                    spot_id=spot_id,
-                    state=SpotState.OCCUPIED,
-                    timestamp=ts,
-                    sequence=spot_id + 1,
-                    is_initial=True
-                )
+                event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=spot_id + 1, is_initial=True)
                 self.event_cb(event)
                 residual = self.rng.uniform(0.0, self.mean_duration)
                 dep_t = min(residual, duration_s - 1.0)
