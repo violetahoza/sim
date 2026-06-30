@@ -29,6 +29,7 @@ class TrafficModel:
         self.occupied: dict[int, bool] = {i: self.rng.random() < config.initial_occupancy for i in range(self.num_spots)}
         self._end_time: float = 0.0
         self._seq: int = 0
+        self._waiting: list[float] = []
 
     def _next_seq(self) -> int:
         self._seq += 1
@@ -120,22 +121,26 @@ class TrafficModel:
         if next_t < self._end_time:
             self.clock.schedule_at(next_t, lambda t=next_t: self._on_arrival(t))
 
+    def _occupy_spot(self, spot_id: int, virtual_time: float) -> None:
+        self.occupied[spot_id] = True
+
+        ts = self._make_timestamp(virtual_time)
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq(), is_initial=False)
+        self.event_cb(event)
+
+        self._maybe_schedule_duplicate(spot_id, SpotState.OCCUPIED, virtual_time)
+
+        dwell = self._sample_dwell()
+        dep_t = virtual_time + dwell
+        self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
+
     def _on_arrival(self, virtual_time: float) -> None:
         free = self._free_spots()
         if free:
             spot_id = self.rng.choice(free)
-            self.occupied[spot_id] = True
-
-            ts = self._make_timestamp(virtual_time)
-            event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=SpotState.OCCUPIED, timestamp=ts, sequence=self._next_seq(), is_initial=False)
-            self.event_cb(event)
-
-            self._maybe_schedule_duplicate(spot_id, SpotState.OCCUPIED, virtual_time)
-
-            dwell = self._sample_dwell()
-            dep_t = virtual_time + dwell
-            self.clock.schedule_at(dep_t, lambda s=spot_id, t=dep_t: self._on_departure(s, t))
-
+            self._occupy_spot(spot_id, virtual_time)
+        else:
+            self._waiting.append(virtual_time)
         self._schedule_next_arrival(virtual_time)
 
     def _on_departure(self, spot_id: int, virtual_time: float) -> None:
@@ -148,13 +153,17 @@ class TrafficModel:
         self.event_cb(event)
         self._maybe_schedule_duplicate(spot_id, SpotState.FREE, virtual_time)
 
+        if self._waiting:
+            self._waiting.pop(0)
+            self._occupy_spot(spot_id, virtual_time)
+
+
     def _heartbeat_spot(self, spot_id: int, virtual_time: float) -> None:
         if virtual_time >= self._end_time:
             return
         state = SpotState.OCCUPIED if self.occupied.get(spot_id, False) else SpotState.FREE
         ts = self._make_timestamp(virtual_time)
-        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts,
-                             sequence=self._next_seq(), is_initial=False, is_heartbeat_event=True)
+        event = ParkingEvent(sensor_id=f"sensor_{spot_id:04d}", spot_id=spot_id, state=state, timestamp=ts, sequence=self._next_seq(), is_initial=False, is_heartbeat_event=True)
         self.event_cb(event)
         next_t = virtual_time + self.config.heartbeat_interval_s
         if next_t < self._end_time:

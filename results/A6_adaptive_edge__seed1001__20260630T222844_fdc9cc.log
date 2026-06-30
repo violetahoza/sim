@@ -1,0 +1,119 @@
+Scenario Log: A6_adaptive_edge
+Architecture: edge_aggregated   Protocol: mqtt
+Traffic: peak   Spots: 500   Duration: 86400s
+========================================================================
+
+SUMMARY
+  Anomalies detected    : 0
+  Anomalies resolved    : 0
+  Active at end         : 0
+  Affected spots        : 0
+  Quarantined at end    : 0
+  Quarantine suppressed : 0
+  Heartbeats suppressed : 30358
+  Adaptive mode switches: 4
+
+EVENT LOG
+  t_virtual(s)  event                   detail
+------------------------------------------------------------------------
+         180.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.856 < 90% delta_sent=12 delta_recv=12 agg_interval=5.0→10.0s
+         270.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.877 < 90% delta_sent=9 delta_recv=9 agg_interval=10.0→20.0s
+         360.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.896 < 90% delta_sent=9 delta_recv=9 agg_interval=20.0→40.0s
+         480.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.881 < 90% delta_sent=10 delta_recv=8 agg_interval=40.0→60.0s
+         600.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.899 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+        1080.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.863 < 90% delta_sent=8 delta_recv=5 agg_interval=60.0→60.0s
+        1230.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.839 < 90% delta_sent=10 delta_recv=7 agg_interval=60.0→60.0s
+        1350.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.825 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+        1470.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.814 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+        1620.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.842 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+        1770.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.866 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+        1890.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.848 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+        2040.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.834 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+        2160.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.821 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+        2280.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.831 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+        2400.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.838 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+        2520.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.829 < 90% delta_sent=9 delta_recv=7 agg_interval=60.0→60.0s
+        2640.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.836 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+        2790.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.830 < 90% delta_sent=10 delta_recv=8 agg_interval=60.0→60.0s
+        2910.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.856 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+        3030.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.821 < 90% delta_sent=8 delta_recv=5 agg_interval=60.0→60.0s
+        3180.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.831 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+        3330.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.812 < 90% delta_sent=10 delta_recv=7 agg_interval=60.0→60.0s
+        3450.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.807 < 90% delta_sent=9 delta_recv=7 agg_interval=60.0→60.0s
+        3570.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.802 < 90% delta_sent=9 delta_recv=7 agg_interval=60.0→60.0s
+        3690.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.799 < 90% delta_sent=9 delta_recv=7 agg_interval=60.0→60.0s
+       13350.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.923 >= 92% delta_sent=9 delta_recv=9
+       13470.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.897 < 90% delta_sent=12 delta_recv=9 agg_interval=5.0→10.0s
+       14100.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.899 < 90% delta_sent=8 delta_recv=7 agg_interval=10.0→20.0s
+       14310.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.890 < 90% delta_sent=8 delta_recv=6 agg_interval=20.0→40.0s
+       15000.0  AGG_WINDOW_DECREASE     DR=0.923 healthy, agg_interval=40.0→20.0s
+       15330.0  AGG_WINDOW_DECREASE     DR=0.929 healthy, agg_interval=20.0→10.0s
+       15420.0  AGG_WINDOW_DECREASE     DR=0.939 healthy, agg_interval=10.0→5.0s
+       15750.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.896 < 90% delta_sent=10 delta_recv=8 agg_interval=5.0→10.0s
+       15840.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.895 < 90% delta_sent=9 delta_recv=8 agg_interval=10.0→20.0s
+       16140.0  AGG_WINDOW_DECREASE     DR=0.921 healthy, agg_interval=20.0→10.0s
+       16230.0  AGG_WINDOW_DECREASE     DR=0.933 healthy, agg_interval=10.0→5.0s
+       16710.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.892 < 90% delta_sent=8 delta_recv=6 agg_interval=5.0→10.0s
+       16890.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.885 < 90% delta_sent=8 delta_recv=6 agg_interval=10.0→20.0s
+       17280.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.866 < 90% delta_sent=9 delta_recv=6 agg_interval=20.0→40.0s
+       17460.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.871 < 90% delta_sent=10 delta_recv=9 agg_interval=40.0→60.0s
+       17610.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.874 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       17760.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.893 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       17880.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.892 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       18150.0  AGG_WINDOW_DECREASE     DR=0.922 healthy, agg_interval=60.0→30.0s
+       18240.0  AGG_WINDOW_DECREASE     DR=0.934 healthy, agg_interval=30.0→15.0s
+       18360.0  AGG_WINDOW_DECREASE     DR=0.944 healthy, agg_interval=15.0→7.5s
+       18450.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.896 < 90% delta_sent=8 delta_recv=5 agg_interval=7.5→15.0s
+       18810.0  AGG_WINDOW_DECREASE     DR=0.920 healthy, agg_interval=15.0→7.5s
+       18900.0  AGG_WINDOW_DECREASE     DR=0.932 healthy, agg_interval=7.5→5.0s
+       31830.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.885 < 90% delta_sent=12 delta_recv=9 agg_interval=5.0→10.0s
+       32130.0  AGG_WINDOW_DECREASE     DR=0.930 healthy, agg_interval=10.0→5.0s
+       34080.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.884 < 90% delta_sent=11 delta_recv=8 agg_interval=5.0→10.0s
+       34170.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.864 < 90% delta_sent=8 delta_recv=6 agg_interval=10.0→20.0s
+       34290.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.865 < 90% delta_sent=8 delta_recv=7 agg_interval=20.0→40.0s
+       34410.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.848 < 90% delta_sent=8 delta_recv=6 agg_interval=40.0→60.0s
+       34560.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.838 < 90% delta_sent=9 delta_recv=7 agg_interval=60.0→60.0s
+       34680.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.862 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       34800.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.883 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+       34950.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.884 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       35370.0  AGG_WINDOW_DECREASE     DR=0.928 healthy, agg_interval=60.0→30.0s
+       35490.0  AGG_WINDOW_DECREASE     DR=0.939 healthy, agg_interval=30.0→15.0s
+       35580.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.892 < 90% delta_sent=8 delta_recv=5 agg_interval=15.0→30.0s
+       35700.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.852 < 90% delta_sent=8 delta_recv=5 agg_interval=30.0→60.0s
+       35850.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.874 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+       35970.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.856 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+       36120.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.877 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       36240.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.877 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+       36390.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.879 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       36510.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.878 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+       36630.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.846 < 90% delta_sent=9 delta_recv=6 agg_interval=60.0→60.0s
+       36780.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.832 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+       36900.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.857 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       37020.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.862 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       37140.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.883 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       37260.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.884 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       37380.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.882 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+       37530.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.883 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       37650.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.811 < 90% delta_sent=10 delta_recv=4 agg_interval=60.0→60.0s
+       37770.0  MODE_SWITCH             aggregated→filtered backhaul_window_DR=0.794 < 90% delta_sent=10 delta_recv=7 agg_interval=60.0→60.0s
+       50100.0  MODE_SWITCH             filtered→aggregated backhaul_window_DR=0.925 >= 92% delta_sent=11 delta_recv=11
+       51000.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.886 < 90% delta_sent=12 delta_recv=9 agg_interval=5.0→10.0s
+       51090.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.870 < 90% delta_sent=9 delta_recv=7 agg_interval=10.0→20.0s
+       51210.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.890 < 90% delta_sent=8 delta_recv=8 agg_interval=20.0→40.0s
+       51330.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.890 < 90% delta_sent=9 delta_recv=8 agg_interval=40.0→60.0s
+       51450.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.889 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       51690.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.883 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+       51840.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.881 < 90% delta_sent=8 delta_recv=7 agg_interval=60.0→60.0s
+       51990.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.899 < 90% delta_sent=9 delta_recv=9 agg_interval=60.0→60.0s
+       52110.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.848 < 90% delta_sent=9 delta_recv=5 agg_interval=60.0→60.0s
+       52260.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.871 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       52380.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.890 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       52500.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.890 < 90% delta_sent=9 delta_recv=8 agg_interval=60.0→60.0s
+       52620.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.869 < 90% delta_sent=8 delta_recv=6 agg_interval=60.0→60.0s
+       52740.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.889 < 90% delta_sent=8 delta_recv=8 agg_interval=60.0→60.0s
+       53250.0  AGG_WINDOW_DECREASE     DR=0.928 healthy, agg_interval=60.0→30.0s
+       53400.0  AGG_WINDOW_DECREASE     DR=0.938 healthy, agg_interval=30.0→15.0s
+       53490.0  AGG_WINDOW_DECREASE     DR=0.948 healthy, agg_interval=15.0→7.5s
+       53610.0  AGG_WINDOW_DECREASE     DR=0.956 healthy, agg_interval=7.5→5.0s
+       85800.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.872 < 90% delta_sent=10 delta_recv=7 agg_interval=5.0→10.0s
+       85920.0  AGG_WINDOW_INCREASE     backhaul_window_DR=0.891 < 90% delta_sent=10 delta_recv=10 agg_interval=10.0→20.0s
