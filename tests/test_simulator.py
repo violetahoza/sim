@@ -722,7 +722,7 @@ def test_traffic_arrivals_and_departures_are_generated():
     assert all(0.0 <= e.timestamp <= 1800.0 for e in events)
 
 
-def test_full_lot_arrivals_wait_for_a_free_spot():
+def test_full_lot_suspends_arrivals_until_a_departure():
     cfg = TrafficConfig(num_spots=3, random_seed=SEED, initial_occupancy=1.0, heartbeat_interval_s=0.0, duplicate_send_prob=0.0, use_dwell_mixture=False, parking_duration_cv=0.0, mean_parking_duration_s=120.0)
     clock = SimClock()
     events: list[ParkingEvent] = []
@@ -732,13 +732,19 @@ def test_full_lot_arrivals_wait_for_a_free_spot():
 
     non_initial = [e for e in events if not e.is_initial]
     assert any(e.state == SpotState.OCCUPIED for e in non_initial)
-    assert len(tm._waiting) > 0
+    assert any(e.state == SpotState.FREE for e in non_initial)
 
-    occ = sum(1 for v in tm.occupied.values() if v) - 0  # current end-state unused
     occ = cfg.num_spots  # lot started full
+    reached_full = True
     for e in sorted(non_initial, key=lambda x: (x.timestamp, x.sequence)):
-        occ += 1 if e.state == SpotState.OCCUPIED else -1
+        if e.state == SpotState.OCCUPIED:
+            assert occ < cfg.num_spots  # no arrival while full -> generation was suspended
+            occ += 1
+            reached_full = reached_full or occ == cfg.num_spots
+        else:
+            occ -= 1
         assert 0 <= occ <= cfg.num_spots
+    assert reached_full
 
 def test_loss_provider_none_for_cloud_only_or_no_peak():
     assert _make_loss_provider(make_scenario(name="co", architecture="cloud_only")) is None

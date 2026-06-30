@@ -29,7 +29,7 @@ class TrafficModel:
         self.occupied: dict[int, bool] = {i: self.rng.random() < config.initial_occupancy for i in range(self.num_spots)}
         self._end_time: float = 0.0
         self._seq: int = 0
-        self._waiting: list[float] = []
+        self._arrivals_suspended: bool = False
 
     def _next_seq(self) -> int:
         self._seq += 1
@@ -139,9 +139,9 @@ class TrafficModel:
         if free:
             spot_id = self.rng.choice(free)
             self._occupy_spot(spot_id, virtual_time)
+            self._schedule_next_arrival(virtual_time)
         else:
-            self._waiting.append(virtual_time)
-        self._schedule_next_arrival(virtual_time)
+            self._arrivals_suspended = True
 
     def _on_departure(self, spot_id: int, virtual_time: float) -> None:
         if not self.occupied.get(spot_id, False):
@@ -153,9 +153,9 @@ class TrafficModel:
         self.event_cb(event)
         self._maybe_schedule_duplicate(spot_id, SpotState.FREE, virtual_time)
 
-        if self._waiting:
-            self._waiting.pop(0)
-            self._occupy_spot(spot_id, virtual_time)
+        if self._arrivals_suspended:
+            self._arrivals_suspended = False
+            self._schedule_next_arrival(virtual_time)
 
 
     def _heartbeat_spot(self, spot_id: int, virtual_time: float) -> None:
