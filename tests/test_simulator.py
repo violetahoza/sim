@@ -688,6 +688,40 @@ def test_tod_factor_flat_when_disabled_varies_when_enabled():
     assert all(f >= 0.001 for f in factors)
 
 
+def test_lambda_max_is_valid_majorant_for_thinning():
+    tm, _, _ = _traffic(use_time_of_day=True, start_hour=0.0)
+    grid = [h * 3600.0 / 4 for h in range(24 * 4)]  # 15-minute resolution across a day
+    lam_max = tm._compute_lambda_max()
+    assert all(tm._rate_at(t) <= lam_max + 1e-12 for t in grid)
+
+    flat, _, _ = _traffic(use_time_of_day=False)
+    assert flat._compute_lambda_max() == pytest.approx(flat.arrival_rate)
+
+
+def test_nhpp_arrivals_concentrate_in_high_rate_hours():
+    cfg = TrafficConfig(
+        num_spots=300, random_seed=SEED, initial_occupancy=0.0,
+        use_time_of_day=True, start_hour=0.0, heartbeat_interval_s=0.0,
+        duplicate_send_prob=0.0,
+    )
+    clock = SimClock()
+    events: list[ParkingEvent] = []
+    tm = TrafficModel(cfg, arrival_rate=0.02, clock=clock, event_cb=events.append, epoch=0.0)
+    duration = 10 * 24 * 3600.0  # 10 simulated days
+    tm.schedule_run(duration)
+    clock.env.run(until=duration)
+
+    arrivals = [e for e in events if not e.is_initial and e.state == SpotState.OCCUPIED]
+    assert len(arrivals) > 500  # sanity: enough samples for a stable comparison
+
+    counts = [0] * 24
+    for e in arrivals:
+        counts[int((e.timestamp / 3600.0) % 24.0)] += 1
+
+    # hour 8 has the highest configured tod_factor (2.00), hour 1 the lowest (0.03)
+    assert counts[8] > counts[1] * 10  # arrival density should clearly track lambda(t)
+
+
 def test_schedule_run_emits_initial_snapshots_for_occupied_spots():
     tm, clock, events = _traffic(num_spots=30, initial_occupancy=1.0, heartbeat_interval_s=0.0)
     tm.schedule_run(duration_s=1.0)

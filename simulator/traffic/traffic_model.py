@@ -30,6 +30,7 @@ class TrafficModel:
         self._end_time: float = 0.0
         self._seq: int = 0
         self._arrivals_suspended: bool = False
+        self._lambda_max: float = self._compute_lambda_max()
 
     def _next_seq(self) -> int:
         self._seq += 1
@@ -83,6 +84,16 @@ class TrafficModel:
         f1 = self._tod_factors[(h + 1) % 24]
         return max(f0 + frac * (f1 - f0), 0.001)
 
+    def _rate_at(self, virtual_s: float) -> float:
+        return max(self.arrival_rate * self._tod_factor(virtual_s), 1e-9)
+
+    def _compute_lambda_max(self) -> float:
+        # Linear interpolation between hourly buckets never exceeds the max
+        # bucket value, so this is a valid majorant for the thinning algorithm.
+        if not self.config.use_time_of_day:
+            return max(self.arrival_rate, 1e-9)
+        return max(self.arrival_rate * max(self._tod_factors), 1e-9)
+
     def _make_timestamp(self, virtual_time: float) -> float:
         if self._wall_clock:
             return _time_module.time()
@@ -114,12 +125,19 @@ class TrafficModel:
                 self.clock.schedule_at(offset, lambda s=spot_id, t=offset: self._heartbeat_spot(s, t))
 
     def _schedule_next_arrival(self, from_time: float) -> None:
-        tod = self._tod_factor(from_time)
-        rate = max(self.arrival_rate * tod, 1e-9)
-        inter_arrival = self.rng.expovariate(rate)
-        next_t = from_time + inter_arrival
-        if next_t < self._end_time:
-            self.clock.schedule_at(next_t, lambda t=next_t: self._on_arrival(t))
+        # Ogata's thinning algorithm for a non-homogeneous Poisson process:
+        # draw candidates from a homogeneous process at the peak rate
+        # (lambda_max) and accept each one with probability lambda(t)/lambda_max,
+        # which yields exactly the target arrival rate at every instant t
+        # rather than only approximating it between events.
+        t = from_time
+        while t < self._end_time:
+            t += self.rng.expovariate(self._lambda_max)
+            if t >= self._end_time:
+                return
+            if self.rng.random() < self._rate_at(t) / self._lambda_max:
+                self.clock.schedule_at(t, lambda tt=t: self._on_arrival(tt))
+                return
 
     def _occupy_spot(self, spot_id: int, virtual_time: float) -> None:
         self.occupied[spot_id] = True
