@@ -21,7 +21,7 @@ class SimClock:
     def schedule_at(self, t: float, cb: Callable[[], None]) -> None:
         self.schedule(max(0.0, t - self.env.now), cb)
 
-    async def run_until_async(self, end_time: float, progress_cb=None, cancelled_cb=None, steps: int = 50, real_mode: bool = False, time_scale: float = 1.0) -> None:
+    async def run_until_async(self, end_time: float, progress_cb=None, cancelled_cb=None, steps: int = 50) -> None:
         slice_size = end_time / max(steps, 1)
         next_stop = slice_size
 
@@ -36,5 +36,4 @@ class SimClock:
                 progress_cb(self.env.now, end_time)
 
             next_stop += slice_size
-            sleep_s = slice_size / time_scale if real_mode else 0.05
-            await asyncio.sleep(sleep_s)
+            await asyncio.sleep(0.05)

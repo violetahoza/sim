@@ -13,10 +13,9 @@ SensorCallback = Callable[[ParkingEvent], None]
 
 class SensorEmulator:
 
-    def __init__(self, config: TrafficConfig, arrival_rate: float, wall_clock: bool = False) -> None:
+    def __init__(self, config: TrafficConfig, arrival_rate: float) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
-        self._wall_clock = wall_clock
         self.num_spots = config.num_spots
         self._sensor_states: dict[int, SensorState] = {i: SensorState(spot_id=i) for i in range(self.num_spots)}
         self._callbacks: list[SensorCallback] = []
@@ -25,6 +24,7 @@ class SensorEmulator:
         self._heartbeats_generated: int = 0
         self._initial_snapshots_generated: int = 0
         self._duplicate_sends_generated: int = 0
+        self._transition_ids: set[tuple[int, int]] = set()
         self._fault_injector: FaultInjector | None = None
 
     def set_fault_injector(self, fi: FaultInjector | None) -> None:
@@ -34,7 +34,7 @@ class SensorEmulator:
         self._callbacks.append(cb)
 
     def schedule_run(self, clock: SimClock, duration_s: float, epoch: float) -> None:
-        traffic = TrafficModel(self.config, self.arrival_rate, clock, self._on_event, epoch, wall_clock=self._wall_clock)
+        traffic = TrafficModel(self.config, self.arrival_rate, clock, self._on_event, epoch)
         traffic.schedule_run(duration_s)
 
     @property
@@ -56,6 +56,10 @@ class SensorEmulator:
     @property
     def duplicate_sends_generated(self) -> int:
         return self._duplicate_sends_generated
+    
+    @property
+    def transition_ids(self) -> set[tuple[int, int]]:
+        return self._transition_ids
 
     def occupancy_snapshot(self) -> dict:
         total = self.num_spots
@@ -89,6 +93,7 @@ class SensorEmulator:
 
         if is_transition:
             self._state_changes_generated += 1
+            self._transition_ids.add((event.spot_id, event.sequence))
         elif is_heartbeat:
             self._heartbeats_generated += 1
         elif is_initial_snapshot:

@@ -39,10 +39,8 @@ def _edge_scn(name: str, **kw):
 def test_workload_identity_partition():
     cfg = make_scenario(name="t_identity", protocol="mqtt", architecture="edge_filtered", traffic_level="medium", num_spots=100, loss_rate=0.0, backhaul_loss_rate=0.05, sim_duration_s=3600.0, seed=SEED, anomaly_detection=False)
     m = run_scenario_sync(cfg)
-    assert m.events_generated_total > 0
-    assert m.events_generated_total == (m.state_changes_generated_total + m.heartbeats_generated_total + m.initial_snapshots_generated_total + m.duplicate_sends_generated_total)
-    assert m.events_generated_total == m.events_generated
-    assert m.state_changes_generated_total == m.valid_state_changes
+    assert m.events_generated > 0
+    assert m.events_generated == (m.valid_state_changes + m.heartbeats_generated + m.initial_snapshots_generated + m.duplicate_sends_generated)
 
 
 def test_reliability_ordering_mqtt_qos():

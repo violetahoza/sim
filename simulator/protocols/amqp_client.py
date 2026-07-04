@@ -7,11 +7,9 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import AMQPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.config.constants import (AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST,
-    AMQP_DURABLE_PROPERTY, AMQP_ACK_FRAME, TCP_TRANSPORT_OVERHEAD)
+from simulator.config.constants import AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST, AMQP_DURABLE_PROPERTY, AMQP_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
-
 class SimulatedAMQPBackend(ProtocolBackend):
 
     def __init__(self, config: AMQPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.01, seed: int = 0, ack_one_way_delay_s: float = 0.030, 
@@ -107,17 +105,23 @@ class SimulatedAMQPBackend(ProtocolBackend):
             else:
                 self._requeue(batch, payload, msg_id, attempt)
             return
-        
-        self.bytes_sent += AMQP_ACK_FRAME
-        if self.config.ack_mode == "auto":
+
+        def arrival() -> None:
+            self.bytes_sent += AMQP_ACK_WIRE_BYTES
             self._release(batch, payload, msg_id)
-            return
+            if self.config.ack_mode == "auto":
+                return
 
-        def consumer_ack() -> None:
-            if self._downlink_drop():
-                self._requeue(batch, payload, msg_id, attempt)
-            else:
-                self.bytes_sent += AMQP_ACK_FRAME
-                self._release(batch, payload, msg_id)
+            def consumer_ack() -> None:
+                if self._downlink_drop():
+                    self._requeue(batch, payload, msg_id, attempt)
+                else:
+                    self.bytes_sent += AMQP_ACK_WIRE_BYTES
 
-        self.clock.schedule(self._ack_delay(), consumer_ack)
+            self.clock.schedule(self._ack_delay(), consumer_ack)
+
+        if attempt > 0:
+            # A redelivery re-crosses the backhaul before it arrives.
+            self.clock.schedule(self._ack_delay(), arrival)
+        else:
+            arrival()

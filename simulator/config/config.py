@@ -125,9 +125,10 @@ class CoAPConfig:
     port: int = 5683
     mode: CoAPMode = "CON"
     resource: str = "parking/update"
-    max_retransmit: int = 4  
-    ack_timeout_s: float = 2.0  
-    ack_random_factor: float = 1.5 
+    max_retransmit: int = 4
+    ack_timeout_s: float = 2.0
+    ack_random_factor: float = 1.5
+    nstart: int = 1
 
 
 @dataclass
@@ -143,7 +144,7 @@ class TrafficConfig:
     start_hour: float = 8.0
     tod_factors: list[float] = field(default_factory=lambda: list(DEFAULT_TOD_FACTORS))
     use_dwell_mixture: bool = True
-    heartbeat_interval_s: float = 60.0
+    heartbeat_interval_s: float = 900.0
     duplicate_send_prob: float = 0.05
 
 
@@ -221,6 +222,7 @@ class ScenarioConfig:
             "coap_max_retransmit": coap["max_retransmit"],
             "coap_ack_timeout_s": coap["ack_timeout_s"],
             "coap_ack_random_factor": coap["ack_random_factor"],
+            "coap_nstart": coap["nstart"],
             "amqp_exchange": amqp["exchange_type"],
             "amqp_ack": amqp["ack_mode"],
             "amqp_durable": amqp["durable"],
@@ -274,6 +276,7 @@ class ScenarioConfig:
             coap_max_retransmit=d.get("coap_max_retransmit", 4),
             coap_ack_timeout_s=d.get("coap_ack_timeout_s", 2.0),
             coap_ack_random_factor=d.get("coap_ack_random_factor", 1.5),
+            coap_nstart=d.get("coap_nstart", 1),
             amqp_exchange=d.get("amqp_exchange", "direct"),
             amqp_ack=d.get("amqp_ack", "manual"),
             amqp_durable=d.get("amqp_durable", True),
@@ -345,6 +348,7 @@ def make_scenario(
     coap_max_retransmit: int = 4,
     coap_ack_timeout_s: float = 2.0,
     coap_ack_random_factor: float = 1.5,
+    coap_nstart: int = 1,
     amqp_exchange: AMQPExchange = "direct",
     amqp_ack: AMQPAckMode = "manual",
     amqp_durable: bool = True,
@@ -460,6 +464,7 @@ def make_scenario(
             max_retransmit=coap_max_retransmit,
             ack_timeout_s=coap_ack_timeout_s,
             ack_random_factor=coap_ack_random_factor,
+            nstart=coap_nstart
         ),
         traffic=traffic, random_seed=seed,
         group=group, group_order=group_order, is_builtin=is_builtin,

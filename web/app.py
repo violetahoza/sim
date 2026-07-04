@@ -45,7 +45,7 @@ async def _startup() -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 def start() -> None:
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="warning")

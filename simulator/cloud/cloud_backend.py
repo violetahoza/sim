@@ -27,10 +27,11 @@ class CloudBackend:
         self.received_batches = 0
         self.received_events = 0
         self.transitions_received = 0
+        self.stale_events_ignored = 0
 
         self._latency_state_change_ms: list[float] = []
         self._applied_ids: set[tuple[int, int]] = set()
-        self._max_ts: dict[int, float] = {} 
+        self._max_ts: dict[int, float] = {}
         self.duplicate_events_at_cloud: int = 0
         self._event_rows: list[tuple] = []
 
@@ -64,6 +65,10 @@ class CloudBackend:
         is_fresh = prev_ts is None or event.timestamp >= prev_ts
         if is_fresh:
             self._max_ts[event.spot_id] = event.timestamp
+        else:
+            self.stale_events_ignored += 1
+            self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
+            return
 
         state_val = (event.state.value if isinstance(event.state, SpotState) else str(event.state))
         is_real = (not event.is_initial) and (not event.is_heartbeat_event)
@@ -79,7 +84,7 @@ class CloudBackend:
                 self.transitions_received += 1
                 applied_state_change = True
 
-        if applied_state_change and is_fresh:
+        if applied_state_change:
             self._latency_state_change_ms.append(latency_ms)
 
         self._event_rows.append((event.spot_id, event.sequence, event.timestamp, arrival, latency_ms))
@@ -176,6 +181,9 @@ class CloudBackend:
             if (self._spots.get(sid) or {}).get("state") == true_state
         )
         return match / len(ground_truth)
+
+    def count_delivered(self, ids: set[tuple[int, int]]) -> int:
+        return len(self._applied_ids & ids)
 
     def get_all_latency_samples(self) -> list[float]:
         return self._latency_state_change_ms

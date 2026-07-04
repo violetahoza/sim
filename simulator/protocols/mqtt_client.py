@@ -7,7 +7,7 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import MQTTConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.config.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_BYTES, TCP_TRANSPORT_OVERHEAD
+from simulator.config.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
 
@@ -131,43 +131,53 @@ class SimulatedMQTTBackend(ProtocolBackend):
         if self._uplink_drop():
             self._retry_publish(batch, payload, msg_id, qos, attempt)
             return
-        
-        if qos == 0:
-            self._deliver(batch, payload, msg_id)
-            return
-        if qos == 1:
-            self._deliver(batch, payload, msg_id)
 
-            def puback() -> None:
+        def arrival() -> None:
+            if qos == 0:
+                self._deliver(batch, payload, msg_id)
+                return
+            if qos == 1:
+                self._deliver(batch, payload, msg_id)
+
+                def puback() -> None:
+                    if self._downlink_drop():
+                        self._retry_publish(batch, payload, msg_id, qos, attempt)
+                    else:
+                        self.bytes_sent += MQTT_ACK_WIRE_BYTES
+
+                self.clock.schedule(self._ack_delay(), puback)
+                return
+
+            def pubrec() -> None:
                 if self._downlink_drop():
                     self._retry_publish(batch, payload, msg_id, qos, attempt)
-                else:
-                    self.bytes_sent += MQTT_ACK_BYTES
+                    return
+                self.bytes_sent += MQTT_ACK_WIRE_BYTES
+                self._send_pubrel(batch, payload, msg_id, attempt=0)
 
-            self.clock.schedule(self._ack_delay(), puback)
-            return
+            self.clock.schedule(self._ack_delay(), pubrec)
 
-        def pubrec() -> None:
-            if self._downlink_drop():
-                self._retry_publish(batch, payload, msg_id, qos, attempt)
-                return
-            self.bytes_sent += MQTT_ACK_BYTES
-            self._send_pubrel(batch, payload, msg_id, attempt=0)
-
-        self.clock.schedule(self._ack_delay(), pubrec)
+        if attempt > 0:
+            self.clock.schedule(self._ack_delay(), arrival)
+        else:
+            arrival()
 
     def _send_pubrel(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int) -> None:
-        self.bytes_sent += MQTT_ACK_BYTES
+        self.bytes_sent += MQTT_ACK_WIRE_BYTES
 
         if self._uplink_drop():
             self._retry_pubrel(batch, payload, msg_id, attempt)
             return
-        
-        def pubcomp() -> None:
-            if self._downlink_drop():
-                self._retry_pubrel(batch, payload, msg_id, attempt)
-                return
-            self.bytes_sent += MQTT_ACK_BYTES
+
+        def arrival() -> None:
             self._release(batch, payload, msg_id)
 
-        self.clock.schedule(self._ack_delay(), pubcomp)
+            def pubcomp() -> None:
+                if self._downlink_drop():
+                    self._retry_pubrel(batch, payload, msg_id, attempt)
+                    return
+                self.bytes_sent += MQTT_ACK_WIRE_BYTES
+
+            self.clock.schedule(self._ack_delay(), pubcomp)
+
+        self.clock.schedule(self._ack_delay(), arrival)

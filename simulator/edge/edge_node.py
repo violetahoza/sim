@@ -115,23 +115,9 @@ class EdgeNode:
                 self.heartbeats_suppressed += 1
                 return
 
-            previous_state = cached.state
-            state_changed = previous_state != event.state
-            cached.state = event.state
-            cached.last_updated = event.timestamp
-            if state_changed:
-                cached.last_state_change_timestamp = event.timestamp
-                cached.consecutive_same = 0
-            cached.last_event_seq = max(cached.last_event_seq, event.sequence)
-            cached.total_events += 1
-
-            if self._active_arch == "edge_filtered":
-                self._forward_single(event)
+            self._update_cache(cached, event, count_same=False)
+            if self._forward(event):
                 self.heartbeats_forwarded += 1
-            elif self._active_arch == "edge_aggregated":
-                self._pending.append(event)
-                self.heartbeats_forwarded += 1
-                self._flush_if_needed()
             cached.last_heartbeat_forwarded_timestamp = event.timestamp
             return
 
@@ -139,34 +125,37 @@ class EdgeNode:
             self.filtered_count += 1
             return
 
-        previous_state_pre = cached.state
-        state_would_change = previous_state_pre != event.state
+        state_would_change = cached.state != event.state
         if event.spot_id in self._quarantine and not state_would_change:
             self.filtered_count += 1
             self.quarantine_suppressed += 1
             return
 
-        previous_state = cached.state
-        state_changed = previous_state != event.state
+        self._update_cache(cached, event, count_same=True)
+        if self._forward(event):
+            cached.last_forwarded_timestamp = event.timestamp
 
+    def _update_cache(self, cached: SensorState, event: ParkingEvent, count_same: bool) -> None:
+        state_changed = cached.state != event.state
         cached.state = event.state
         cached.last_updated = event.timestamp
         if state_changed:
             cached.last_state_change_timestamp = event.timestamp
             cached.consecutive_same = 0
-        else:
+        elif count_same:
             cached.consecutive_same += 1
-
         cached.last_event_seq = max(cached.last_event_seq, event.sequence)
         cached.total_events += 1
 
+    def _forward(self, event: ParkingEvent) -> bool:
         if self._active_arch == "edge_filtered":
             self._forward_single(event)
-            cached.last_forwarded_timestamp = event.timestamp
-        elif self._active_arch == "edge_aggregated":
+            return True
+        if self._active_arch == "edge_aggregated":
             self._pending.append(event)
-            cached.last_forwarded_timestamp = event.timestamp
             self._flush_if_needed()
+            return True
+        return False
 
     def _should_filter(self, event: ParkingEvent, cached: SensorState) -> bool:
         if not self.edge_cfg.filter_no_change:

@@ -11,10 +11,10 @@ from ..config.constants import DWELL_SHORT_MU_S, DWELL_SHORT_CV, DWELL_LONG_MU_S
 
 class TrafficModel:
 
-    MIN_DWELL_S: float = 30.0
-    MAX_DWELL_S: float = 43_200.0
+    MIN_DWELL_S: float = 1500.0
+    MAX_DWELL_S: float = 43200.0
 
-    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None], epoch: float, rng: Optional[random.Random] = None, wall_clock: bool = False) -> None:
+    def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None], epoch: float, rng: Optional[random.Random] = None) -> None:
         self.config = config
         self.arrival_rate = arrival_rate
         self.num_spots = config.num_spots
@@ -24,8 +24,6 @@ class TrafficModel:
         self.epoch = epoch
         self.rng = rng or random.Random(config.random_seed)
         self._tod_factors: list[float] = config.tod_factors
-        self._wall_clock = wall_clock
-        self._time_scale = config.time_scale
         self.occupied: dict[int, bool] = {i: self.rng.random() < config.initial_occupancy for i in range(self.num_spots)}
         self._end_time: float = 0.0
         self._seq: int = 0
@@ -84,8 +82,6 @@ class TrafficModel:
         return max(f0 + frac * (f1 - f0), 0.001)
 
     def _make_timestamp(self, virtual_time: float) -> float:
-        if self._wall_clock:
-            return _time_module.time()
         return self.epoch + virtual_time
 
     def schedule_run(self, duration_s: float) -> None:

@@ -90,7 +90,7 @@ def _write_scenario_log(metrics: ExperimentMetrics, path: Path) -> None:
 
 class ExperimentRunner:
 
-    def __init__(self, config: ScenarioConfig, progress_cb: Optional[Callable] = None, flush_cb: Optional[Callable] = None, real_mode: bool = False) -> None:
+    def __init__(self, config: ScenarioConfig, progress_cb: Optional[Callable] = None, flush_cb: Optional[Callable] = None) -> None:
         self.config = config
         self.progress_cb = progress_cb
         self.flush_cb = flush_cb
@@ -100,17 +100,12 @@ class ExperimentRunner:
         self._edge_summary: Optional[dict] = None
         self._fault_injector = None
         self._fault_true_spots: set = set()
-        self._real_mode = real_mode
 
     def cancel(self) -> None:
         self._cancelled = True
 
     async def run(self) -> ExperimentMetrics:
-        cfg = self.config
-        # if self._real_mode:
-        #     from experiments.run_real import run_real_for_runner
-        #     return await run_real_for_runner(self, cfg)
-        return await self._run_simulated(cfg)
+        return await self._run_simulated(self.config)
 
     async def _run_simulated(self, cfg: ScenarioConfig) -> ExperimentMetrics:
         from simulator.cloud.db import make_engine, init_schema
@@ -207,6 +202,16 @@ class ExperimentRunner:
         sensors.add_callback(sensor_cb)
         sensors.schedule_run(clock, cfg.sim_duration_s, epoch)
 
+        agreement_samples: list[float] = []
+        _agree_interval = max(30.0, cfg.sim_duration_s / 200.0)
+
+        def _sample_agreement() -> None:
+            agreement_samples.append(cloud.compute_state_agreement(sensors.final_spot_states()))
+            if clock.now + _agree_interval <= cfg.sim_duration_s:
+                clock.schedule(_agree_interval, _sample_agreement)
+
+        clock.schedule(_agree_interval, _sample_agreement)
+
         logger.info(f"[{cfg.name}] DES simulated — {cfg.sim_duration_s:.0f} s virtual …")
 
         _snapshot_interval = max(1, int(cfg.sim_duration_s / 50))
@@ -246,9 +251,11 @@ class ExperimentRunner:
         frames_delivered_e2c = getattr(backend, "frames_delivered", 0)
         frames_dropped_e2c = getattr(backend, "frames_dropped", 0)
         first_pass_delivered = getattr(backend, "first_pass_delivered", 0)
+        backlog_at_end = getattr(backend, "backlog_len", 0)
         dup_events_at_cloud = getattr(cloud, "duplicate_events_at_cloud", 0)
 
         state_agreement = cloud.compute_state_agreement(sensors.final_spot_states())
+        agreement_time_avg = (sum(agreement_samples) / len(agreement_samples)) if agreement_samples else None
 
         self._edge_summary = edge.summary()
         metrics = self._collect_metrics_simulated(
@@ -256,7 +263,7 @@ class ExperimentRunner:
             retransmits=retransmits, dup_deliveries=dup_deliveries, state_agreement=state_agreement,
             frames_offered=frames_offered, frames_delivered_e2c=frames_delivered_e2c,
             frames_dropped_e2c=frames_dropped_e2c, first_pass_delivered=first_pass_delivered,
-            dup_events_at_cloud=dup_events_at_cloud)
+            dup_events_at_cloud=dup_events_at_cloud, agreement_time_avg=agreement_time_avg, backlog_at_end=backlog_at_end)
         self._log_done(cfg, metrics, cloud_events=cloud.received_events)
 
         if self.flush_cb:
@@ -266,12 +273,12 @@ class ExperimentRunner:
         return metrics
 
     def _collect_metrics_simulated(self, cfg, sensors: SensorEmulator, link: LinkEmulator, edge: EdgeNode, cloud: CloudBackend, backhaul_link, protocol_bytes: int = 0,
-        retransmits: int = 0, dup_deliveries: int = 0, state_agreement: Optional[float] = None,
-        frames_offered: int = 0, frames_delivered_e2c: int = 0, frames_dropped_e2c: int = 0,
-        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0) -> ExperimentMetrics:
+        retransmits: int = 0, dup_deliveries: int = 0, state_agreement: Optional[float] = None, frames_offered: int = 0, frames_delivered_e2c: int = 0, frames_dropped_e2c: int = 0,
+        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0, agreement_time_avg: Optional[float] = None, backlog_at_end: int = 0) -> ExperimentMetrics:
 
         post_samples = cloud.get_all_latency_samples()
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
+        lat_percentiles = ([round(float(v), 2) for v in np.percentile(np.array(post_samples), range(1, 100))] if post_samples else [])
 
         sensor_events = sensors.total_generated
         state_changes_generated = sensors.state_changes_generated
@@ -341,7 +348,8 @@ class ExperimentRunner:
             fp = backhaul_first_pass if backhaul_first_pass is not None else 1.0
             physical_delivery_ratio = s2e_dr * fp
 
-        e2e_unique = (min(cloud_transitions / state_changes_generated, 1.0) if state_changes_generated > 0 else None)
+        delivered_transitions = cloud.count_delivered(sensors.transition_ids)
+        e2e_unique = (delivered_transitions / state_changes_generated if state_changes_generated > 0 else None)
         cloud_reflection_ratio = state_agreement
 
         if arch == "cloud_only":
@@ -380,6 +388,7 @@ class ExperimentRunner:
             latency_p99_ms=_r(lat_p99),
             latency_min_ms=_r(lat_min),
             latency_max_ms=_r(lat_max),
+            latency_percentiles=lat_percentiles,
 
             events_generated=sensor_events,
             valid_state_changes=state_changes_generated,
@@ -391,6 +400,7 @@ class ExperimentRunner:
             sensor_to_edge_msgs=s2e_msgs,
             sensor_link_dropped=s2e_dropped,
             sensor_link_collisions=ls.collisions,
+            sensor_link_overflow_drops=link.overflow_drops,
             sensor_to_edge_delivery_ratio=_r(s2e_dr, 4),
             sensor_to_edge_bytes=s2e_bytes,
             bytes_s2e_received=s2e_bytes_recv,
@@ -411,6 +421,7 @@ class ExperimentRunner:
             retransmissions_total=retransmits,
             duplicate_deliveries=dup_deliveries,
             protocol_bytes=protocol_bytes,
+            proto_backlog_at_end=backlog_at_end,
 
             aggregation_ratio=_r(aggregation_ratio, 4),
             message_reduction_ratio=_r(message_reduction_ratio, 4),
@@ -420,9 +431,12 @@ class ExperimentRunner:
             cloud_batches_received=getattr(cloud, "received_batches", 0),
             cloud_events_post_dedup=cloud_msgs_total - dup_events_at_cloud,
             cloud_state_changes_reflected=cloud_transitions,
+            unique_transitions_delivered=delivered_transitions,
             duplicate_events_at_cloud=dup_events_at_cloud,
+            stale_events_ignored=cloud.stale_events_ignored,
             e2e_unique_delivery_ratio=_r(e2e_unique, 4),
             cloud_reflection_ratio=_r(cloud_reflection_ratio, 4),
+            state_agreement_time_avg=_r(agreement_time_avg, 4),
             physical_delivery_ratio=_r(physical_delivery_ratio, 4),
 
             anomalies_detected=es.get("anomalies", 0),
@@ -451,7 +465,7 @@ class ExperimentRunner:
     def _log_done(self, cfg, metrics: ExperimentMetrics, cloud_events: int) -> None:
         arch = cfg.architecture
         m = metrics
-        lat_mean = m.latency_mean_ms if m.latency_mean_ms is not None else 0.0
+        lat_p50 = m.latency_p50_ms if m.latency_p50_ms is not None else 0.0
         lat_p99 = m.latency_p99_ms if m.latency_p99_ms is not None else 0.0
         refl = m.cloud_reflection_ratio if m.cloud_reflection_ratio is not None else 0.0
         e2e = m.e2e_unique_delivery_ratio if m.e2e_unique_delivery_ratio is not None else 0.0
@@ -466,7 +480,7 @@ class ExperimentRunner:
                 f"cloud_transitions={m.cloud_state_changes_reflected}  "
                 f"e2e_unique={e2e:.1%}  "
                 f"agreement={refl:.1%}  "
-                f"lat={lat_mean:.1f}ms  p99={lat_p99:.1f}ms"
+                f"lat={lat_p50:.1f}ms  p99={lat_p99:.1f}ms"
             )
         else:
             logger.info(
@@ -486,7 +500,7 @@ class ExperimentRunner:
                 f"anomalies={m.anomalies_detected}  "
                 f"quarantined={m.quarantined_spots_final}  "
                 f"mode_switches={m.adaptive_mode_switches}  "
-                f"lat={lat_mean:.1f}ms  p99={lat_p99:.1f}ms"
+                f"lat={lat_p50:.1f}ms  p99={lat_p99:.1f}ms"
             )
 
 
@@ -541,9 +555,9 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
     raise ValueError(f"Unknown protocol: {proto}")
 
 
-def run_scenario_sync(cfg: ScenarioConfig, steps: int = 1, real_mode: bool = False) -> ExperimentMetrics:
+def run_scenario_sync(cfg: ScenarioConfig, steps: int = 1) -> ExperimentMetrics:
     import asyncio
-    runner = ExperimentRunner(cfg, real_mode=real_mode)
+    runner = ExperimentRunner(cfg)
     runner._des_steps = steps
     return asyncio.run(runner.run())
 

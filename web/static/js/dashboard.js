@@ -48,6 +48,8 @@ function normalizeMetrics(raw) {
     frames_s2e_sent: pick(raw, 'frames_s2e_sent', 'sensor_to_edge_msgs'),
     frames_s2e_delivered: pick(raw, 'frames_s2e_delivered', 'wire_frames_delivered'),
     frames_s2e_dropped: pick(raw, 'frames_s2e_dropped', 'sensor_link_dropped'),
+    frames_s2e_collisions: pick(raw, 'frames_s2e_collisions'),
+    frames_s2e_overflow_drops: pick(raw, 'frames_s2e_overflow_drops'),
     bytes_s2e_sent: pick(raw, 'bytes_s2e_sent', 'sensor_to_edge_bytes'),
     bytes_s2e_received: pick(raw, 'bytes_s2e_received'),
     s2e_delivery_ratio: pick(raw, 's2e_delivery_ratio', 'sensor_to_edge_delivery_ratio'),
@@ -60,12 +62,17 @@ function normalizeMetrics(raw) {
     proto_bytes_sent: pick(raw, 'proto_bytes_sent', 'protocol_bytes'),
     proto_retransmissions: pick(raw, 'proto_retransmissions', 'retransmissions_total'),
     proto_duplicate_deliveries: pick(raw, 'proto_duplicate_deliveries', 'duplicate_deliveries'),
+    proto_backlog_at_end: pick(raw, 'proto_backlog_at_end'),
     backhaul_delivery_ratio: pick(raw, 'backhaul_delivery_ratio'),
 
     unique_state_changes_applied_at_cloud: pick(raw, 'unique_state_changes_applied_at_cloud', 'cloud_state_changes_reflected'),
+    unique_transitions_delivered: pick(raw, 'unique_transitions_delivered'),
     duplicate_events_at_cloud: pick(raw, 'duplicate_events_at_cloud'),
+    stale_events_ignored: pick(raw, 'stale_events_ignored'),
     e2e_unique_delivery_ratio: pick(raw, 'e2e_unique_delivery_ratio'),
     cloud_reflection_ratio: pick(raw, 'cloud_reflection_ratio', 'cloud_state_agreement_ratio'),
+    state_agreement_time_avg: pick(raw, 'state_agreement_time_avg'),
+    latency_percentiles: pick(raw, 'latency_percentiles'),
     cloud_msgs_received: pick(raw, 'cloud_events_pre_dedup', 'cloud_msgs_received', 'cloud_msgs_received_total'),
     cloud_batches_received: pick(raw, 'cloud_batches_received'),
     cloud_events_post_dedup: pick(raw, 'cloud_events_post_dedup'),
@@ -91,6 +98,10 @@ function normalizeMetrics(raw) {
     adaptive_mode_switches: pick(raw, 'adaptive_mode_switches'),
     quarantined_spots_final: pick(raw, 'quarantined_spots_final'),
     anomaly_detected_spots: pick(raw, 'anomaly_detected_spots'),
+    fault_true_count: pick(raw, 'fault_true_count'),
+    anomaly_precision: pick(raw, 'anomaly_precision'),
+    anomaly_recall: pick(raw, 'anomaly_recall'),
+    anomaly_f1: pick(raw, 'anomaly_f1'),
   };
   m.events_per_cloud_message = (m.events_forwarded_total != null && m.frames_e2c_sent) ? m.events_forwarded_total / m.frames_e2c_sent : null;
   return m;
@@ -446,7 +457,7 @@ function addResultRow(r, scrollIntoView) {
       <span class="result-tag">${m.traffic_level || ''}</span>
       ${durationLabel ? `<span class="result-tag">${durationLabel}</span>` : ''}
       ${logBadge}
-      <span class="result-lat">${m.latency_mean_ms != null ? m.latency_mean_ms.toFixed(1) + 'ms' : 'N/A'}</span>
+      <span class="result-lat" title="median latency">${m.latency_p50_ms != null ? m.latency_p50_ms.toFixed(1) + 'ms' : (m.latency_mean_ms != null ? m.latency_mean_ms.toFixed(1) + 'ms' : 'N/A')}</span>
     </div>`;
   row.onclick = () => {
     document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
@@ -471,7 +482,9 @@ function showResult(r) {
   const m = normalizeMetrics(r);
   renderKpiStrip(m);
   renderMetricsTable(m);
-  updateLatencyHistogram(m.latency_samples || []);
+  // Saved runs carry no raw samples; the persisted p1..p99 percentile grid
+  // is a faithful shape substitute (each value ≈ 1% of the distribution).
+  updateLatencyHistogram(m.latency_samples?.length ? m.latency_samples : (m.latency_percentiles || []));
   updateMsgCountChart(m);
   updateBandwidthChart(m);
   restoreLotFromResult(m);
@@ -504,9 +517,14 @@ function renderKpiStrip(m) {
   setText('kpi_lat_p99', m.latency_p99_ms != null ? m.latency_p99_ms.toFixed(1) : NA);
   setText('kpi_delivery', _pctOrNA(m.e2e_unique_delivery_ratio));
   const dl = document.getElementById('kpi_delivery_label');
-  if (dl) dl.textContent = 'Event Delivery %';
+  if (dl) dl.textContent = 'Event Delivery';
 
-  const stateAgreement = { label: 'State Agreement', val: _pctOrNA(m.cloud_reflection_ratio), unit: 'final match' };
+  const hasTimeAvg = m.state_agreement_time_avg != null;
+  const stateAgreement = {
+    label: 'State Agreement',
+    val: _pctOrNA(hasTimeAvg ? m.state_agreement_time_avg : m.cloud_reflection_ratio),
+    unit: hasTimeAvg ? 'time-avg match' : 'final match',
+  };
 
   let slots;
   if (cloudOnly) {
@@ -545,17 +563,17 @@ function buildMetricsRows(m) {
 }
 
 function _reliabilityGroup(m) {
-  const applied = m.unique_state_changes_applied_at_cloud;
+  const delivered = m.unique_transitions_delivered;
   const gen = m.state_changes_generated_total;
-  const deliveryStr = (applied != null && gen)
-    ? `${Number(applied).toLocaleString()} / ${Number(gen).toLocaleString()} (${_fmtPct(m.e2e_unique_delivery_ratio)})`
+  const deliveryStr = (delivered != null && gen)
+    ? `${Number(delivered).toLocaleString()} / ${Number(gen).toLocaleString()} (${_fmtPct(m.e2e_unique_delivery_ratio)})`
     : _fmtPct(m.e2e_unique_delivery_ratio);
   return [
     _group('Reliability'),
-    _row('Event delivery — unique state changes applied / generated', deliveryStr,
-         'First-pass physical survival', _fmtPct(m.physical_delivery_ratio)),
-    _row('Final cloud state agreement', _fmtPct(m.cloud_reflection_ratio),
-         'Duplicate events at cloud', _fmtInt(m.duplicate_events_at_cloud)),
+    _row('State-change events delivered / generated (unique)', deliveryStr,
+         'Delivery without protocol retries (physical)', _fmtPct(m.physical_delivery_ratio)),
+    _row('State agreement — averaged over the run', _fmtPct(m.state_agreement_time_avg),
+         'State agreement — end-of-run snapshot', _fmtPct(m.cloud_reflection_ratio)),
   ];
 }
 
@@ -568,24 +586,25 @@ function _metricsCloudOnly(m) {
     _row('Duplicate sends', _fmtInt(m.duplicate_sends_generated_total), 'Total events emitted', _fmtInt(m.events_generated_total)),
 
     _group('Sensor link  (sensor → broker, direct)'),
-    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost on radio', _fmtInt(m.frames_s2e_dropped)),
+    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost — all causes', _fmtInt(m.frames_s2e_dropped)),
+    _row('… of which radio collisions', _fmtInt(m.frames_s2e_collisions), '… of which queue overflow', _fmtInt(m.frames_s2e_overflow_drops)),
     _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames delivered to broker', _fmtInt(m.frames_s2e_delivered)),
 
     _group('Protocol  (sensor → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries', _fmtInt(m.proto_duplicate_deliveries)),
-    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate arrivals at receiver', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
 
     _group('Cloud intake'),
     _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),
-    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup)),
-    _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
+    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Stale out-of-order ignored', _fmtInt(m.stale_events_ignored)),
+    _row('Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup), 'State transitions applied', _fmtInt(m.unique_state_changes_applied_at_cloud)),
 
     ..._reliabilityGroup(m),
 
     _group('Latency  (sensor emit → cloud arrival, unique state changes)'),
-    _row('Mean', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
-    _row('P50', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
+    _row('P50 (median)', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
     _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
+    _row('Mean (retransmit tail inflates this)', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
 
     _group('Bandwidth per hop'),
     _row('Sensor → broker sent (KB)', _fmtKB(m.bytes_s2e_sent), 'Sensor → broker received (KB)', _fmtKB(m.bytes_s2e_received)),
@@ -606,7 +625,8 @@ function _metricsEdge(m) {
     _row('Duplicate sends', _fmtInt(m.duplicate_sends_generated_total), 'Total events emitted', _fmtInt(m.events_generated_total)),
 
     _group('Sensor link  (sensor → edge gateway)'),
-    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost on radio', _fmtInt(m.frames_s2e_dropped)),
+    _row('Frames sent', _fmtInt(m.frames_s2e_sent), 'Frames lost — all causes', _fmtInt(m.frames_s2e_dropped)),
+    _row('… of which radio collisions', _fmtInt(m.frames_s2e_collisions), '… of which queue overflow', _fmtInt(m.frames_s2e_overflow_drops)),
     _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames arrived at edge', _fmtInt(m.frames_s2e_delivered)),
 
     _group('Edge processing'),
@@ -626,17 +646,17 @@ function _metricsEdge(m) {
 
   rows.push(
     _group('Backhaul link  (edge → broker)'),
-    _row('Frames sent', _fmtInt(m.frames_e2c_sent), 'Frames dropped (link + retransmit)', _fmtInt(m.frames_e2c_dropped)),
-    _row('Frames delivered', _fmtInt(m.frames_e2c_delivered), 'Backhaul delivery ratio', _fmtPct(m.backhaul_delivery_ratio)),
+    _row('Frames sent', _fmtInt(m.frames_e2c_sent), 'Frames lost after protocol retries', _fmtInt(m.frames_e2c_dropped)),
+    _row('Frames delivered', _fmtInt(m.frames_e2c_delivered), 'Backhaul delivery ratio (after retries)', _fmtPct(m.backhaul_delivery_ratio)),
 
     _group('Protocol  (edge → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate deliveries', _fmtInt(m.proto_duplicate_deliveries)),
-    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate arrivals at receiver', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
 
     _group('Cloud intake'),
     _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),
-    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup)),
-    _row('Unique state changes applied', _fmtInt(m.unique_state_changes_applied_at_cloud), '', ''),
+    _row('Duplicate events removed', _fmtInt(m.duplicate_events_at_cloud), 'Stale out-of-order ignored', _fmtInt(m.stale_events_ignored)),
+    _row('Unique events (post-dedup)', _fmtInt(m.cloud_events_post_dedup), 'State transitions applied', _fmtInt(m.unique_state_changes_applied_at_cloud)),
 
     ..._reliabilityGroup(m),
   );
@@ -660,9 +680,9 @@ function _metricsEdge(m) {
 
   rows.push(
     _group('Latency  (sensor emit → cloud arrival, unique state changes)'),
-    _row('Mean', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
-    _row('P50', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
+    _row('P50 (median)', _fmtV(m.latency_p50_ms, ' ms'), 'P95', _fmtV(m.latency_p95_ms, ' ms')),
     _row('P99', _fmtV(m.latency_p99_ms, ' ms'), 'Max', _fmtV(m.latency_max_ms, ' ms')),
+    _row('Mean (retransmit tail inflates this)', _fmtV(m.latency_mean_ms, ' ms'), 'Min', _fmtV(m.latency_min_ms, ' ms')),
 
     _group('Bandwidth per hop'),
     _row('Sensor → edge sent (KB)', _fmtKB(m.bytes_s2e_sent), 'Sensor → edge received (KB)', _fmtKB(m.bytes_s2e_received)),
@@ -748,7 +768,7 @@ function initCharts() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'right', labels: { font: { size: 9 }, padding: 6 } } },
-      scales: { y: { beginAtZero: true, title: { display: true, text: 'Mean Latency (ms)', color: C.dim, font: { size: 9 } } } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: 'Median Latency (ms)', color: C.dim, font: { size: 9 } } } },
     },
   });
 
@@ -823,7 +843,7 @@ function updateComparisonChart() {
     const r = normalizeMetrics(raw);
     const k = `${(r.protocol || '?').toUpperCase()} / ${r.architecture || ''}`;
     if (!groups[k]) groups[k] = {};
-    groups[k][r.traffic_level] = r.latency_mean_ms;
+    groups[k][r.traffic_level] = r.latency_p50_ms ?? r.latency_mean_ms;
   });
   const levels = ['low', 'medium', 'peak'];
   const keys = Object.keys(groups);

@@ -9,13 +9,13 @@ from pathlib import Path
 
 HEADLINE_METRICS = [
     "latency_mean_ms", "latency_p50_ms", "latency_p95_ms", "latency_p99_ms",
-    "e2e_unique_delivery_ratio", "cloud_reflection_ratio",
+    "e2e_unique_delivery_ratio", "cloud_reflection_ratio", "state_agreement_time_avg",
     "physical_delivery_ratio", "backhaul_delivery_ratio",
     "message_reduction_ratio", "aggregation_ratio",
     "proto_bytes_sent", "frames_e2c_sent", "frames_e2c_delivered",
-    "bytes_e2c_sent", "bytes_s2e_sent",
-    "proto_retransmissions", "proto_duplicate_deliveries",
-    "unique_state_changes_applied_at_cloud", "duplicate_events_at_cloud"
+    "bytes_e2c_sent", "bytes_s2e_sent", "frames_s2e_collisions", "frames_s2e_overflow_drops",
+    "proto_retransmissions", "proto_duplicate_deliveries", "proto_backlog_at_end",
+    "unique_state_changes_applied_at_cloud", "duplicate_events_at_cloud", "stale_events_ignored"
 ]
 
 _T_975 = {

@@ -2,7 +2,8 @@ scenarios:
 
   - name: A1_cloud_only
     description: >
-      Cloud-Only Baseline | Every sensor event goes straight to the cloud broker via MQTT QoS 0 (fire-and-forget, no retransmits). 
+      Cloud-Only Baseline | A relay gateway wraps each incoming sensor frame in its own MQTT QoS 0 publish to the cloud broker
+      (fire-and-forget, no retransmits) - no filtering, aggregation, or any other edge processing.
     protocol: mqtt
     architecture: cloud_only
     traffic_level: peak
@@ -568,7 +569,7 @@ scenarios:
 
   - name: E1_load_cloud_low
     description: >
-      Load sweep - Cloud-only at LOW load | Cloud-centric baseline (every event straight to the broker, MQTT QoS1) at low traffic. Pair with E4/E7 for the architecture
+      Load sweep - Cloud-only at LOW load | Cloud-centric baseline at low traffic: a relay gateway forwards each sensor frame as its own MQTT QoS1 publish, no edge processing. Pair with E4/E7 for the architecture
       contrast at this load and with E2/E3 for the cloud-only load trend.
     protocol: mqtt
     architecture: cloud_only
@@ -587,7 +588,7 @@ scenarios:
 
   - name: E2_load_cloud_med
     description: >
-      Load sweep - Cloud-only at MEDIUM load | Cloud-centric baseline (MQTT QoS1) at medium traffic.
+      Load sweep - Cloud-only at MEDIUM load | Cloud-centric baseline at medium traffic: relay gateway, one MQTT QoS1 publish per sensor frame, no edge processing.
     protocol: mqtt
     architecture: cloud_only
     traffic_level: medium
@@ -605,7 +606,7 @@ scenarios:
 
   - name: E3_load_cloud_peak
     description: >
-      Load sweep - Cloud-only at PEAK load | Cloud-centric baseline (MQTT QoS1) at peak traffic. Upper anchor of the cloud-only load trend.
+      Load sweep - Cloud-only at PEAK load | Cloud-centric baseline at peak traffic: relay gateway, one MQTT QoS1 publish per sensor frame, no edge processing. Upper anchor of the cloud-only load trend.
     protocol: mqtt
     architecture: cloud_only
     traffic_level: peak

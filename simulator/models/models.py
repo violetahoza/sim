@@ -138,11 +138,13 @@ class ExperimentMetrics:
     protocol_bytes: int = 0
     retransmissions_total: int = 0
     duplicate_deliveries: int = 0
+    proto_backlog_at_end: int = 0
 
     cloud_msgs_received_total: int = 0
-    cloud_batches_received: int = 0 
-    cloud_events_post_dedup: int = 0 
+    cloud_batches_received: int = 0
+    cloud_events_post_dedup: int = 0
     cloud_state_changes_reflected: int = 0
+    unique_transitions_delivered: int = 0
     duplicate_events_at_cloud: int = 0
     e2e_unique_delivery_ratio: Optional[float] = None
     cloud_reflection_ratio: Optional[float] = None
@@ -166,91 +168,17 @@ class ExperimentMetrics:
     seed: int = 0
     run_id: str = ""
 
+    sensor_link_overflow_drops: int = 0
+    stale_events_ignored: int = 0
+    state_agreement_time_avg: Optional[float] = None
+
     latency_samples: list[float] = field(default_factory=list)
+    latency_percentiles: list[float] = field(default_factory=list)
     scenario_log: list[dict] = field(default_factory=list)
 
     final_spot_states: dict[int, str] = field(default_factory=dict)
     final_occupancy: dict = field(default_factory=dict)
 
-    @property
-    def events_generated_total(self) -> int:
-        return self.events_generated
-
-    @property
-    def state_changes_generated_total(self) -> int:
-        return self.valid_state_changes
-
-    @property
-    def heartbeats_generated_total(self) -> int:
-        return self.heartbeats_generated
-
-    @property
-    def initial_snapshots_generated_total(self) -> int:
-        return self.initial_snapshots_generated
-
-    @property
-    def duplicate_sends_generated_total(self) -> int:
-        return self.duplicate_sends_generated
-
-    @property
-    def frames_s2e_sent(self) -> int:
-        return self.sensor_to_edge_msgs
-
-    @property
-    def frames_s2e_dropped(self) -> int:
-        return self.sensor_link_dropped
-
-    @property
-    def frames_s2e_delivered(self) -> int:
-        return self.sensor_to_edge_msgs - self.sensor_link_dropped
-
-    @property
-    def bytes_s2e_sent(self) -> int:
-        return self.sensor_to_edge_bytes
-
-    @property
-    def s2e_delivery_ratio(self) -> Optional[float]:
-        return self.sensor_to_edge_delivery_ratio
-
-    @property
-    def events_filtered_total(self) -> int:
-        return self.filtered_events
-
-    @property
-    def frames_e2c_sent(self) -> int:
-        return self.edge_to_cloud_msgs
-
-    @property
-    def frames_e2c_delivered(self) -> int:
-        return self.edge_to_cloud_delivered
-
-    @property
-    def frames_e2c_dropped(self) -> int:
-        return self.edge_to_cloud_dropped
-
-    @property
-    def bytes_e2c_sent(self) -> int:
-        return self.edge_to_cloud_bytes
-
-    @property
-    def aggregation_batches_e2c(self) -> int:
-        return self.edge_to_cloud_msgs
-
-    @property
-    def proto_bytes_sent(self) -> int:
-        return self.protocol_bytes
-
-    @property
-    def proto_retransmissions(self) -> int:
-        return self.retransmissions_total
-
-    @property
-    def proto_duplicate_deliveries(self) -> int:
-        return self.duplicate_deliveries
-
-    @property
-    def unique_state_changes_applied_at_cloud(self) -> int:
-        return self.cloud_state_changes_reflected
 
     def to_dict(self) -> dict:
         is_cloud_only = self.architecture == "cloud_only"
@@ -277,6 +205,7 @@ class ExperimentMetrics:
             "frames_s2e_delivered": frames_s2e_delivered,
             "frames_s2e_dropped": self.sensor_link_dropped,
             "frames_s2e_collisions": self.sensor_link_collisions,
+            "frames_s2e_overflow_drops": self.sensor_link_overflow_drops,
             "bytes_s2e_sent": self.sensor_to_edge_bytes,
             "bytes_s2e_received": self.bytes_s2e_received,
             "s2e_delivery_ratio": self.sensor_to_edge_delivery_ratio,
@@ -284,6 +213,7 @@ class ExperimentMetrics:
             "proto_bytes_sent": self.protocol_bytes,
             "proto_retransmissions": self.retransmissions_total,
             "proto_duplicate_deliveries": self.duplicate_deliveries,
+            "proto_backlog_at_end": self.proto_backlog_at_end,
 
             "cloud_batches_received": self.cloud_batches_received,
             "cloud_events_pre_dedup": self.cloud_msgs_received_total,
@@ -291,8 +221,11 @@ class ExperimentMetrics:
             "cloud_msgs_received": self.cloud_msgs_received_total,
             "unique_state_changes_applied_at_cloud": self.cloud_state_changes_reflected,
             "duplicate_events_at_cloud": self.duplicate_events_at_cloud,
+            "unique_transitions_delivered": self.unique_transitions_delivered,
+            "stale_events_ignored": self.stale_events_ignored,
             "e2e_unique_delivery_ratio": self.e2e_unique_delivery_ratio,
             "cloud_reflection_ratio": self.cloud_reflection_ratio,
+            "state_agreement_time_avg": self.state_agreement_time_avg,
             "physical_delivery_ratio": self.physical_delivery_ratio,
 
             "latency_mean_ms": self.latency_mean_ms,
@@ -301,6 +234,7 @@ class ExperimentMetrics:
             "latency_p99_ms": self.latency_p99_ms,
             "latency_min_ms": self.latency_min_ms,
             "latency_max_ms": self.latency_max_ms,
+            "latency_percentiles": self.latency_percentiles,
 
             #"final_spot_states": self.final_spot_states,
             #"final_occupancy": self.final_occupancy

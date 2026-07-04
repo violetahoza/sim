@@ -1,19 +1,20 @@
 from __future__ import annotations
 import logging
 import random
+from collections import deque
 from typing import Callable, Optional
 
 from simulator.models.models import BatchUpdate
 from simulator.config.config import CoAPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.config.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_BYTES, UDP_TRANSPORT_OVERHEAD
+from simulator.config.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_WIRE_BYTES, UDP_TRANSPORT_OVERHEAD
 
 logger = logging.getLogger(__name__)
 
 class SimulatedCoAPBackend(ProtocolBackend):
-
-    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030, 
+   
+    def __init__(self, config: CoAPConfig, clock: SimClock, subscriber_cb: CloudRecvCallback, loss_rate: float = 0.02, seed: int = 0, ack_one_way_delay_s: float = 0.030,
                  ack_jitter_s: float = 0.010, downlink_loss_rate: Optional[float] = None, loss_provider: Optional[Callable[[float], float]] = None) -> None:
         self.config = config
         self.clock = clock
@@ -35,6 +36,9 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
+        self._nstart = max(1, getattr(config, "nstart", 1))
+        self._inflight = 0
+        self._backlog: deque[tuple[BatchUpdate, bytes, int]] = deque()
 
     def _uplink_drop(self) -> bool:
         rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
@@ -67,8 +71,25 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self.frames_offered += 1
         if self.config.mode == "NON":
             self._send_non(batch, payload, msg_id)
-        else:
-            self._send_con(batch, payload, msg_id, attempt=0, timeout=self._initial_timeout())
+            return
+        if self._inflight >= self._nstart:
+            self._backlog.append((batch, payload, msg_id))
+            return
+        self._begin_exchange(batch, payload, msg_id)
+
+    def _begin_exchange(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
+        self._inflight += 1
+        self._send_con(batch, payload, msg_id, attempt=0, timeout=self._initial_timeout())
+
+    def _finish_exchange(self) -> None:
+        self._inflight -= 1
+        while self._backlog and self._inflight < self._nstart:
+            batch, payload, msg_id = self._backlog.popleft()
+            self._begin_exchange(batch, payload, msg_id)
+
+    @property
+    def backlog_len(self) -> int:
+        return len(self._backlog)
 
     def _release(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
         if msg_id in self._delivered:
@@ -97,6 +118,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
     def _retransmit(self, batch: BatchUpdate, payload: bytes, msg_id: int, attempt: int, timeout: float) -> None:
         if attempt >= self.config.max_retransmit:
             self._drop(msg_id)
+            self._finish_exchange()
             return
         self.retransmitted += 1
         self._dirty.add(msg_id)
@@ -109,11 +131,19 @@ class SimulatedCoAPBackend(ProtocolBackend):
             self._retransmit(batch, payload, msg_id, attempt, timeout)
             return
 
-        def ack() -> None:
-            if self._downlink_drop():
-                self._retransmit(batch, payload, msg_id, attempt, timeout)
-            else:
-                self.bytes_sent += COAP_ACK_BYTES
-                self._release(batch, payload, msg_id)
+        def arrival() -> None:
+            self._release(batch, payload, msg_id)
 
-        self.clock.schedule(self._ack_delay(), ack)
+            def ack() -> None:
+                if self._downlink_drop():
+                    self._retransmit(batch, payload, msg_id, attempt, timeout)
+                else:
+                    self.bytes_sent += COAP_ACK_WIRE_BYTES
+                    self._finish_exchange()
+
+            self.clock.schedule(self._ack_delay(), ack)
+
+        if attempt > 0:
+            self.clock.schedule(self._ack_delay(), arrival)
+        else:
+            arrival()
