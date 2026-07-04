@@ -121,7 +121,6 @@ class SimulatedAMQPBackend(ProtocolBackend):
             self.clock.schedule(self._ack_delay(), consumer_ack)
 
         if attempt > 0:
-            # A redelivery re-crosses the backhaul before it arrives.
             self.clock.schedule(self._ack_delay(), arrival)
         else:
             arrival()

@@ -509,7 +509,7 @@ def test_edge_aggregation_reduces_cloud_messages_vs_cloud_only():
     assert cloud_only.message_reduction_ratio is None
     # aggregation collapses many forwarded events into fewer cloud frames
     assert aggregated.aggregation_ratio is not None
-    assert 0.0 < aggregated.aggregation_ratio <= 1.0
+    assert aggregated.aggregation_ratio >= 1.0
     assert aggregated.events_per_cloud_message is not None
     assert aggregated.events_per_cloud_message >= 1.0
 
@@ -793,7 +793,7 @@ def _assert_metrics_invariants(m, arch: str) -> None:
     else:
         assert m.edge_to_cloud_msgs >= 0
         if m.aggregation_ratio is not None:
-            assert 0.0 < m.aggregation_ratio <= 1.0
+            assert m.aggregation_ratio >= 1.0
         if m.message_reduction_ratio is not None:
             assert 0.0 <= m.message_reduction_ratio <= 1.0
         if m.events_per_cloud_message is not None:

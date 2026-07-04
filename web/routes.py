@@ -133,8 +133,9 @@ async def get_latest_result():
 async def clear_results():
     state.results.clear()
     if RESULTS_DIR.exists():
-        for f in RESULTS_DIR.glob("*.json"):
-            f.unlink(missing_ok=True)
+        for pattern in ("*.json", "*.log"):
+            for f in RESULTS_DIR.glob(pattern):
+                f.unlink(missing_ok=True)
     engine = make_engine()
     if engine is not None:
         session = make_session(engine)

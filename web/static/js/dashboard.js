@@ -538,7 +538,7 @@ function renderKpiStrip(m) {
     slots = [
       stateAgreement,
       { label: 'Msg Reduction', val: _pctOrNA(m.message_reduction_ratio), unit: '% saved' },
-      { label: 'Aggregation', val: m.aggregation_ratio != null ? m.aggregation_ratio.toFixed(3) : NA, unit: 'frames/event' },
+      { label: 'Aggregation', val: m.aggregation_ratio != null ? m.aggregation_ratio.toFixed(3) : NA, unit: 'events/frame' },
       { label: 'Backhaul Loss', val: _fmtInt(m.frames_e2c_dropped), unit: 'dropped' },
     ];
   } else {

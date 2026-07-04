@@ -355,11 +355,9 @@ class ExperimentRunner:
         if arch == "cloud_only":
             aggregation_ratio = None
             message_reduction_ratio = None
-            events_per_cloud_message = None
         else:
-            aggregation_ratio = (e2c_msgs / forwarded_events) if forwarded_events > 0 else None
+            aggregation_ratio = (forwarded_events / e2c_msgs) if e2c_msgs > 0 else None
             message_reduction_ratio = (max(0.0, 1.0 - e2c_msgs / s2e_received) if s2e_received > 0 else None)
-            events_per_cloud_message = (forwarded_events / e2c_msgs) if e2c_msgs > 0 else None
 
         true_spots = getattr(self, "_fault_true_spots", set())
         quarantined_spots = set(es.get("ever_quarantined", []))
@@ -425,7 +423,6 @@ class ExperimentRunner:
 
             aggregation_ratio=_r(aggregation_ratio, 4),
             message_reduction_ratio=_r(message_reduction_ratio, 4),
-            events_per_cloud_message=_r(events_per_cloud_message, 2),
 
             cloud_msgs_received_total=cloud_msgs_total,
             cloud_batches_received=getattr(cloud, "received_batches", 0),

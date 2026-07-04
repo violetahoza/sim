@@ -3,60 +3,47 @@ import json
 import logging
 import httpx
 from simulator.utils import get_groq_api_key
+from simulator.config.constants import ARRIVAL_RATES, DWELL_SHORT_MU_S, DWELL_LONG_MU_S, DWELL_SHORT_PROB
+from simulator.config.config import TrafficConfig, BackhaulLinkConfig
 
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY: str = get_groq_api_key()
 
 
-SYSTEM_PROMPT = """\
-You are analysing output from a discrete-event smart parking simulator. Ground every claim in the numbers provided in the user message. If the data does not support a claim, do not make it.
+def _build_system_prompt() -> str:
+    traffic_defaults = TrafficConfig()
+    backhaul_defaults = BackhaulLinkConfig()
+    dwell_short_pct = round(DWELL_SHORT_PROB * 100)
+    dwell_long_pct = 100 - dwell_short_pct
 
-What the simulator actually models:
-
-Traffic generation. Poisson arrivals scaled by an optional time-of-day curve, with parking dwell drawn from either a single log-normal (configurable CV) 
-or a 90/10 short/long mixture (1500 s short, 14400 s long means). Each spot also emits periodic heartbeat messages at a configurable interval (default 60 s).\
-The arrival rate is num_spots * base_rate where base_rate is 0.0028 / 0.0102 / 0.0182 events/s/spot for low / medium / peak.
-
-Sensor → edge link. Configurable base delay + Gaussian jitter (one-way, ms) or LoRa airtime, Gilbert-Elliot two-state loss model (good/bad), max payload bytes, a FIXED
-gateway token-bucket rate limit (does not scale with deployment size). Payloads are serialised with msgpack (a compact binary format); a bounded queue drops on overflow.
-The sensors also share a fixed LoRa medium modelled as pure-ALOHA: overlapping transmissions on the same sub-channel collide and are lost, so collision loss and latency
-RISE with the number of spots (the scalability sweep C1-C5 relies on this; frames_s2e_collisions reports it). The backhaul is point-to-point and has no contention.
-
-Edge processing. Three modes: cloud_only (no edge - events forwarded raw direct to broker), edge_filtered (drop redundant repeats inside a duplicate window, drop quarantined
-spots, forward singletons), edge_aggregated (batch events over aggregation_interval_s with max_batch_size and max_event_age_s caps, flush as one message).
-Anomaly detection is a statistical detector: a deterministic sequence-integrity check (replayed/duplicated/out-of-order sequence numbers -> replay, flooding, flapping faults),
-gap/dwell thresholds (silent sensor; stuck-in-occupied beyond the max plausible dwell), and population robust-z (MAD) outliers on per-spot event/flip rate. A spot is quarantined
-only when its count of anomaly INCIDENTS inside a rolling persistence window stays elevated, so transient flags age out (precision is reported against the injected-fault ground truth).
-
-Edge → broker link. A separate backhaul link with its own delay/jitter/loss, generally faster and more reliable than the sensor link (default 30 ms ± 10 ms, 0.1 % loss).
-
-Protocols. MQTT (QoS 0 fire-and-forget, QoS 1 with PUBACK retransmit, QoS 2 four-way handshake), CoAP (NON fire-and-forget, CON with ACK retransmit and exponential backoff per RFC 7252; the same msgpack
-payload as the others, with lighter UDP + CoAP framing overhead), AMQP (direct/topic/fanout exchanges, auto or manual ACK, optional durable). For each, the simulator tracks bytes_sent on the wire, 
-retransmissions, and duplicate deliveries. 
-
-What the latency numbers mean. End-to-end latency is sensor-emit timestamp to cloud-arrival timestamp, measured in virtual simulated time. It includes the
-link propagation + jitter, the token-bucket wait under rate limiting, any aggregation window wait at the edge, and any protocol retransmit backoff. It does NOT include application-level processing on the cloud side.
-With periodic edge aggregation, an event waits a uniformly random 0..aggregation_interval_s before the next flush, so the MEAN added latency is ~interval/2 and the MAX is ~interval
-(NOT the full interval per event). A 15 s aggregation window therefore correctly yields a mean of ~7.5 s and a p95/max approaching 15 s, with the minimum near the bare network delay -
-latencies below the interval are expected, not a bug.
-
-aggregation_ratio = frames_e2c_sent / events_forwarded_total (≈1.0 means no batching; <1.0 means many forwarded events collapsed into fewer cloud frames).
-message_reduction_ratio = 1 - frames_e2c_sent / frames_s2e_delivered (end-to-end reduction from filtering + aggregation).
-Cloud intake: cloud_batches_received = protocol messages (batches) delivered; cloud_events_pre_dedup = events unpacked from them BEFORE the cloud deduplicates by (spot, sequence);
-duplicate_events_at_cloud = events removed by that dedup (non-zero mainly under MQTT QoS1 and the replay/flooding faults); cloud_events_post_dedup = unique events kept.
-e2e_unique_delivery_ratio = unique state changes applied at the cloud / state changes generated (event-flow reliability).
-cloud_reflection_ratio = fraction of spots whose final cloud state matches sensor ground truth (state consistency, NOT delivery).
-physical_delivery_ratio = first-pass survival (sensor-link × first-pass backhaul), before any retransmission.
-Compare proto_bytes_sent across protocols only; link byte fields (bytes_s2e_*, bytes_e2c_*) use a different encoding basis and are not comparable to protocol bytes.
-
-When you write your answer:
-- Quote numbers from the provided summaries. Do not invent figures.
-- Do not give per-protocol millisecond claims unless the data shows them.
-- Do not claim CBOR or any encoding saves a specific percentage unless the bytes in the data confirm it.
-- Note explicitly when a difference between scenarios is small enough that it could be within run-to-run noise.
-- Write in prose, no tables.
+    return f"""\
+You're analyzing results from a discrete-event simulation of a smart parking system. Base every claim on the numbers in the user's message; if the data doesn't support something, don't say it. How the simulator works:
+Parking events arrive as a Poisson process (optionally shaped by a time-of-day curve), at a rate of num_spots x a base rate - {ARRIVAL_RATES["low"]:.4f} / {ARRIVAL_RATES["medium"]:.4f} / {ARRIVAL_RATES["peak"]:.4f} events per spot per second for low / medium / peak traffic. 
+Dwell times are drawn from either a log-normal distribution or a {dwell_short_pct}/{dwell_long_pct} mix of short (~{DWELL_SHORT_MU_S:.0f} s) and long (~{DWELL_LONG_MU_S:.0f} s) stays, and each spot also sends
+periodic heartbeats (every {traffic_defaults.heartbeat_interval_s:.0f} s by default). Sensors reach the edge over a lossy link (Gilbert-Elliot two-state loss, plus base delay and jitter or LoRa airtime) through a 
+fixed-rate token-bucket gateway that doesn't scale with deployment size, using compact msgpack payloads over a bounded queue that drops on overflow. Sensors also share a LoRa medium modeled as pure ALOHA, so collisions -
+and the loss/latency they cause - rise with spot count; that's what the C1-C5 scalability runs are testing (see frames_s2e_collisions). The edge-to-broker backhaul link is separate and point-to-point, generally faster and 
+more reliable than the sensor link (default {backhaul_defaults.base_delay_ms:.0f} ms +/- {backhaul_defaults.jitter_ms:.0f} ms, {backhaul_defaults.packet_loss_rate * 100:.0f}% loss).
+At the edge, three architectures are possible: cloud_only forwards everything raw, edge_filtered drops repeats within a duplicate window and drops quarantined spots, and edge_aggregated batches events into windows 
+(aggregation_interval_s, capped by max_batch_size and max_event_age_s). Anomaly detection combines a sequence-integrity check (catches replayed, duplicated, or out-of-order sequence numbers, i.e. replay, flooding, 
+flapping faults), gap/dwell thresholds (silent sensors, spots stuck occupied past a plausible dwell), and a population-level outlier check. A spot only gets quarantined once anomalies persist across a rolling window (one-off flags age out) and precision/recall are measured against the actual injected faults.
+Three protocols are simulated: MQTT (QoS 0 fire-and-forget, QoS 1 with PUBACK retransmit, QoS 2 four-way handshake), CoAP (NON fire-and-forget or CON with ACK retransmit and RFC 7252 backoff, over lighter UDP/CoAP framing 
+the same msgpack payload), and AMQP (direct/topic/fanout exchanges, auto or manual ack, optionally durable). Each protocol tracks its own bytes-on-wire, retransmissions, and duplicate deliveries.
+Latency is measured from sensor-emit to cloud-arrival in simulated time. It captures link delay and jitter, rate-limit queueing, any aggregation wait at the edge, and protocol retransmit backoff.
+Metric definitions:
+- aggregation_ratio = events_forwarded_total / frames_e2c_sent — near 1.0 means no batching, higher means more events packed into each cloud message.
+- message_reduction_ratio = 1 - frames_e2c_sent / frames_s2e_delivered — the end-to-end reduction from filtering plus aggregation.
+- Cloud intake: cloud_batches_received is protocol messages received; cloud_events_pre_dedup is the events unpacked from them before the cloud deduplicates by (spot, sequence); duplicate_events_at_cloud is what that dedup removes (mostly under MQTT QoS 1 or replay/flooding faults); cloud_events_post_dedup is what's left.
+- e2e_unique_delivery_ratio = unique state changes applied at the cloud ÷ state changes generated.
+- cloud_reflection_ratio = fraction of spots whose final cloud-side state matches sensor ground truth (consistency, not delivery).
+- physical_delivery_ratio = first-pass survival across the sensor link and backhaul, before any retransmission.
+- proto_bytes_sent is comparable across protocols; the bytes_s2e_* / bytes_e2c_* link fields use a different basis and aren't comparable to it.
+When you answer, quote the actual numbers, don't invent figures, don't state per-protocol millisecond values or encoding savings the data doesn't show, and call out when a difference between scenarios is small enough to be run-to-run noise. Write in prose, no tables.
 """
+
+
+SYSTEM_PROMPT = _build_system_prompt()
 
 FOCUS_PROMPTS: dict[str, str] = {
     "general": "Give an end-to-end assessment grounded in the provided numbers: which configuration comes out ahead on which axis, how the latency/reliability/bandwidth numbers relate to each other, and where the first breaking point appears as conditions change.",
@@ -236,7 +223,7 @@ def _rule_based_single_run(s: dict) -> str:
     agg = s.get("aggregation_ratio")
     msg_red = s.get("message_reduction_ratio")
     if agg is not None:
-        lines.append(f"- 💾 **Aggregation ratio**: {agg:.3f} ({(1 - agg) * 100:.1f}% fewer cloud messages than forwarded events)")
+        lines.append(f"- 💾 **Aggregation ratio**: {agg:.3f} ({agg:.1f} events packed per cloud message on average)")
     if msg_red is not None:
         lines.append(f"- 📉 **End-to-end message reduction**: {msg_red * 100:.1f}% fewer cloud messages than sensor-to-edge messages")
 
@@ -257,7 +244,7 @@ def _rule_based_single_run(s: dict) -> str:
     if arch != "cloud_only" and agg is not None:
         analysis_parts.append(
             f"With `{arch}`, the aggregation ratio of {agg:.3f} shows the edge is "
-            + ("meaningfully batching events before forwarding to the cloud. " if agg < 0.9 else "passing through most events roughly 1:1, with little batching benefit at this traffic level. ")
+            + ("meaningfully batching events before forwarding to the cloud. " if agg > 1.1 else "passing through most events roughly 1:1, with little batching benefit at this traffic level. ")
         )
     if analysis_parts:
         lines.append(" ".join(analysis_parts) + "\n")
@@ -284,11 +271,7 @@ def rule_based_interpret(summaries: list[dict]) -> str:
     lines: list[str] = ["## 📊 Simulation Analysis\n"]
 
     by_lat = sorted([s for s in summaries if s.get("latency_mean_ms")], key=lambda x: x["latency_mean_ms"])
-    by_del = sorted(
-        [s for s in summaries if s.get("cloud_reflection_ratio") is not None],
-        key=lambda x: x["cloud_reflection_ratio"],
-        reverse=True
-    )
+    by_del = sorted([s for s in summaries if s.get("cloud_reflection_ratio") is not None], key=lambda x: x["cloud_reflection_ratio"], reverse=True)
 
     lines.append("### 🔍 Key Findings\n")
     if by_lat:
@@ -314,12 +297,12 @@ def rule_based_interpret(summaries: list[dict]) -> str:
                 f"- ⚠️ **Worst event delivery**: `{tail['scenario']}` - "
                 f"{tail['e2e_unique_delivery_ratio'] * 100:.2f}% "
                 f"({(1 - tail['e2e_unique_delivery_ratio']) * 100:.2f}% of state changes missed)")
-    agg_list = [s for s in summaries if s.get("aggregation_ratio") and s["aggregation_ratio"] < 0.9]
+    agg_list = [s for s in summaries if s.get("aggregation_ratio") and s["aggregation_ratio"] > 1.1]
     if agg_list:
-        best_agg = min(agg_list, key=lambda x: x["aggregation_ratio"])
+        best_agg = max(agg_list, key=lambda x: x["aggregation_ratio"])
         lines.append(
-            f"- 💾 **Best message reduction**: `{best_agg['scenario']}` - "
-            f"{(1 - best_agg['aggregation_ratio']) * 100:.1f}% fewer messages to cloud "
+            f"- 💾 **Best batching**: `{best_agg['scenario']}` - "
+            f"{best_agg['aggregation_ratio']:.1f} events packed per cloud message "
             f"(aggregation_ratio {best_agg['aggregation_ratio']:.3f})"
         )
 
