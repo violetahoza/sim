@@ -1,5 +1,6 @@
 simpy==4.1.1
 numpy==1.26.4
+scipy==1.12.0
 pandas==2.2.1
 psutil==5.9.8
 pyyaml==6.0.1

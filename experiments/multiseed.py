@@ -24,9 +24,7 @@ DEFAULT_BASE_SEED = 1000
 DEFAULT_NUM_SEEDS = 5
 
 PRIMARY_METRICS = ["latency_p50_ms", "latency_p99_ms", "e2e_unique_delivery_ratio", "state_agreement_time_avg", "message_reduction_ratio", "proto_bytes_sent"]
-
-DETAIL_COLS = ["protocol", "architecture", "traffic_level", "num_spots", "sim_duration_s", "access_loss", "backhaul_loss", "agg_interval_s",
-                "mqtt_qos", "coap_mode", "amqp_exchange",  "amqp_ack", "amqp_durable", "heartbeat_interval_s"]
+DETAIL_COLS = ["protocol", "architecture", "traffic_level", "num_spots", "sim_duration_s", "access_loss", "backhaul_loss", "agg_interval_s", "mqtt_qos", "coap_mode", "amqp_exchange",  "amqp_ack", "amqp_durable", "heartbeat_interval_s"]
 
 
 def _all_scenarios(include_custom: bool) -> list[ScenarioConfig]:
