@@ -2,7 +2,6 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from ..models.models import ParkingEvent, SpotState
 
@@ -26,11 +25,11 @@ class FaultSpec:
 
 class FaultInjector:
 
-    def __init__(self, rng: Optional[random.Random] = None) -> None:
+    def __init__(self, *, rng: random.Random) -> None:
         self._faults: dict[int, FaultSpec] = {}
         self._last_events: dict[int, ParkingEvent] = {}
-        self.rng = rng or random.Random(0)
-        self.injected_count: int = 0 
+        self.rng = rng
+        self.injected_count: int = 0
 
 
     def set_fault(self, spot_id: int, spec: FaultSpec) -> None:
@@ -72,7 +71,7 @@ class FaultInjector:
 
         if ft == FaultType.FLAPPING:
             wrong = (SpotState.FREE if event.state == SpotState.OCCUPIED else SpotState.OCCUPIED)
-            flipped = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=wrong, timestamp=event.timestamp, sequence=event.sequence, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event)
+            flipped = ParkingEvent(sensor_id=event.sensor_id, spot_id=event.spot_id, state=wrong, timestamp=event.timestamp, sequence=event.sequence + 1, is_initial=event.is_initial, is_heartbeat_event=event.is_heartbeat_event)
             self._last_events[event.spot_id] = event
             self.injected_count += 1
             return [event, flipped]

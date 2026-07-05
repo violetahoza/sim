@@ -1,9 +1,8 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-import json
 import msgpack
-from simulator.models.models import BatchUpdate, ParkingEvent, SpotState
+from simulator.models.models import BatchUpdate, ParkingEvent
 
 
 def read_env_file() -> dict[str, str]:

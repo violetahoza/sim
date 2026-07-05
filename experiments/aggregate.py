@@ -15,7 +15,7 @@ HEADLINE_METRICS = [
     "message_reduction_ratio", "aggregation_ratio",
     "proto_bytes_sent", "frames_e2c_sent", "frames_e2c_delivered",
     "bytes_e2c_sent", "bytes_s2e_sent", "frames_s2e_collisions", "frames_s2e_overflow_drops",
-    "proto_retransmissions", "proto_duplicate_deliveries", "proto_backlog_at_end",
+    "proto_retransmissions", "proto_duplicate_deliveries", "proto_backlog_at_end", "proto_transport_recovered",
     "unique_state_changes_applied_at_cloud", "duplicate_events_at_cloud", "stale_events_ignored"
 ]
 

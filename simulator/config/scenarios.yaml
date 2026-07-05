@@ -214,6 +214,8 @@ scenarios:
   - name: B1_mqtt_qos0
     description: >
       MQTT QoS 0 - Fire & forget | No ACK, no retransmit. Minimal overhead; lost packets are gone forever. Acceptable only where occasional gaps in occupancy data are tolerable.
+      Ordinary packet loss is masked by TCP's own transparent recovery regardless of QoS; the connection-outage model below (a periodic ~20s connection drop) is what actually
+      differentiates QoS0 here - an in-flight publish has no session to redeliver from once the connection drops, so it is lost for good.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -225,6 +227,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 1
@@ -233,7 +237,8 @@ scenarios:
   - name: B2_mqtt_qos1
     description: >
       MQTT QoS 1 - At-least-once | One PUBACK round-trip; a lost PUBACK triggers a PUBLISH retransmit, so the broker re-delivers the message (a duplicate). The cloud
-      deduplicates by (spot, sequence) so state is still applied once. Reliable under moderate loss, at the cost of occasional duplicate deliveries.
+      deduplicates by (spot, sequence) so state is still applied once. Reliable under moderate loss, at the cost of occasional duplicate deliveries. Also survives the
+      periodic ~20s connection-outage below: an unacknowledged publish is held and resent once the connection is back, rather than lost like QoS0.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -245,6 +250,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 2
@@ -252,7 +259,8 @@ scenarios:
 
   - name: B3_mqtt_qos2
     description: >
-      MQTT QoS 2 - Exactly-once (4-way handshake) | Three ACK legs; highest byte overhead of the MQTT family. 
+      MQTT QoS 2 - Exactly-once (4-way handshake) | Three ACK legs; highest byte overhead of the MQTT family. Same outage resilience as QoS1: survives the periodic
+      ~20s connection-outage below via session-held redelivery, at the cost of an extra ACK round-trip.
     protocol: mqtt
     architecture: edge_filtered
     traffic_level: peak
@@ -264,6 +272,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 3
@@ -310,6 +320,7 @@ scenarios:
   - name: B6_amqp_auto
     description: >
       AMQP direct exchange - auto ACK, non-durable | Broker ACKs on dispatch; no consumer confirmation. Equivalent to QoS 0 semantics with AMQP's heavier per-frame overhead.
+      Like MQTT QoS0, an in-flight publish during the periodic ~20s connection-outage below has no session to redeliver from and is lost for good.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -323,6 +334,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 6
@@ -331,6 +344,7 @@ scenarios:
   - name: B7_amqp_manual_durable
     description: >
       AMQP direct exchange - manual ACK, durable | Consumer ACK travels back over the lossy backhaul; lost ACKs cause requeue. Equivalent to MQTT QoS 1 with stronger persistence.
+      Survives the periodic ~20s connection-outage below: an unacknowledged publish is held and requeued once the connection is back, rather than lost like the auto-ack case.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -344,6 +358,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 7
@@ -352,6 +368,7 @@ scenarios:
   - name: B8_amqp_topic
     description: >
       AMQP topic exchange - manual ACK, durable | Pattern-routed (parking.<edge>.update). Slightly higher broker overhead than B7; useful for per-zone subscriber filtering.
+      Same outage resilience as B7 via manual-ack session persistence.
     protocol: amqp
     architecture: edge_filtered
     traffic_level: peak
@@ -365,6 +382,8 @@ scenarios:
     start_hour: 6.0
     loss_rate: 0.05
     backhaul_loss_rate: 0.03
+    backhaul_outage_mean_up_s: 1800.0
+    backhaul_outage_mean_down_s: 20.0
     anomaly_detection: false
     group: "B - Protocol Comparison"
     group_order: 8
@@ -628,6 +647,94 @@ scenarios:
     anomaly_detection: false
     group: "D - Reliability vs Loss Sweep"
     group_order: 9
+    is_builtin: true
+
+  - name: D10_coap_loss_med_nstart4
+    description: >
+      NSTART sensitivity - CoAP CON at 25% backhaul loss, NSTART=4 | Same loss level as D5, but
+      with up to 4 confirmable exchanges in flight at once instead of the RFC 7252 default of 1.
+      Compare against D5 to separate "CoAP protocol overhead" from "NSTART=1 serialization" -
+      D5's latency blowup is largely a queueing artifact of NSTART=1 forcing every retry to wait
+      behind a single in-flight exchange; raising NSTART relieves that queueing.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    coap_nstart: 4
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.25
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 10
+    is_builtin: true
+
+  - name: D11_coap_loss_high_nstart4
+    description: >
+      NSTART sensitivity - CoAP CON at 45% backhaul loss, NSTART=4 | Same loss level as D6, with
+      NSTART raised from the RFC 7252 default of 1 to 4. Compare against D6 for the same reason
+      as D10/D5: isolates how much of D6's extreme latency is queueing collapse from
+      NSTART=1 rather than CoAP's retransmission behavior itself.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    coap_nstart: 4
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.45
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 11
+    is_builtin: true
+
+  - name: D12_coap_loss_med_nstart_unbounded
+    description: >
+      NSTART sensitivity - CoAP CON at 25% backhaul loss, NSTART effectively unbounded | Same
+      loss level as D5/D10, with NSTART raised high enough that concurrent exchanges are never
+      throttled (an upper anchor for the NSTART sweep, roughly comparable to MQTT/AMQP's lack of
+      any in-flight cap). If latency here tracks MQTT/AMQP (D2) rather than D5/D6, that confirms
+      NSTART=1 - not CoAP's retransmission scheme - is the dominant cause of D5/D6's blowup.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    coap_nstart: 1000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.25
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 12
+    is_builtin: true
+
+  - name: D13_coap_loss_high_nstart_unbounded
+    description: >
+      NSTART sensitivity - CoAP CON at 45% backhaul loss, NSTART effectively unbounded | Same
+      loss level as D6/D11, upper anchor of the NSTART sweep. See D12 for rationale.
+    protocol: coap
+    architecture: edge_filtered
+    traffic_level: peak
+    num_spots: 500
+    seed: 4001
+    coap_mode: CON
+    coap_nstart: 1000
+    sim_duration_s: 10800.0
+    use_time_of_day: false
+    loss_rate: 0.05
+    backhaul_loss_rate: 0.45
+    anomaly_detection: false
+    group: "D - Reliability vs Loss Sweep"
+    group_order: 13
     is_builtin: true
 
 

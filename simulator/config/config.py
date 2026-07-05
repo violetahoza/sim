@@ -44,6 +44,8 @@ class BackhaulLinkConfig:
     max_payload_bytes: int = 65535
     rate_limit_msgs_per_sec: float = 1000.0
     transport_overhead_bytes: int = 0
+    outage_mean_up_s: Optional[float] = None
+    outage_mean_down_s: float = 15.0
 
     def to_link_config(self) -> "LinkConfig":
         return LinkConfig(
@@ -197,6 +199,8 @@ class ScenarioConfig:
             "backhaul_loss_rate": self.backhaul_link.packet_loss_rate,
             "backhaul_downlink_loss_rate": self.backhaul_link.downlink_loss_rate,
             "backhaul_loss_peak_rate": self.backhaul_link.loss_peak_rate,
+            "backhaul_outage_mean_up_s": self.backhaul_link.outage_mean_up_s,
+            "backhaul_outage_mean_down_s": self.backhaul_link.outage_mean_down_s,
             "aggregation_interval": edge["aggregation_interval_s"],
             "max_event_age_s": edge["max_event_age_s"],
             "max_batch_size": edge["max_batch_size"],
@@ -297,6 +301,8 @@ class ScenarioConfig:
             backhaul_loss_rate=d.get("backhaul_loss_rate", 0.02),
             backhaul_downlink_loss_rate=d.get("backhaul_downlink_loss_rate"),
             backhaul_loss_peak_rate=d.get("backhaul_loss_peak_rate"),
+            backhaul_outage_mean_up_s=d.get("backhaul_outage_mean_up_s"),
+            backhaul_outage_mean_down_s=d.get("backhaul_outage_mean_down_s", 15.0),
             mean_parking_duration_s=d.get("mean_parking_duration_s", 1800.0),
             parking_duration_cv=d.get("parking_duration_cv", 1.5),
             use_time_of_day=d.get("use_time_of_day", False),
@@ -371,6 +377,8 @@ def make_scenario(
     backhaul_loss_rate: float = 0.02,
     backhaul_downlink_loss_rate: Optional[float] = None,
     backhaul_loss_peak_rate: Optional[float] = None,
+    backhaul_outage_mean_up_s: Optional[float] = None,
+    backhaul_outage_mean_down_s: float = 15.0,
     mean_parking_duration_s: float = 1800.0,
     parking_duration_cv: float = 1.5,
     use_time_of_day: bool = False,
@@ -408,7 +416,9 @@ def make_scenario(
         jitter_ms=backhaul_jitter_ms,
         packet_loss_rate=backhaul_loss_rate,
         downlink_loss_rate=backhaul_downlink_loss_rate,
-        loss_peak_rate=backhaul_loss_peak_rate
+        loss_peak_rate=backhaul_loss_peak_rate,
+        outage_mean_up_s=backhaul_outage_mean_up_s,
+        outage_mean_down_s=backhaul_outage_mean_down_s
     )
 
     edge = EdgeConfig(

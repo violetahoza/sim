@@ -139,6 +139,7 @@ class ExperimentMetrics:
     retransmissions_total: int = 0
     duplicate_deliveries: int = 0
     proto_backlog_at_end: int = 0
+    transport_recovered_total: int = 0
 
     cloud_msgs_received_total: int = 0
     cloud_batches_received: int = 0
@@ -214,6 +215,7 @@ class ExperimentMetrics:
             "proto_retransmissions": self.retransmissions_total,
             "proto_duplicate_deliveries": self.duplicate_deliveries,
             "proto_backlog_at_end": self.proto_backlog_at_end,
+            "proto_transport_recovered": self.transport_recovered_total,
 
             "cloud_batches_received": self.cloud_batches_received,
             "cloud_events_pre_dedup": self.cloud_msgs_received_total,

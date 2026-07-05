@@ -12,7 +12,6 @@ from ..config.constants import compute_lora_airtime_s
 ForwardCallback = Callable[[ParkingEvent, bytes], None]
 ForwardBatchCallback = Callable[[BatchUpdate, bytes], None]
 
-_DEFAULT_RNG_SEED = 0x1B2C3D4E
 
 class TokenBucket:
     def __init__(self, rate: float) -> None:
@@ -42,8 +41,8 @@ class TokenBucket:
 
 
 class GilbertElliotModel:
-    def __init__(self, base_loss_rate: float, burst_enabled: bool = True, p_loss_bad: float = 0.50, burst_mean_length: float = 4.0, rng: random.Random | None = None) -> None:
-        self.rng = rng or random.Random()
+    def __init__(self, base_loss_rate: float, burst_enabled: bool = True, p_loss_bad: float = 0.50, burst_mean_length: float = 4.0, *, rng: random.Random) -> None:
+        self.rng = rng
         self.burst_enabled = burst_enabled
 
         if not burst_enabled or base_loss_rate <= 0.0:
@@ -85,10 +84,10 @@ class GilbertElliotModel:
 
 
 class SharedMediumModel:
-    def __init__(self, channels: int = 1, rng: random.Random | None = None) -> None:
+    def __init__(self, channels: int = 1, *, rng: random.Random) -> None:
         self.channels = max(1, channels)
-        self.rng = rng or random.Random()
-        self._active: list[list] = [] 
+        self.rng = rng
+        self._active: list[list] = []
         self.collisions: int = 0
 
     def begin(self, now: float, airtime: float) -> list[bool]:
@@ -139,14 +138,14 @@ class QueueOverflowModel:
 class LinkEmulator:
     DEFAULT_QUEUE_CAPACITY: int = 500
 
-    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: Optional[ForwardCallback] = None, rng: random.Random | None = None,
+    def __init__(self, config: LinkConfig, clock: SimClock, forward_cb: Optional[ForwardCallback] = None, *, rng: random.Random,
                  queue_capacity: int | None = None, wall_clock: bool = False) -> None:
         self.config = config
         self.clock = clock
         self._callback = forward_cb
         self._batch_cb: Optional[ForwardBatchCallback] = None
         self.on_drop: Optional[Callable[[], None]] = None
-        self.rng = rng or random.Random(_DEFAULT_RNG_SEED)
+        self.rng = rng
         self._wall_clock = wall_clock
 
         _chan_rng = random.Random(self.rng.randint(0, 2**32))

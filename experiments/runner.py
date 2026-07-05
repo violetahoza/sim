@@ -115,8 +115,8 @@ class ExperimentRunner:
         self._run_id = _make_run_id()
         epoch = 0.0
 
-        _sub = np.random.SeedSequence(seed).spawn(5)
-        (sensor_seed, backend_seed, backhaul_seed, fault_shuffle_seed, fault_inject_seed) = (int(s.generate_state(1)[0]) for s in _sub)
+        _sub = np.random.SeedSequence(seed).spawn(6)
+        (sensor_seed, backend_seed, backhaul_seed, fault_shuffle_seed, fault_inject_seed, outage_seed) = (int(s.generate_state(1)[0]) for s in _sub)
 
         clock = SimClock()
         arrival_rate = cfg.arrival_rate
@@ -151,7 +151,7 @@ class ExperimentRunner:
             import json as _json
             cloud.open_run(engine, config_json=_json.dumps(cfg.to_save_dict()))
 
-        backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, backend_seed)
+        backend = _make_simulated_backend(cfg, clock, cloud.receive_batch, backend_seed, outage_seed)
         arch = cfg.architecture
 
         _sensor_rng = random.Random(sensor_seed)
@@ -245,6 +245,7 @@ class ExperimentRunner:
 
         retransmits = getattr(backend, "retransmitted", 0) or getattr(backend, "retransmissions", 0)
         dup_deliveries = (getattr(backend, "duplicates_delivered", 0) or getattr(backend, "duplicates_suppressed", 0))
+        transport_recovered = getattr(backend, "transport_recovered", 0)
         protocol_bytes = backend.bytes_sent
 
         frames_offered = getattr(backend, "frames_offered", 0)
@@ -263,7 +264,8 @@ class ExperimentRunner:
             retransmits=retransmits, dup_deliveries=dup_deliveries, state_agreement=state_agreement,
             frames_offered=frames_offered, frames_delivered_e2c=frames_delivered_e2c,
             frames_dropped_e2c=frames_dropped_e2c, first_pass_delivered=first_pass_delivered,
-            dup_events_at_cloud=dup_events_at_cloud, agreement_time_avg=agreement_time_avg, backlog_at_end=backlog_at_end)
+            dup_events_at_cloud=dup_events_at_cloud, agreement_time_avg=agreement_time_avg, backlog_at_end=backlog_at_end,
+            transport_recovered=transport_recovered)
         self._log_done(cfg, metrics, cloud_events=cloud.received_events)
 
         if self.flush_cb:
@@ -274,7 +276,8 @@ class ExperimentRunner:
 
     def _collect_metrics_simulated(self, cfg, sensors: SensorEmulator, link: LinkEmulator, edge: EdgeNode, cloud: CloudBackend, backhaul_link, protocol_bytes: int = 0,
         retransmits: int = 0, dup_deliveries: int = 0, state_agreement: Optional[float] = None, frames_offered: int = 0, frames_delivered_e2c: int = 0, frames_dropped_e2c: int = 0,
-        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0, agreement_time_avg: Optional[float] = None, backlog_at_end: int = 0) -> ExperimentMetrics:
+        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0, agreement_time_avg: Optional[float] = None, backlog_at_end: int = 0,
+        transport_recovered: int = 0) -> ExperimentMetrics:
 
         post_samples = cloud.get_all_latency_samples()
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
@@ -420,9 +423,11 @@ class ExperimentRunner:
             duplicate_deliveries=dup_deliveries,
             protocol_bytes=protocol_bytes,
             proto_backlog_at_end=backlog_at_end,
+            transport_recovered_total=transport_recovered,
 
             aggregation_ratio=_r(aggregation_ratio, 4),
             message_reduction_ratio=_r(message_reduction_ratio, 4),
+            events_per_cloud_message=_r(aggregation_ratio, 4),
 
             cloud_msgs_received_total=cloud_msgs_total,
             cloud_batches_received=getattr(cloud, "received_batches", 0),
@@ -525,10 +530,11 @@ def _make_loss_provider(cfg):
 
     return provider
 
-def _make_simulated_backend(cfg, clock, cloud_recv, seed):
+def _make_simulated_backend(cfg, clock, cloud_recv, seed, outage_seed=None):
     from simulator.protocols.mqtt_client import SimulatedMQTTBackend
     from simulator.protocols.amqp_client import SimulatedAMQPBackend
     from simulator.protocols.coap_client import SimulatedCoAPBackend
+    from simulator.link.tcp_transport import ConnectionOutageModel
 
     if cfg.architecture == "cloud_only":
         uplink_loss = 0.0
@@ -543,10 +549,18 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed):
 
     loss_provider = _make_loss_provider(cfg)
     proto = cfg.protocol
+
+    outage = None
+    if proto in ("mqtt", "amqp") and cfg.architecture != "cloud_only" and cfg.backhaul_link.outage_mean_up_s is not None:
+        outage = ConnectionOutageModel(
+            clock, random.Random(outage_seed if outage_seed is not None else seed),
+            cfg.backhaul_link.outage_mean_up_s, cfg.backhaul_link.outage_mean_down_s
+        )
+
     if proto == "mqtt":
-        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
+        return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider, outage=outage)
     elif proto == "amqp":
-        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
+        return SimulatedAMQPBackend(cfg.amqp, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider, outage=outage)
     elif proto == "coap":
         return SimulatedCoAPBackend(cfg.coap, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider)
     raise ValueError(f"Unknown protocol: {proto}")
