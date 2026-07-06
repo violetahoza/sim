@@ -244,8 +244,8 @@ class ExperimentRunner:
         edge.flush_final()
 
         retransmits = getattr(backend, "retransmitted", 0) or getattr(backend, "retransmissions", 0)
-        dup_deliveries = (getattr(backend, "duplicates_delivered", 0) or getattr(backend, "duplicates_suppressed", 0))
-        transport_recovered = getattr(backend, "transport_recovered", 0)
+        dup_deliveries = getattr(backend, "duplicates_delivered", 0)
+        dup_suppressed = getattr(backend, "duplicates_suppressed", 0)
         protocol_bytes = backend.bytes_sent
 
         frames_offered = getattr(backend, "frames_offered", 0)
@@ -261,11 +261,10 @@ class ExperimentRunner:
         self._edge_summary = edge.summary()
         metrics = self._collect_metrics_simulated(
             cfg, sensors, link, edge, cloud, backhaul_link, protocol_bytes,
-            retransmits=retransmits, dup_deliveries=dup_deliveries, state_agreement=state_agreement,
+            retransmits=retransmits, dup_deliveries=dup_deliveries, dup_suppressed=dup_suppressed, state_agreement=state_agreement,
             frames_offered=frames_offered, frames_delivered_e2c=frames_delivered_e2c,
             frames_dropped_e2c=frames_dropped_e2c, first_pass_delivered=first_pass_delivered,
-            dup_events_at_cloud=dup_events_at_cloud, agreement_time_avg=agreement_time_avg, backlog_at_end=backlog_at_end,
-            transport_recovered=transport_recovered)
+            dup_events_at_cloud=dup_events_at_cloud, agreement_time_avg=agreement_time_avg, backlog_at_end=backlog_at_end)
         self._log_done(cfg, metrics, cloud_events=cloud.received_events)
 
         if self.flush_cb:
@@ -275,9 +274,8 @@ class ExperimentRunner:
         return metrics
 
     def _collect_metrics_simulated(self, cfg, sensors: SensorEmulator, link: LinkEmulator, edge: EdgeNode, cloud: CloudBackend, backhaul_link, protocol_bytes: int = 0,
-        retransmits: int = 0, dup_deliveries: int = 0, state_agreement: Optional[float] = None, frames_offered: int = 0, frames_delivered_e2c: int = 0, frames_dropped_e2c: int = 0,
-        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0, agreement_time_avg: Optional[float] = None, backlog_at_end: int = 0,
-        transport_recovered: int = 0) -> ExperimentMetrics:
+        retransmits: int = 0, dup_deliveries: int = 0, dup_suppressed: int = 0, state_agreement: Optional[float] = None, frames_offered: int = 0, frames_delivered_e2c: int = 0, frames_dropped_e2c: int = 0,
+        first_pass_delivered: int = 0, dup_events_at_cloud: int = 0, agreement_time_avg: Optional[float] = None, backlog_at_end: int = 0) -> ExperimentMetrics:
 
         post_samples = cloud.get_all_latency_samples()
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
@@ -421,9 +419,9 @@ class ExperimentRunner:
 
             retransmissions_total=retransmits,
             duplicate_deliveries=dup_deliveries,
+            duplicates_suppressed=dup_suppressed,
             protocol_bytes=protocol_bytes,
             proto_backlog_at_end=backlog_at_end,
-            transport_recovered_total=transport_recovered,
 
             aggregation_ratio=_r(aggregation_ratio, 4),
             message_reduction_ratio=_r(message_reduction_ratio, 4),

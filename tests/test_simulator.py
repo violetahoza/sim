@@ -15,7 +15,7 @@ from simulator.sensors.sensor_emulator import SensorEmulator
 from simulator.sensors.fault_injector import FaultInjector, FaultSpec, FaultType
 from simulator.traffic.traffic_model import TrafficModel
 from simulator.link.link_emulator import LinkEmulator, TokenBucket, GilbertElliotModel, QueueOverflowModel, SharedMediumModel
-from simulator.link.tcp_transport import tcp_transport_outcome, tcp_extra_delay, ConnectionOutageModel
+from simulator.link.tcp_transport import ConnectionOutageModel
 from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, ExperimentMetrics
 from simulator.protocols.mqtt_client import SimulatedMQTTBackend
 from simulator.protocols.amqp_client import SimulatedAMQPBackend
@@ -462,7 +462,9 @@ def test_coap_con_retransmits_non_does_not_under_total_loss():
     assert con.frames_delivered == 0
     assert con.retransmitted > 0 # CON retransmits with backoff
 
-def test_mqtt_qos0_app_visible_drop_rate_much_lower_than_raw_loss():
+def test_mqtt_qos0_app_visible_drop_rate_matches_raw_loss():
+    """QoS0 is fire-and-forget with no transport-level masking, so the raw link loss
+    passes straight through to the application-visible drop rate."""
     raw_loss, n = 0.3, 300
     dropped = 0
     for i in range(n):
@@ -471,7 +473,7 @@ def test_mqtt_qos0_app_visible_drop_rate_much_lower_than_raw_loss():
         _publish_once(backend, clock, until=5.0)
         if backend.frames_dropped:
             dropped += 1
-    assert (dropped / n) < raw_loss * 0.5
+    assert abs((dropped / n) - raw_loss) < 0.08
 
 
 def test_coap_non_app_visible_drop_rate_matches_raw_loss():
@@ -486,7 +488,9 @@ def test_coap_non_app_visible_drop_rate_matches_raw_loss():
     assert abs((dropped / n) - raw_loss) < 0.08
 
 
-def test_mqtt_and_coap_diverge_under_identical_configured_loss():
+def test_mqtt_qos0_and_coap_non_agree_under_identical_raw_loss():
+    """Both are fire-and-forget over the same raw-loss substrate now, so with no
+    transport masking on either side their delivery ratios should track each other."""
     raw_loss, n = 0.3, 200
 
     def delivered_ratio(make_backend):
@@ -500,7 +504,26 @@ def test_mqtt_and_coap_diverge_under_identical_configured_loss():
 
     mqtt_dr = delivered_ratio(lambda c, i: SimulatedMQTTBackend(MQTTConfig(qos=0), c, None, raw_loss, i, 0.03, 0.0))
     coap_dr = delivered_ratio(lambda c, i: SimulatedCoAPBackend(CoAPConfig(mode="NON"), c, None, raw_loss, i, 0.03, 0.0))
-    assert mqtt_dr > coap_dr + 0.15
+    assert abs(mqtt_dr - coap_dr) < 0.1
+
+
+def test_mqtt_qos1_recovers_better_than_qos0_under_identical_raw_loss():
+    """The delivery-ratio improvement over QoS0 must come from QoS1's own ack/retry
+    machinery, not from a hidden transport-level retry mask."""
+    raw_loss, n = 0.3, 200
+
+    def delivered_ratio(make_backend):
+        delivered = 0
+        for i in range(n):
+            clock = SimClock()
+            backend = make_backend(clock, i)
+            if _publish_once(backend, clock, until=30.0):
+                delivered += 1
+        return delivered / n
+
+    qos0_dr = delivered_ratio(lambda c, i: SimulatedMQTTBackend(MQTTConfig(qos=0), c, None, raw_loss, i, 0.03, 0.0))
+    qos1_dr = delivered_ratio(lambda c, i: SimulatedMQTTBackend(MQTTConfig(qos=1), c, None, raw_loss, i, 0.03, 0.0))
+    assert qos1_dr > qos0_dr + 0.15
 
 
 def test_connection_outage_down_fraction_matches_expected():

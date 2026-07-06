@@ -45,8 +45,6 @@ MQTT_ACK_WIRE_BYTES: int = TCP_TRANSPORT_OVERHEAD + MQTT_ACK_BYTES
 COAP_ACK_WIRE_BYTES: int = UDP_TRANSPORT_OVERHEAD + COAP_ACK_BYTES
 AMQP_ACK_WIRE_BYTES: int = TCP_TRANSPORT_OVERHEAD + AMQP_ACK_FRAME
 
-TCP_LOCAL_RETRY_ATTEMPTS: int = 4
-
 ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
 DEFAULT_TOD_PEAKS: list[tuple[float, float, float]] = [(7.5, 8.0, 1.0),  (12.0, 10.0, 0.5), (17.5, 6.0, 1.3)]
 
@@ -80,4 +78,3 @@ def compute_lora_airtime_s(payload_bytes: int, sf: int = LORA_SF, bw: int = LORA
     n_payload = 8 + max(0, math.ceil(numerator / (4 * (sf - 2 * de))) * (cr + 4))
     t_payload = n_payload * t_sym
     return t_preamble + t_payload
-

@@ -9,6 +9,7 @@ from simulator.config.config import CoAPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
 from simulator.config.constants import COAP_HEADER_BYTES, COAP_TOKEN_BYTES, COAP_PAYLOAD_MARKER, COAP_URI_PATH_OPTION_EST, COAP_ACK_WIRE_BYTES, UDP_TRANSPORT_OVERHEAD
+from simulator.link.link_emulator import GilbertElliotModel
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self._rng = random.Random(seed)
         self.bytes_sent = 0
         self.retransmitted = 0
+        self.duplicates_delivered = 0
         self.duplicates_suppressed = 0
         self.frames_offered = 0
         self.frames_delivered = 0
@@ -39,14 +41,18 @@ class SimulatedCoAPBackend(ProtocolBackend):
         self._nstart = max(1, getattr(config, "nstart", 1))
         self._inflight = 0
         self._backlog: deque[tuple[BatchUpdate, bytes, int]] = deque()
+        self._uplink_channel = GilbertElliotModel(self.uplink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
+        self._downlink_channel = GilbertElliotModel(self.downlink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
 
     def _uplink_drop(self) -> bool:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
-        return self._rng.random() < rate
+        if self._loss_provider is not None:
+            return self._uplink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._uplink_channel.should_drop()
 
     def _downlink_drop(self) -> bool:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.downlink_loss
-        return self._rng.random() < rate
+        if self._loss_provider is not None:
+            return self._downlink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._downlink_channel.should_drop()
 
     def _next_id(self) -> int:
         self._msg_seq += 1

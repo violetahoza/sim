@@ -383,7 +383,8 @@ function _metricsList() {
 
     G('Broker layer (MQTT/AMQP/CoAP)'),
     { label: 'Broker retries (QoS)', value: r => r.proto_retransmissions ?? r.retransmissions_total ?? null, applies: _always, fmt: _int, better: 'low' },
-    { label: 'Duplicates caught by protocol', value: r => r.proto_duplicate_deliveries ?? r.duplicate_deliveries ?? null, applies: _always, fmt: _int },
+    { label: 'Duplicates delivered to app', value: r => r.proto_duplicate_deliveries ?? r.duplicate_deliveries ?? null, applies: _always, fmt: _int, better: 'low' },
+    { label: 'Duplicates suppressed by protocol', value: r => r.proto_duplicates_suppressed ?? null, applies: _always, fmt: _int },
 
     G('Cloud State'),
     { label: 'Total msgs received', value: r => r.cloud_events_pre_dedup ?? r.cloud_msgs_received ?? r.cloud_msgs_received_total ?? null, applies: _always, fmt: _int },

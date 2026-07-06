@@ -7,8 +7,9 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import MQTTConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.config.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD, TCP_LOCAL_RETRY_ATTEMPTS
-from simulator.link.tcp_transport import tcp_transport_outcome, tcp_extra_delay, ConnectionOutageModel
+from simulator.config.constants import MQTT_CONTROL_BYTE, MQTT_PACKET_ID_BYTES, MQTT_TOPIC_LEN_BYTES, MQTT_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD
+from simulator.link.link_emulator import GilbertElliotModel
+from simulator.link.tcp_transport import ConnectionOutageModel
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self.bytes_sent = 0
         self.retransmitted = 0
         self.duplicates_delivered = 0
+        self.duplicates_suppressed = 0
         self.frames_offered = 0
         self.frames_delivered = 0
         self.frames_dropped = 0
@@ -51,23 +53,19 @@ class SimulatedMQTTBackend(ProtocolBackend):
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
         self._rto_s = max(0.2, 3.0 * (2.0 * ack_one_way_delay_s))
-        self._tcp_local_retries = TCP_LOCAL_RETRY_ATTEMPTS
-        self._tcp_rtt_s = max(0.02, 2.0 * ack_one_way_delay_s)
-        self.transport_recovered = 0
+        self._uplink_channel = GilbertElliotModel(self.uplink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
+        self._downlink_channel = GilbertElliotModel(self.downlink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
 
-    def _uplink_outcome(self) -> tuple[bool, float]:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
-        dropped, attempts = tcp_transport_outcome(self._rng, rate, self._tcp_local_retries)
-        if not dropped and attempts > 0:
-            self.transport_recovered += 1
-        return dropped, tcp_extra_delay(attempts, self._tcp_rtt_s)
+    def _uplink_drop(self) -> bool:
+        if self._loss_provider is not None:
+            return self._uplink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._uplink_channel.should_drop()
 
-    def _downlink_outcome(self) -> tuple[bool, float]:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.downlink_loss
-        dropped, attempts = tcp_transport_outcome(self._rng, rate, self._tcp_local_retries)
-        if not dropped and attempts > 0:
-            self.transport_recovered += 1
-        return dropped, tcp_extra_delay(attempts, self._tcp_rtt_s)
+    def _downlink_drop(self) -> bool:
+        if self._loss_provider is not None:
+            return self._downlink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._downlink_channel.should_drop()
+
 
     def _await_reconnect(self, resend: Callable[[], None]) -> bool:
         if self._outage is None or not self._outage.is_down():
@@ -105,6 +103,7 @@ class SimulatedMQTTBackend(ProtocolBackend):
 
     def _release(self, batch: BatchUpdate, payload: bytes, msg_id: int) -> None:
         if msg_id in self._delivered:
+            self.duplicates_suppressed += 1
             return
         self._delivered.add(msg_id)
         self.frames_delivered += 1
@@ -154,8 +153,7 @@ class SimulatedMQTTBackend(ProtocolBackend):
 
         self.bytes_sent += self._publish_bytes(batch, payload, qos)
 
-        uplink_dropped, uplink_extra = self._uplink_outcome()
-        if uplink_dropped:
+        if self._uplink_drop():
             self._retry_publish(batch, payload, msg_id, qos, attempt)
             return
 
@@ -166,32 +164,26 @@ class SimulatedMQTTBackend(ProtocolBackend):
             if qos == 1:
                 self._deliver(batch, payload, msg_id)
 
-                downlink_dropped, downlink_extra = self._downlink_outcome()
-
                 def puback() -> None:
-                    if downlink_dropped:
+                    if self._downlink_drop():
                         self._retry_publish(batch, payload, msg_id, qos, attempt)
                     else:
                         self.bytes_sent += MQTT_ACK_WIRE_BYTES
 
-                self.clock.schedule(self._ack_delay() + downlink_extra, puback)
+                self.clock.schedule(self._ack_delay(), puback)
                 return
 
-            downlink_dropped, downlink_extra = self._downlink_outcome()
-
             def pubrec() -> None:
-                if downlink_dropped:
+                if self._downlink_drop():
                     self._retry_publish(batch, payload, msg_id, qos, attempt)
                     return
                 self.bytes_sent += MQTT_ACK_WIRE_BYTES
                 self._send_pubrel(batch, payload, msg_id, attempt=0)
 
-            self.clock.schedule(self._ack_delay() + downlink_extra, pubrec)
+            self.clock.schedule(self._ack_delay(), pubrec)
 
         if attempt > 0:
-            self.clock.schedule(self._ack_delay() + uplink_extra, arrival)
-        elif uplink_extra > 0.0:
-            self.clock.schedule(uplink_extra, arrival)
+            self.clock.schedule(self._ack_delay(), arrival)
         else:
             arrival()
 
@@ -201,22 +193,19 @@ class SimulatedMQTTBackend(ProtocolBackend):
 
         self.bytes_sent += MQTT_ACK_WIRE_BYTES
 
-        uplink_dropped, uplink_extra = self._uplink_outcome()
-        if uplink_dropped:
+        if self._uplink_drop():
             self._retry_pubrel(batch, payload, msg_id, attempt)
             return
 
         def arrival() -> None:
             self._release(batch, payload, msg_id)
 
-            downlink_dropped, downlink_extra = self._downlink_outcome()
-
             def pubcomp() -> None:
-                if downlink_dropped:
+                if self._downlink_drop():
                     self._retry_pubrel(batch, payload, msg_id, attempt)
                     return
                 self.bytes_sent += MQTT_ACK_WIRE_BYTES
 
-            self.clock.schedule(self._ack_delay() + downlink_extra, pubcomp)
+            self.clock.schedule(self._ack_delay(), pubcomp)
 
-        self.clock.schedule(self._ack_delay() + uplink_extra, arrival)
+        self.clock.schedule(self._ack_delay(), arrival)

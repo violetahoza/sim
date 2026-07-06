@@ -62,6 +62,7 @@ function normalizeMetrics(raw) {
     proto_bytes_sent: pick(raw, 'proto_bytes_sent', 'protocol_bytes'),
     proto_retransmissions: pick(raw, 'proto_retransmissions', 'retransmissions_total'),
     proto_duplicate_deliveries: pick(raw, 'proto_duplicate_deliveries', 'duplicate_deliveries'),
+    proto_duplicates_suppressed: pick(raw, 'proto_duplicates_suppressed'),
     proto_backlog_at_end: pick(raw, 'proto_backlog_at_end'),
     backhaul_delivery_ratio: pick(raw, 'backhaul_delivery_ratio'),
 
@@ -591,8 +592,9 @@ function _metricsCloudOnly(m) {
     _row('Wireless delivery ratio', _fmtPct(m.s2e_delivery_ratio), 'Frames delivered to broker', _fmtInt(m.frames_s2e_delivered)),
 
     _group('Protocol  (sensor → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate arrivals at receiver', _fmtInt(m.proto_duplicate_deliveries)),
-    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicates delivered to receiver', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Duplicates suppressed by dedup', _fmtInt(m.proto_duplicates_suppressed), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
     _group('Cloud intake'),
     _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),
@@ -650,8 +652,9 @@ function _metricsEdge(m) {
     _row('Frames delivered', _fmtInt(m.frames_e2c_delivered), 'Backhaul delivery ratio (after retries)', _fmtPct(m.backhaul_delivery_ratio)),
 
     _group('Protocol  (edge → cloud)'),
-    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicate arrivals at receiver', _fmtInt(m.proto_duplicate_deliveries)),
-    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
+    _row('Retransmissions', _fmtInt(m.proto_retransmissions), 'Duplicates delivered to receiver', _fmtInt(m.proto_duplicate_deliveries)),
+    _row('Duplicates suppressed by dedup', _fmtInt(m.proto_duplicates_suppressed), 'Unsent backlog at run end', _fmtInt(m.proto_backlog_at_end)),
+    _row('Protocol overhead (KB)', _fmtKB(m.proto_bytes_sent), '', ''),
 
     _group('Cloud intake'),
     _row('Messages received (batches)', _fmtInt(m.cloud_batches_received), 'Events received (pre-dedup)', _fmtInt(m.cloud_msgs_received)),

@@ -7,8 +7,9 @@ from simulator.models.models import BatchUpdate
 from simulator.config.config import AMQPConfig
 from simulator.des.engine import SimClock
 from simulator.protocols.base import ProtocolBackend, CloudRecvCallback
-from simulator.config.constants import AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST, AMQP_DURABLE_PROPERTY, AMQP_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD, TCP_LOCAL_RETRY_ATTEMPTS
-from simulator.link.tcp_transport import tcp_transport_outcome, tcp_extra_delay, ConnectionOutageModel
+from simulator.config.constants import AMQP_FRAME_ENVELOPE, AMQP_PUBLISH_METHOD_FIXED, AMQP_CONTENT_HEADER_FIXED, AMQP_PROPERTY_TABLE_EST, AMQP_DURABLE_PROPERTY, AMQP_ACK_WIRE_BYTES, TCP_TRANSPORT_OVERHEAD
+from simulator.link.link_emulator import GilbertElliotModel
+from simulator.link.tcp_transport import ConnectionOutageModel
 
 logger = logging.getLogger(__name__)
 class SimulatedAMQPBackend(ProtocolBackend):
@@ -27,6 +28,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.bytes_sent = 0
         self.retransmitted = 0
         self.duplicates_delivered = 0
+        self.duplicates_suppressed = 0
         self.frames_offered = 0
         self.frames_delivered = 0
         self.frames_dropped = 0
@@ -37,23 +39,18 @@ class SimulatedAMQPBackend(ProtocolBackend):
         self.on_drop: Optional[Callable[[], None]] = None
         self._ack_one_way_s = ack_one_way_delay_s
         self._ack_jitter_s = ack_jitter_s
-        self._tcp_local_retries = TCP_LOCAL_RETRY_ATTEMPTS
-        self._tcp_rtt_s = max(0.02, 2.0 * ack_one_way_delay_s)
-        self.transport_recovered = 0
+        self._uplink_channel = GilbertElliotModel(self.uplink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
+        self._downlink_channel = GilbertElliotModel(self.downlink_loss, rng=random.Random(self._rng.randint(0, 2**32)))
 
-    def _uplink_outcome(self) -> tuple[bool, float]:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.uplink_loss
-        dropped, attempts = tcp_transport_outcome(self._rng, rate, self._tcp_local_retries)
-        if not dropped and attempts > 0:
-            self.transport_recovered += 1
-        return dropped, tcp_extra_delay(attempts, self._tcp_rtt_s)
+    def _uplink_drop(self) -> bool:
+        if self._loss_provider is not None:
+            return self._uplink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._uplink_channel.should_drop()
 
-    def _downlink_outcome(self) -> tuple[bool, float]:
-        rate = self._loss_provider(self.clock.now) if self._loss_provider is not None else self.downlink_loss
-        dropped, attempts = tcp_transport_outcome(self._rng, rate, self._tcp_local_retries)
-        if not dropped and attempts > 0:
-            self.transport_recovered += 1
-        return dropped, tcp_extra_delay(attempts, self._tcp_rtt_s)
+    def _downlink_drop(self) -> bool:
+        if self._loss_provider is not None:
+            return self._downlink_channel.should_drop(self._loss_provider(self.clock.now))
+        return self._downlink_channel.should_drop()
 
     def _await_reconnect(self, resend: Callable[[], None]) -> bool:
         if self._outage is None or not self._outage.is_down():
@@ -125,8 +122,7 @@ class SimulatedAMQPBackend(ProtocolBackend):
 
         self.bytes_sent += self._publish_bytes(batch, payload)
 
-        uplink_dropped, uplink_extra = self._uplink_outcome()
-        if uplink_dropped:
+        if self._uplink_drop():
             if self.config.ack_mode == "auto":
                 self._drop(msg_id)
             else:
@@ -139,19 +135,15 @@ class SimulatedAMQPBackend(ProtocolBackend):
             if self.config.ack_mode == "auto":
                 return
 
-            downlink_dropped, downlink_extra = self._downlink_outcome()
-
             def consumer_ack() -> None:
-                if downlink_dropped:
+                if self._downlink_drop():
                     self._requeue(batch, payload, msg_id, attempt)
                 else:
                     self.bytes_sent += AMQP_ACK_WIRE_BYTES
 
-            self.clock.schedule(self._ack_delay() + downlink_extra, consumer_ack)
+            self.clock.schedule(self._ack_delay(), consumer_ack)
 
         if attempt > 0:
-            self.clock.schedule(self._ack_delay() + uplink_extra, arrival)
-        elif uplink_extra > 0.0:
-            self.clock.schedule(uplink_extra, arrival)
+            self.clock.schedule(self._ack_delay(), arrival)
         else:
             arrival()

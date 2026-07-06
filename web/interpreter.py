@@ -141,6 +141,7 @@ def build_summaries(results: list[dict]) -> list[dict]:
             "cloud_msgs_received": r.get("cloud_msgs_received"),
             "proto_retransmissions": r.get("proto_retransmissions"),
             "proto_duplicate_deliveries": r.get("proto_duplicate_deliveries"),
+            "proto_duplicates_suppressed": r.get("proto_duplicates_suppressed"),
             "bytes_s2e_sent_kb": kb(r.get("bytes_s2e_sent")),
             "bytes_e2c_sent_kb": kb(r.get("bytes_e2c_sent")),
             "proto_bytes_sent_kb": kb(r.get("proto_bytes_sent")),
@@ -215,10 +216,13 @@ def _rule_based_single_run(s: dict) -> str:
 
     retransmits = s.get("proto_retransmissions")
     dups = s.get("proto_duplicate_deliveries")
+    dups_suppressed = s.get("proto_duplicates_suppressed")
     if retransmits:
         lines.append(f"- 🔁 **Retransmissions**: {retransmits} retransmission(s) recorded at the protocol layer")
     if dups:
-        lines.append(f"- 🧬 **Duplicates**: {dups} duplicate delivery(ies) reached the cloud")
+        lines.append(f"- 🧬 **Duplicates delivered**: {dups} duplicate delivery(ies) reached the cloud (at-least-once semantics)")
+    if dups_suppressed:
+        lines.append(f"- 🛡️ **Duplicates suppressed**: {dups_suppressed} retransmitted arrival(s) absorbed by the protocol's dedup before reaching the application")
 
     agg = s.get("aggregation_ratio")
     msg_red = s.get("message_reduction_ratio")

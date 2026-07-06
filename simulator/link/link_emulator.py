@@ -43,43 +43,50 @@ class TokenBucket:
 class GilbertElliotModel:
     def __init__(self, base_loss_rate: float, burst_enabled: bool = True, p_loss_bad: float = 0.50, burst_mean_length: float = 4.0, *, rng: random.Random) -> None:
         self.rng = rng
-        self.burst_enabled = burst_enabled
+        self._burst_capable = burst_enabled
+        self._p_loss_bad = p_loss_bad
+        self._p_bg = 1.0 / max(burst_mean_length, 1.5)
+        self.burst_enabled = burst_enabled and 0.0 < base_loss_rate < p_loss_bad
 
-        if not burst_enabled or base_loss_rate <= 0.0:
+        if not self.burst_enabled:
             self._bernoulli_rate = base_loss_rate
             self._in_bad = False
-            self.burst_enabled = False
             return
 
-        p_loss_good = max(0.001, base_loss_rate / 5.0)
-        p_bg = 1.0 / max(burst_mean_length, 1.5)
-
-        if abs(p_loss_bad - p_loss_good) < 1e-9:
-            pi_bad = 0.0
-        else:
-            pi_bad = (base_loss_rate - p_loss_good) / (p_loss_bad - p_loss_good)
-        pi_bad = max(0.0, min(0.95, pi_bad))
-
-        self._p_gb = pi_bad * p_bg / max(1.0 - pi_bad, 1e-9)
-        self._p_bg = p_bg
-        self._p_loss_good = p_loss_good
-        self._p_loss_bad = p_loss_bad
+        self._p_gb, self._p_loss_good, pi_bad = self._derive(base_loss_rate)
         self._in_bad = self.rng.random() < pi_bad
         self._bernoulli_rate = 0.0
 
+    def _derive(self, loss_rate: float) -> tuple[float, float, float]:
+        p_loss_good = max(0.001, loss_rate / 5.0)
+        if abs(self._p_loss_bad - p_loss_good) < 1e-9:
+            pi_bad = 0.0
+        else:
+            pi_bad = (loss_rate - p_loss_good) / (self._p_loss_bad - p_loss_good)
+        pi_bad = max(0.0, min(0.95, pi_bad))
+        p_gb = pi_bad * self._p_bg / max(1.0 - pi_bad, 1e-9)
+        return p_gb, p_loss_good, pi_bad
 
-    def should_drop(self) -> bool:
-        if not self.burst_enabled:
-            return self.rng.random() < self._bernoulli_rate
+    def should_drop(self, rate: Optional[float] = None) -> bool:
+        if rate is None:
+            if not self.burst_enabled:
+                return self.rng.random() < self._bernoulli_rate
+            p_gb, p_loss_good = self._p_gb, self._p_loss_good
+        else:
+            if rate <= 0.0:
+                return False
+            if not self._burst_capable or rate >= self._p_loss_bad:
+                return self.rng.random() < rate
+            p_gb, p_loss_good, _ = self._derive(rate)
 
         if self._in_bad:
             if self.rng.random() < self._p_bg:
                 self._in_bad = False
         else:
-            if self.rng.random() < self._p_gb:
+            if self.rng.random() < p_gb:
                 self._in_bad = True
 
-        threshold = self._p_loss_bad if self._in_bad else self._p_loss_good
+        threshold = self._p_loss_bad if self._in_bad else p_loss_good
         return self.rng.random() < threshold
 
 
