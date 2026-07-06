@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Literal, Optional
 import yaml
 
-from simulator.config.constants import ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES, DEFAULT_TOD_FACTORS, SIM_DURATION_S, DEFAULT_AGG_INTERVAL_S, DEFAULT_TIME_SCALE, DEFAULT_GATEWAY_RATE_MSGS_PER_SEC, DEFAULT_CONTENTION_CHANNELS
+from simulator.config.constants import (ARRIVAL_RATES, LORAWAN_OVERHEAD_BYTES, DEFAULT_TOD_FACTORS, SIM_DURATION_S, DEFAULT_AGG_INTERVAL_S, DEFAULT_TIME_SCALE, 
+DEFAULT_GATEWAY_RATE_MSGS_PER_SEC, DEFAULT_CONTENTION_CHANNELS, MIN_DWELL_S, MAX_DWELL_S, DWELL_SHORT_MU_S, DWELL_SHORT_CV, DWELL_LONG_MU_S, DWELL_LONG_CV, DWELL_SHORT_PROB)
 
 Protocol = Literal["mqtt", "amqp", "coap"]
 Architecture = Literal["cloud_only", "edge_filtered", "edge_aggregated"]
@@ -146,6 +147,13 @@ class TrafficConfig:
     start_hour: float = 8.0
     tod_factors: list[float] = field(default_factory=lambda: list(DEFAULT_TOD_FACTORS))
     use_dwell_mixture: bool = True
+    min_dwell_s: float = MIN_DWELL_S
+    max_dwell_s: float = MAX_DWELL_S
+    dwell_short_mu_s: float = DWELL_SHORT_MU_S
+    dwell_short_cv: float = DWELL_SHORT_CV
+    dwell_long_mu_s: float = DWELL_LONG_MU_S
+    dwell_long_cv: float = DWELL_LONG_CV
+    dwell_short_prob: float = DWELL_SHORT_PROB
     heartbeat_interval_s: float = 900.0
     duplicate_send_prob: float = 0.05
 
@@ -241,6 +249,13 @@ class ScenarioConfig:
             "tod_factors": traffic["tod_factors"],
             "faults": self.faults,
             "use_dwell_mixture": traffic["use_dwell_mixture"],
+            "min_dwell_s": traffic["min_dwell_s"],
+            "max_dwell_s": traffic["max_dwell_s"],
+            "dwell_short_mu_s": traffic["dwell_short_mu_s"],
+            "dwell_short_cv": traffic["dwell_short_cv"],
+            "dwell_long_mu_s": traffic["dwell_long_mu_s"],
+            "dwell_long_cv": traffic["dwell_long_cv"],
+            "dwell_short_prob": traffic["dwell_short_prob"],
             "heartbeat_interval_s": traffic["heartbeat_interval_s"],
             "duplicate_send_prob": traffic["duplicate_send_prob"]
         }
@@ -310,6 +325,13 @@ class ScenarioConfig:
             initial_occupancy=d.get("initial_occupancy"),
             tod_factors=d.get("tod_factors"),
             use_dwell_mixture=d.get("use_dwell_mixture", True),
+            min_dwell_s=d.get("min_dwell_s", MIN_DWELL_S),
+            max_dwell_s=d.get("max_dwell_s", MAX_DWELL_S),
+            dwell_short_mu_s=d.get("dwell_short_mu_s", DWELL_SHORT_MU_S),
+            dwell_short_cv=d.get("dwell_short_cv", DWELL_SHORT_CV),
+            dwell_long_mu_s=d.get("dwell_long_mu_s", DWELL_LONG_MU_S),
+            dwell_long_cv=d.get("dwell_long_cv", DWELL_LONG_CV),
+            dwell_short_prob=d.get("dwell_short_prob", DWELL_SHORT_PROB),
             heartbeat_interval_s=d.get("heartbeat_interval_s", 900.0),
             duplicate_send_prob=d.get("duplicate_send_prob", 0.05),
             is_builtin=d.get("is_builtin", False),
@@ -386,6 +408,13 @@ def make_scenario(
     initial_occupancy: Optional[float] = None,
     tod_factors: Optional[list[float]] = None,
     use_dwell_mixture: bool = True,
+    min_dwell_s: float = MIN_DWELL_S,
+    max_dwell_s: float = MAX_DWELL_S,
+    dwell_short_mu_s: float = DWELL_SHORT_MU_S,
+    dwell_short_cv: float = DWELL_SHORT_CV,
+    dwell_long_mu_s: float = DWELL_LONG_MU_S,
+    dwell_long_cv: float = DWELL_LONG_CV,
+    dwell_short_prob: float = DWELL_SHORT_PROB,
     heartbeat_interval_s: float = 900.0,
     duplicate_send_prob: float = 0.05
 ) -> ScenarioConfig:
@@ -453,6 +482,13 @@ def make_scenario(
         use_time_of_day=use_time_of_day,
         start_hour=start_hour,
         use_dwell_mixture=use_dwell_mixture,
+        min_dwell_s=min_dwell_s,
+        max_dwell_s=max_dwell_s,
+        dwell_short_mu_s=dwell_short_mu_s,
+        dwell_short_cv=dwell_short_cv,
+        dwell_long_mu_s=dwell_long_mu_s,
+        dwell_long_cv=dwell_long_cv,
+        dwell_short_prob=dwell_short_prob,
         heartbeat_interval_s=heartbeat_interval_s,
         duplicate_send_prob=duplicate_send_prob,
         **({"tod_factors": tod_factors} if tod_factors is not None else {})

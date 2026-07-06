@@ -3,7 +3,7 @@ import json
 import logging
 import httpx
 from simulator.utils import get_groq_api_key
-from simulator.config.constants import ARRIVAL_RATES, DWELL_SHORT_MU_S, DWELL_LONG_MU_S, DWELL_SHORT_PROB
+from simulator.config.constants import ARRIVAL_RATES
 from simulator.config.config import TrafficConfig, BackhaulLinkConfig
 
 logger = logging.getLogger(__name__)
@@ -14,13 +14,13 @@ GROQ_API_KEY: str = get_groq_api_key()
 def _build_system_prompt() -> str:
     traffic_defaults = TrafficConfig()
     backhaul_defaults = BackhaulLinkConfig()
-    dwell_short_pct = round(DWELL_SHORT_PROB * 100)
+    dwell_short_pct = round(traffic_defaults.dwell_short_prob * 100)
     dwell_long_pct = 100 - dwell_short_pct
 
     return f"""\
 You're analyzing results from a discrete-event simulation of a smart parking system. Base every claim on the numbers in the user's message; if the data doesn't support something, don't say it. How the simulator works:
 Parking events arrive as a Poisson process (optionally shaped by a time-of-day curve), at a rate of num_spots x a base rate - {ARRIVAL_RATES["low"]:.4f} / {ARRIVAL_RATES["medium"]:.4f} / {ARRIVAL_RATES["peak"]:.4f} events per spot per second for low / medium / peak traffic. 
-Dwell times are drawn from either a log-normal distribution or a {dwell_short_pct}/{dwell_long_pct} mix of short (~{DWELL_SHORT_MU_S:.0f} s) and long (~{DWELL_LONG_MU_S:.0f} s) stays, and each spot also sends
+Dwell times are drawn from either a log-normal distribution or a {dwell_short_pct}/{dwell_long_pct} mix of short (~{traffic_defaults.dwell_short_mu_s:.0f} s) and long (~{traffic_defaults.dwell_long_mu_s:.0f} s) stays, and each spot also sends
 periodic heartbeats (every {traffic_defaults.heartbeat_interval_s:.0f} s by default). Sensors reach the edge over a lossy link (Gilbert-Elliot two-state loss, plus base delay and jitter or LoRa airtime) through a 
 fixed-rate token-bucket gateway that doesn't scale with deployment size, using compact msgpack payloads over a bounded queue that drops on overflow. Sensors also share a LoRa medium modeled as pure ALOHA, so collisions -
 and the loss/latency they cause - rise with spot count; that's what the C1-C5 scalability runs are testing (see frames_s2e_collisions). The edge-to-broker backhaul link is separate and point-to-point, generally faster and 

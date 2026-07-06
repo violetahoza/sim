@@ -1,18 +1,13 @@
 from __future__ import annotations
 import math
 import random
-import time as _time_module
 from typing import Callable, Optional
 
 from ..models.models import ParkingEvent, SpotState
 from ..config.config import TrafficConfig
 from ..des.engine import SimClock
-from ..config.constants import DWELL_SHORT_MU_S, DWELL_SHORT_CV, DWELL_LONG_MU_S, DWELL_LONG_CV, DWELL_SHORT_PROB
 
 class TrafficModel:
-
-    MIN_DWELL_S: float = 1500.0
-    MAX_DWELL_S: float = 43200.0
 
     def __init__(self, config: TrafficConfig, arrival_rate: float, clock: SimClock, event_cb: Callable[[ParkingEvent], None], epoch: float, rng: Optional[random.Random] = None) -> None:
         self.config = config
@@ -46,8 +41,11 @@ class TrafficModel:
         cv = self.config.parking_duration_cv
         mu = self.mean_duration
 
+        min_dwell = self.config.min_dwell_s
+        max_dwell = self.config.max_dwell_s
+
         if cv <= 0.0:
-            return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, mu))
+           return max(min_dwell, min(max_dwell, mu))
 
         if abs(cv - 1.0) < 1e-6:
             raw = self.rng.expovariate(1.0 / mu)
@@ -57,19 +55,19 @@ class TrafficModel:
             mu_log = math.log(mu) - 0.5 * sigma_sq
             raw = math.exp(mu_log + sigma * self.rng.gauss(0.0, 1.0))
 
-        return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
+        return max(min_dwell, min(max_dwell, raw))
 
     def _sample_dwell_mixture(self) -> float:
-        if self.rng.random() < DWELL_SHORT_PROB:
-            mu, cv = DWELL_SHORT_MU_S, DWELL_SHORT_CV
+        if self.rng.random() < self.config.dwell_short_prob:
+            mu, cv = self.config.dwell_short_mu_s, self.config.dwell_short_cv
         else:
-            mu, cv = DWELL_LONG_MU_S, DWELL_LONG_CV
+            mu, cv = self.config.dwell_long_mu_s, self.config.dwell_long_cv
 
         sigma_sq = math.log(1.0 + cv * cv)
         sigma = math.sqrt(sigma_sq)
         mu_log = math.log(mu) - 0.5 * sigma_sq
         raw = math.exp(mu_log + sigma * self.rng.gauss(0.0, 1.0))
-        return max(self.MIN_DWELL_S, min(self.MAX_DWELL_S, raw))
+        return max(self.config.min_dwell_s, min(self.config.max_dwell_s, raw))
 
     def _tod_factor(self, virtual_s: float) -> float:
         if not self.config.use_time_of_day:

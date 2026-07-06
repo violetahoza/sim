@@ -804,7 +804,7 @@ def _traffic(seed=SEED, **cfg_kw):
 def test_dwell_samples_within_bounds():
     tm, _, _ = _traffic(use_dwell_mixture=True)
     samples = [tm._sample_dwell() for _ in range(2000)]
-    assert all(TrafficModel.MIN_DWELL_S <= s <= TrafficModel.MAX_DWELL_S for s in samples)
+    assert all(tm.config.min_dwell_s <= s <= tm.config.max_dwell_s for s in samples)
     # mixture should yield a spread, not a constant
     assert len(set(round(s) for s in samples)) > 50
 
