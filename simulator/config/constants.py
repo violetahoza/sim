@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+import numpy as np
+from scipy.stats import vonmises
 import math
 
 SIM_DURATION_S: float = 10800.0
@@ -47,14 +48,7 @@ AMQP_ACK_WIRE_BYTES: int = TCP_TRANSPORT_OVERHEAD + AMQP_ACK_FRAME
 TCP_LOCAL_RETRY_ATTEMPTS: int = 4
 
 ARRIVAL_RATES: dict[str, float] = {"low": 0.0028, "medium": 0.0102, "peak": 0.0182}
-
-DEFAULT_TOD_FACTORS: list[float] = [
-    0.05, 0.03, 0.03, 0.03, 0.05, 0.15,
-    0.50, 1.40, 2.00, 1.80, 1.50, 1.60,
-    1.70, 1.50, 1.30, 1.50, 1.80, 2.20,
-    2.00, 1.60, 1.20, 0.90, 0.60, 0.30,
-]
-
+DEFAULT_TOD_PEAKS: list[tuple[float, float, float]] = [(7.5, 8.0, 1.0),  (12.0, 10.0, 0.5), (17.5, 6.0, 1.3)]
 
 DWELL_SHORT_MU_S: float = 1500.0
 DWELL_SHORT_CV: float = 0.9
@@ -62,6 +56,16 @@ DWELL_LONG_MU_S: float = 14400.0
 DWELL_LONG_CV: float = 0.5
 DWELL_SHORT_PROB: float = 0.90
 
+def generate_tod_factors(peaks: list[tuple[float, float, float]] = DEFAULT_TOD_PEAKS, floor: float = 0.05) -> list[float]:
+    hours = np.arange(24)
+    theta = hours / 24.0 * 2 * np.pi
+    total = np.zeros(24)
+    for peak_hour, kappa, weight in peaks:
+        total += weight * vonmises.pdf(theta, kappa, loc=peak_hour / 24.0 * 2 * np.pi)
+    total = total / total.mean()
+    return [round(float(v), 4) for v in np.maximum(total, floor)]
+
+DEFAULT_TOD_FACTORS: list[float] = generate_tod_factors()
 
 def compute_lora_airtime_s(payload_bytes: int, sf: int = LORA_SF, bw: int = LORA_BW_HZ, cr: int = LORA_CR, preamble: int = LORA_PREAMBLE_SYMBOLS,
     crc: bool = True, explicit_hdr: bool = True) -> float:

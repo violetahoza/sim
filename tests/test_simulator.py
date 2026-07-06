@@ -2,13 +2,12 @@ from __future__ import annotations
 import json
 import math
 import random
-
 import msgpack
 import pytest
 
 import simulator.config.config as config_mod
 from simulator.config.config import make_scenario, ScenarioConfig, TrafficConfig, LinkConfig, MQTTConfig, AMQPConfig, CoAPConfig, PREDEFINED_SCENARIOS, save_custom_scenarios, load_custom_scenarios
-from simulator.config.constants import compute_lora_airtime_s
+from simulator.config.constants import compute_lora_airtime_s, generate_tod_factors, DEFAULT_TOD_PEAKS
 from simulator.des.engine import SimClock
 from simulator.cloud.cloud_backend import CloudBackend
 from simulator.edge.edge_node import EdgeNode
@@ -16,6 +15,7 @@ from simulator.sensors.sensor_emulator import SensorEmulator
 from simulator.sensors.fault_injector import FaultInjector, FaultSpec, FaultType
 from simulator.traffic.traffic_model import TrafficModel
 from simulator.link.link_emulator import LinkEmulator, TokenBucket, GilbertElliotModel, QueueOverflowModel, SharedMediumModel
+from simulator.link.tcp_transport import tcp_transport_outcome, tcp_extra_delay, ConnectionOutageModel
 from simulator.models.models import ParkingEvent, BatchUpdate, SpotState, ExperimentMetrics
 from simulator.protocols.mqtt_client import SimulatedMQTTBackend
 from simulator.protocols.amqp_client import SimulatedAMQPBackend
@@ -275,7 +275,7 @@ def test_scalability_contention_degrades_with_scale():
         cfg = make_scenario(name=f"sc{n}", protocol="mqtt", architecture="edge_filtered", traffic_level="peak", num_spots=n, mqtt_qos=1, sim_duration_s=3600.0, loss_rate=0.05, backhaul_loss_rate=0.02, seed=3001)
         return run_scenario_sync(cfg).sensor_to_edge_delivery_ratio
     dr_small, dr_large = s2e(50), s2e(2000)
-    assert dr_small > dr_large + 0.1  # clearly degraded by contention at scale
+    assert dr_small > dr_large + 0.1 # clearly degraded by contention at scale
 
 
 
@@ -462,6 +462,119 @@ def test_coap_con_retransmits_non_does_not_under_total_loss():
     assert con.frames_delivered == 0
     assert con.retransmitted > 0 # CON retransmits with backoff
 
+def test_mqtt_qos0_app_visible_drop_rate_much_lower_than_raw_loss():
+    raw_loss, n = 0.3, 300
+    dropped = 0
+    for i in range(n):
+        clock = SimClock()
+        backend = SimulatedMQTTBackend(MQTTConfig(qos=0), clock, None, raw_loss, i, 0.03, 0.0)
+        _publish_once(backend, clock, until=5.0)
+        if backend.frames_dropped:
+            dropped += 1
+    assert (dropped / n) < raw_loss * 0.5
+
+
+def test_coap_non_app_visible_drop_rate_matches_raw_loss():
+    raw_loss, n = 0.3, 300
+    dropped = 0
+    for i in range(n):
+        clock = SimClock()
+        backend = SimulatedCoAPBackend(CoAPConfig(mode="NON"), clock, None, raw_loss, i, 0.03, 0.0)
+        _publish_once(backend, clock, until=5.0)
+        if backend.frames_dropped:
+            dropped += 1
+    assert abs((dropped / n) - raw_loss) < 0.08
+
+
+def test_mqtt_and_coap_diverge_under_identical_configured_loss():
+    raw_loss, n = 0.3, 200
+
+    def delivered_ratio(make_backend):
+        delivered = 0
+        for i in range(n):
+            clock = SimClock()
+            backend = make_backend(clock, i)
+            if _publish_once(backend, clock, until=5.0):
+                delivered += 1
+        return delivered / n
+
+    mqtt_dr = delivered_ratio(lambda c, i: SimulatedMQTTBackend(MQTTConfig(qos=0), c, None, raw_loss, i, 0.03, 0.0))
+    coap_dr = delivered_ratio(lambda c, i: SimulatedCoAPBackend(CoAPConfig(mode="NON"), c, None, raw_loss, i, 0.03, 0.0))
+    assert mqtt_dr > coap_dr + 0.15
+
+
+def test_connection_outage_down_fraction_matches_expected():
+    clock = SimClock()
+    rng = random.Random(7)
+    mean_up, mean_down = 1800.0, 20.0
+    model = ConnectionOutageModel(clock, rng, mean_up_s=mean_up, mean_down_s=mean_down)
+    horizon, step = 2_000_000.0, 1.0
+    down_time = 0.0
+    t = 0.0
+    while t < horizon:
+        if model.is_down(t):
+            down_time += step
+        t += step
+    observed = down_time / horizon
+    expected = mean_down / (mean_up + mean_down)
+    assert abs(observed - expected) < 0.005
+
+
+def test_connection_outage_seconds_until_up_during_forced_down_window():
+    clock = SimClock()
+    model = ConnectionOutageModel(clock, random.Random(1), mean_up_s=1.0, mean_down_s=1.0)
+    model._is_down = True
+    model._next_flip_at = 50.0
+    assert model.is_down(10.0) is True
+    assert model.seconds_until_up(10.0) == pytest.approx(40.0)
+    assert model.is_down(49.9) is True
+    assert model.seconds_until_up(49.9) == pytest.approx(0.1)
+
+
+def test_connection_outage_rejects_nonpositive_means():
+    clock = SimClock()
+    with pytest.raises(ValueError):
+        ConnectionOutageModel(clock, random.Random(0), mean_up_s=0.0, mean_down_s=1.0)
+    with pytest.raises(ValueError):
+        ConnectionOutageModel(clock, random.Random(0), mean_up_s=1.0, mean_down_s=-1.0)
+
+
+def test_mqtt_qos0_dropped_during_outage_with_no_retry():
+    clock = SimClock()
+    outage = ConnectionOutageModel(clock, random.Random(1), mean_up_s=1000.0, mean_down_s=1000.0)
+    outage._is_down = True
+    outage._next_flip_at = 5.0  # forced down through t=5
+
+    q0 = SimulatedMQTTBackend(MQTTConfig(qos=0), clock, None, loss_rate=0.0, seed=0, ack_one_way_delay_s=0.03, ack_jitter_s=0.0, outage=outage)
+    delivered = _publish_once(q0, clock, until=1.0)
+    assert delivered == []
+    assert q0.frames_dropped == 1
+    assert q0.frames_delivered == 0
+    assert q0.retransmitted == 0  # no session to redeliver from - dropped outright
+
+
+def test_mqtt_qos1_waits_out_outage_and_delivers_without_spending_retry_budget():
+    clock = SimClock()
+    outage = ConnectionOutageModel(clock, random.Random(1), mean_up_s=1000.0, mean_down_s=1000.0)
+    outage._is_down = True
+    outage._next_flip_at = 5.0 
+    q1 = SimulatedMQTTBackend(MQTTConfig(qos=1), clock, None, loss_rate=0.0, seed=0, ack_one_way_delay_s=0.03, ack_jitter_s=0.0, outage=outage)
+    delivered = _publish_once(q1, clock, until=10.0)
+    assert len(delivered) == 1
+    assert q1.frames_delivered == 1
+    assert q1.frames_dropped == 0
+    assert q1.retransmitted >= 1 # counted as resend effort, distinct from a duplicate
+
+
+def test_qos_levels_diverge_under_connection_outages():
+    common = dict(protocol="mqtt", architecture="edge_filtered", traffic_level="peak", num_spots=200, loss_rate=0.05, backhaul_loss_rate=0.03, sim_duration_s=43200.0, seed=SEED, anomaly_detection=False, backhaul_outage_mean_up_s=1800.0, backhaul_outage_mean_down_s=20.0)
+    q0 = run_scenario_sync(make_scenario(name="qos0_outage", mqtt_qos=0, **common))
+    q1 = run_scenario_sync(make_scenario(name="qos1_outage", mqtt_qos=1, **common))
+    assert q0.e2e_unique_delivery_ratio < q1.e2e_unique_delivery_ratio
+    assert q0.retransmissions_total == 0
+    assert q1.retransmissions_total > 0
+
+
 def test_mqtt_byte_overhead_increases_with_qos():
     def bytes_for(qos: int) -> int:
         clock = SimClock()
@@ -549,20 +662,39 @@ def test_fault_stuck_at_forces_state_and_counts_only_on_change():
 def test_fault_flapping_emits_original_plus_flipped():
     fi = FaultInjector(rng=random.Random(0))
     fi.set_fault(0, FaultSpec(fault_type=FaultType.FLAPPING))
-    out = fi.apply(_ev(state=SpotState.OCCUPIED))
+    out = fi.apply(_ev(state=SpotState.OCCUPIED, seq=1))
     assert len(out) == 2
     assert out[0].state == SpotState.OCCUPIED
     assert out[1].state == SpotState.FREE  # the spurious flip
+    # the flip must carry its own sequence number, distinct from (and greater than) the original's, or edge/cloud dedup would silently swallow it as a stale duplicate
+    assert out[1].sequence != out[0].sequence
+    assert out[1].sequence > out[0].sequence
     assert fi.injected_count == 1
+
+
+def test_flapping_event_reaches_cloud_instead_of_being_absorbed():
+    cfg = make_scenario(name="t_flap_cloud", num_spots=2, loss_rate=0.0, sim_duration_s=1.0, seed=SEED)
+    clock = SimClock()
+    cloud = CloudBackend(cfg, clock, epoch=0.0)
+    fi = FaultInjector(rng=random.Random(0))
+    fi.set_fault(0, FaultSpec(fault_type=FaultType.FLAPPING))
+
+    original = ParkingEvent(sensor_id="s0", spot_id=0, state=SpotState.OCCUPIED, timestamp=0.0, sequence=1)
+    for e in fi.apply(original):
+        cloud.receive_batch(BatchUpdate(edge_id="t", events=[e]), b"x")
+
+    assert cloud.duplicate_events_at_cloud == 0
+    assert cloud.transitions_received == 2 # both the real transition and the corrupted flip land
+    assert cloud.get_occupancy()["occupied"] == 0 # cloud state reflects the flip, not the true state
 
 
 def test_fault_replay_repeats_previous_event():
     fi = FaultInjector(rng=random.Random(0))
     fi.set_fault(0, FaultSpec(fault_type=FaultType.REPLAY, replay_count=3))
     first = fi.apply(_ev(state=SpotState.OCCUPIED, seq=1))
-    assert len(first) == 1  # nothing to replay yet
+    assert len(first) == 1 # nothing to replay yet
     second = fi.apply(_ev(state=SpotState.FREE, seq=2))
-    assert len(second) == 4  # the real event + 3 replays of the previous one
+    assert len(second) == 4 # the real event + 3 replays of the previous one
     assert all(e.state == SpotState.OCCUPIED for e in second[1:])
     assert fi.injected_count == 3
 
@@ -573,7 +705,7 @@ def test_fault_flooding_emits_flood_count_total():
     out = fi.apply(_ev())
     assert len(out) == 10
     assert all(e.state == SpotState.OCCUPIED for e in out)
-    assert fi.injected_count == 9  # the original is not an injection
+    assert fi.injected_count == 9 # the original is not an injection
 
 
 def test_fault_clear_restores_passthrough():
@@ -686,6 +818,28 @@ def test_tod_factor_flat_when_disabled_varies_when_enabled():
     assert all(f >= 0.001 for f in factors)
 
 
+def test_generate_tod_factors_shape_matches_cited_trimodal_pattern():
+    floor = 0.05
+    factors = generate_tod_factors(floor=floor)
+    assert len(factors) == 24
+    assert all(f >= floor for f in factors)
+    assert abs(sum(factors) / 24 - 1.0) < 0.02  
+
+    overnight = min(factors[1:4]) # 1am-3am trough
+    am_peak = max(factors[6:9]) # 6am-8am
+    midday = max(factors[11:13]) # 11am-12pm
+    pm_peak = max(factors[16:19]) # 4pm-6pm
+
+    assert overnight < midday < am_peak < pm_peak
+    assert factors.index(max(factors)) in range(16, 19) # global max falls in the PM window
+
+
+def test_generate_tod_factors_is_deterministic_given_peaks():
+    a = generate_tod_factors(DEFAULT_TOD_PEAKS)
+    b = generate_tod_factors(DEFAULT_TOD_PEAKS)
+    assert a == b 
+
+
 def test_schedule_run_emits_initial_snapshots_for_occupied_spots():
     tm, clock, events = _traffic(num_spots=30, initial_occupancy=1.0, heartbeat_interval_s=0.0)
     tm.schedule_run(duration_s=1.0)
@@ -736,7 +890,7 @@ def test_full_lot_suspends_arrivals_until_a_departure():
     reached_full = True
     for e in sorted(non_initial, key=lambda x: (x.timestamp, x.sequence)):
         if e.state == SpotState.OCCUPIED:
-            assert occ < cfg.num_spots  # no arrival while full -> generation was suspended
+            assert occ < cfg.num_spots # no arrival while full -> generation was suspended
             occ += 1
             reached_full = reached_full or occ == cfg.num_spots
         else:
@@ -848,7 +1002,7 @@ def test_latency_tail_is_not_capped():
     cfg = make_scenario(name="taillat", num_spots=2, loss_rate=0.0, sim_duration_s=1.0, seed=SEED)
     clock = SimClock()
     cloud = CloudBackend(cfg, clock, epoch=0.0)
-    clock.env.run(until=200.0)  # 200 s of virtual time elapse before arrival
+    clock.env.run(until=200.0) # 200 s of virtual time elapse before arrival
     cloud.receive_batch(BatchUpdate(edge_id="t", events=[ParkingEvent("s0", 0, SpotState.OCCUPIED, timestamp=0.0, sequence=1)]), b"x")
     samples = cloud.get_all_latency_samples()
     assert len(samples) == 1
