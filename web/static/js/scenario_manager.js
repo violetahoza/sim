@@ -31,6 +31,8 @@ function switchMgrTab(name) {
   const saveBtn = document.getElementById('mgrSaveBtn');
   if (saveBtn) saveBtn.style.display = (name === 'create' || name === 'edit') ? 'inline-block' : 'none';
 
+  document.querySelector('#mgrOverlay .modal')?.classList.toggle('modal-compare', name === 'compare');
+
   if (name === 'compare') renderCompareTab();
 }
 
@@ -183,31 +185,31 @@ function _renderCmpMain(results) {
     return;
   }
 
-  ['cmpLatChart', 'cmpDelChart', 'cmpMsgChart', 'cmpBwChart'].forEach(id => {
+  ['cmpLatChart', 'cmpDelivChart', 'cmpRetxChart', 'cmpMsgRedChart', 'cmpBwSaveChart'].forEach(id => {
     const existing = Chart.getChart(id);
     if (existing) existing.destroy();
   });
+
+  const chartW = Math.max(selected.length * 68, 240);
+  const scroll = (id, title) => `
+    <div class="cmp-chart-box">
+      <div class="cmp-chart-title">${title}</div>
+      <div class="cmp-chart-scroll">
+        <div class="cmp-chart-canvas" style="min-width:${chartW}px">
+          <canvas id="${id}" style="max-height:160px"></canvas>
+        </div>
+      </div>
+    </div>`;
 
   main.innerHTML = `
     <div class="cmp-results">
       <div class="cmp-kpi-strip" id="cmpKpiStrip"></div>
       <div class="cmp-charts-wrap">
-        <div class="cmp-chart-box">
-          <div class="cmp-chart-title">LATENCY PROFILE (ms)</div>
-          <canvas id="cmpLatChart" style="max-height:160px"></canvas>
-        </div>
-        <div class="cmp-chart-box">
-          <div class="cmp-chart-title">REAL EVENTS CAPTURED (%)</div>
-          <canvas id="cmpDelChart" style="max-height:160px"></canvas>
-        </div>
-        <div class="cmp-chart-box">
-          <div class="cmp-chart-title">MESSAGE COUNTS</div>
-          <canvas id="cmpMsgChart" style="max-height:160px"></canvas>
-        </div>
-        <div class="cmp-chart-box">
-          <div class="cmp-chart-title">BANDWIDTH (KB)</div>
-          <canvas id="cmpBwChart" style="max-height:160px"></canvas>
-        </div>
+        ${scroll('cmpLatChart', 'LATENCY PROFILE (ms)')}
+        ${scroll('cmpDelivChart', 'EVENT DELIVERY % (END-TO-END)')}
+        ${scroll('cmpRetxChart', 'RETRANSMISSIONS')}
+        ${scroll('cmpMsgRedChart', 'MESSAGE REDUCTION (%)')}
+        ${scroll('cmpBwSaveChart', 'BANDWIDTH SAVING (%)')}
       </div>
       <div class="cmp-table-wrap">
         <div class="cmp-chart-title" style="margin-bottom:.6rem">FULL METRICS TABLE</div>
@@ -252,16 +254,16 @@ function _buildCmpKpis(sel) {
   if (!strip) return;
 
   const bestLat = _pickBy(sel, r => r.latency_mean_ms, 'min');
-  const bestCoverage = _pickBy(sel, r => r.cloud_reflection_ratio, 'max');
+  const bestDelivery = _pickBy(sel, r => r.e2e_unique_delivery_ratio, 'max');
   const bestSavings = _pickBy(sel.filter(_isEdge), r => r.message_reduction_ratio, 'max');
-  const lowestCloudBw = _pickBy(sel, r => r.bytes_e2c_sent ?? r.edge_to_cloud_bytes, 'min');
+  const bestBwSaving = _pickBy(sel, r => _bwSaving(r), 'max');
   const fewestRetries = sel.length > 1 ? _pickBy(sel, r => r.proto_retransmissions ?? r.retransmissions_total ?? 0, 'min') : null;
 
   const cards = [
     bestLat && { label: 'FASTEST', icon: '⚡',  name: bestLat.scenario_name, val: `${bestLat.latency_mean_ms?.toFixed(1)}ms mean`, color: 'var(--cyan)' },
-    bestCoverage && { label: 'MOST EVENTS CAPTURED', icon: '🎯', name: bestCoverage.scenario_name, val: `${(bestCoverage.cloud_reflection_ratio * 100).toFixed(1)}% of real events`, color: 'var(--green)' },
-    bestSavings && { label: 'LEAST CLOUD TRAFFIC', icon: '💾', name: bestSavings.scenario_name, val: `${(bestSavings.message_reduction_ratio * 100).toFixed(1)}% saved`, color: 'var(--blue)' },
-    lowestCloudBw && { label: 'LOWEST BANDWIDTH', icon: '📡', name: lowestCloudBw.scenario_name, val: `${((lowestCloudBw.bytes_e2c_sent ?? lowestCloudBw.edge_to_cloud_bytes ?? 0) / 1024).toFixed(1)} KB`, color: 'var(--purple)' },
+    bestDelivery && { label: 'BEST DELIVERY', icon: '🎯', name: bestDelivery.scenario_name, val: `${(bestDelivery.e2e_unique_delivery_ratio * 100).toFixed(1)}% end-to-end`, color: 'var(--green)' },
+    bestSavings && { label: 'BEST MSG REDUCTION', icon: '💾', name: bestSavings.scenario_name, val: `${(bestSavings.message_reduction_ratio * 100).toFixed(1)}% fewer msgs`, color: 'var(--blue)' },
+    bestBwSaving && { label: 'BEST BANDWIDTH SAVING', icon: '📡', name: bestBwSaving.scenario_name, val: `${(_bwSaving(bestBwSaving) * 100).toFixed(1)}% saved`, color: 'var(--purple)' },
     fewestRetries && { label: 'FEWEST RETRIES', icon: '🔁', name: fewestRetries.scenario_name, val: `${fewestRetries.proto_retransmissions ?? fewestRetries.retransmissions_total ?? 0} retries`, color: 'var(--green)' },
   ].filter(Boolean);
 
@@ -282,11 +284,21 @@ function _makeChart(id, type, data, options) {
   return new Chart(el, { type, data, options });
 }
 
+
+function _bwSaving(r) {
+  if (_isCloudOnly(r)) return null;
+  const s2e = r.bytes_s2e_sent ?? r.sensor_to_edge_bytes;
+  const e2c = r.bytes_e2c_sent ?? r.edge_to_cloud_bytes;
+  if (!s2e || e2c == null) return null;
+  return Math.max(0, (s2e - e2c) / s2e);
+}
+
+const _pctColor = v => v >= 98 ? '#39e887' : v >= 90 ? '#ffc246' : '#ff5252';
+
 function _buildCmpCharts(sel) {
   const labels = sel.map(r => _truncate(r.scenario_name, 16));
   const pal = _CMP_PAL;
   const base = { responsive: true, maintainAspectRatio: false };
-  const anyEdge = sel.some(_isEdge);
 
   _makeChart('cmpLatChart', 'bar', {
     labels,
@@ -299,51 +311,51 @@ function _buildCmpCharts(sel) {
     plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
     scales: { y: { beginAtZero: true, title: { display: true, text: 'ms', color: '#555a72', font: { size: 9 } } } } });
 
-  _makeChart('cmpDelChart', 'bar', {
+  _makeChart('cmpDelivChart', 'bar', {
     labels,
     datasets: [{
-      label: 'Real events captured %',
-      data: sel.map(r => +((r.cloud_reflection_ratio ?? 1) * 100).toFixed(2)),
-      backgroundColor: sel.map(r => { const v = (r.cloud_reflection_ratio ?? 1) * 100; return v >= 98 ? '#39e887bb' : v >= 90 ? '#ffc246bb' : '#ff5252bb'; }),
-      borderColor: sel.map(r => { const v = (r.cloud_reflection_ratio ?? 1) * 100; return v >= 98 ? '#39e887' : v >= 90 ? '#ffc246' : '#ff5252'; }),
+      label: 'Event delivery % (e2e)',
+      data: sel.map(r => r.e2e_unique_delivery_ratio != null ? +(r.e2e_unique_delivery_ratio * 100).toFixed(2) : null),
+      backgroundColor: sel.map(r => { const v = (r.e2e_unique_delivery_ratio ?? 0) * 100; return _pctColor(v) + 'bb'; }),
+      borderColor: sel.map(r => _pctColor((r.e2e_unique_delivery_ratio ?? 0) * 100)),
       borderWidth: 1, borderRadius: 4,
     }],
   }, { ...base,
     plugins: { legend: { display: false } },
-    scales: { y: { min: 0, max: 100, title: { display: true, text: '%', color: '#555a72', font: { size: 9 } } } } });
+    scales: { y: { min: 0, max: 100, title: { display: true, text: '% delivered', color: '#555a72', font: { size: 9 } } } } });
 
-  const msgDatasets = [
-    { label: 'Generated', data: sel.map(r => r.events_generated_total ?? r.events_generated ?? 0), backgroundColor: pal[3]+'66', borderColor: pal[3], borderWidth: 1, borderRadius: 4 },
-    { label: 'Sensor Sent', data: sel.map(r => r.frames_s2e_sent ?? r.sensor_to_edge_msgs ?? 0), backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
-    { label: 'Reached Cloud', data: sel.map(r => r.cloud_events_pre_dedup ?? r.cloud_msgs_received ?? r.cloud_msgs_received_total ?? 0), backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
-  ];
-  if (anyEdge) {
-    msgDatasets.push({
-      label: 'Filtered (edge)',
-      data: sel.map(r => _isCloudOnly(r) ? 0 : (r.events_filtered_total ?? r.filtered_events ?? 0)),
-      backgroundColor: pal[2]+'88', borderColor: pal[2], borderWidth: 1, borderRadius: 4,
-    });
-  }
-  _makeChart('cmpMsgChart', 'bar', { labels, datasets: msgDatasets }, {
-    ...base,
-    plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
-    scales: { y: { beginAtZero: true } },
-  });
-
-  const onlyCloud = !anyEdge;
-  _makeChart('cmpBwChart', 'bar', {
+  _makeChart('cmpRetxChart', 'bar', {
     labels,
-    datasets: [
-      { label: onlyCloud ? 'Sensor → Cloud (KB)' : 'Sensor → Edge (KB)',
-        data: sel.map(r => +(((r.bytes_s2e_sent ?? r.sensor_to_edge_bytes ?? 0)) / 1024).toFixed(2)),
-        backgroundColor: pal[1]+'bb', borderColor: pal[1], borderWidth: 1, borderRadius: 4 },
-      { label: onlyCloud ? 'Reached Cloud (KB)' : 'Edge → Cloud (KB)',
-        data: sel.map(r => +(((r.bytes_e2c_sent ?? r.edge_to_cloud_bytes ?? 0)) / 1024).toFixed(2)),
-        backgroundColor: pal[0]+'bb', borderColor: pal[0], borderWidth: 1, borderRadius: 4 },
-    ],
+    datasets: [{
+      label: 'Retransmissions',
+      data: sel.map(r => r.proto_retransmissions ?? r.retransmissions_total ?? 0),
+      backgroundColor: pal[5]+'bb', borderColor: pal[5], borderWidth: 1, borderRadius: 4,
+    }],
   }, { ...base,
-    plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, padding: 6 } } },
-    scales:  { y: { beginAtZero: true, title: { display: true, text: 'KB', color: '#555a72', font: { size: 9 } } } } });
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'retries', color: '#555a72', font: { size: 9 } } } } });
+
+  _makeChart('cmpMsgRedChart', 'bar', {
+    labels,
+    datasets: [{
+      label: 'Message reduction %',
+      data: sel.map(r => _isCloudOnly(r) ? 0 : (r.message_reduction_ratio != null ? +(r.message_reduction_ratio * 100).toFixed(2) : null)),
+      backgroundColor: pal[4]+'bb', borderColor: pal[4], borderWidth: 1, borderRadius: 4,
+    }],
+  }, { ...base,
+    plugins: { legend: { display: false } },
+    scales: { y: { min: 0, max: 100, title: { display: true, text: '% saved', color: '#555a72', font: { size: 9 } } } } });
+
+  _makeChart('cmpBwSaveChart', 'bar', {
+    labels,
+    datasets: [{
+      label: 'Bandwidth saving %',
+      data: sel.map(r => { const v = _bwSaving(r); return v != null ? +(v * 100).toFixed(2) : (_isCloudOnly(r) ? 0 : null); }),
+      backgroundColor: pal[7]+'bb', borderColor: pal[7], borderWidth: 1, borderRadius: 4,
+    }],
+  }, { ...base,
+    plugins: { legend: { display: false } },
+    scales: { y: { min: 0, max: 100, title: { display: true, text: '% saved', color: '#555a72', font: { size: 9 } } } } });
 }
 
 const _always = () => true;
@@ -515,8 +527,20 @@ function startEdit(name) {
   set('ef_duration', (s.sim_duration_s / 3600).toFixed(1));
   set('ef_seed', s.seed ?? 42);
   set('ef_loss', ((s.loss_rate ?? 0.02) * 100).toFixed(1));
+  set('ef_backhaul_loss', ((s.backhaul_loss_rate ?? 0.02) * 100).toFixed(1));
   set('ef_ratelimit', s.rate_limit ?? 5);
   set('ef_agg', s.aggregation_interval ?? 30);
+  set('ef_base_delay', s.base_delay_ms ?? 80);
+  set('ef_jitter', s.jitter_ms ?? 30);
+  set('ef_payload', s.max_payload_bytes ?? 51);
+  set('ef_heartbeat', s.heartbeat_interval_s ?? 60);
+  set('ef_anomaly', (s.anomaly_detection ?? true) ? 'true' : 'false');
+  set('ef_adaptive', (s.adaptive_edge ?? false) ? 'true' : 'false');
+  set('ef_occ', s.initial_occupancy != null ? +(s.initial_occupancy * 100).toFixed(1) : '');
+  set('ef_cv', s.parking_duration_cv ?? 1.5);
+  set('ef_tscale', s.time_scale ?? 60);
+  set('ef_tod', (s.use_time_of_day ?? false) ? 'true' : 'false');
+  set('ef_starthour', s.start_hour ?? 8);
   set('ef_amqp_exchange', s.amqp_exchange ?? 'direct');
   set('ef_amqp_ack', s.amqp_ack ?? 'manual');
   set('ef_amqp_durable', (s.amqp_durable ?? true) ? 'true' : 'false');
@@ -524,8 +548,10 @@ function startEdit(name) {
   set('ef_coap_mode', s.coap_mode ?? 'CON');
   updateEditProtoOpts();
   const isBuiltin = s.is_builtin;
-  ['ef_protocol','ef_arch','ef_traffic','ef_spots','ef_duration','ef_seed','ef_loss','ef_ratelimit',
-   'ef_agg','ef_amqp_exchange','ef_amqp_ack','ef_amqp_durable','ef_qos','ef_coap_mode'].forEach(id => {
+  ['ef_protocol','ef_arch','ef_traffic','ef_spots','ef_duration','ef_seed','ef_loss','ef_backhaul_loss',
+   'ef_ratelimit','ef_agg','ef_base_delay','ef_jitter','ef_payload','ef_heartbeat','ef_anomaly','ef_adaptive',
+   'ef_occ','ef_cv','ef_tscale','ef_tod','ef_starthour',
+   'ef_amqp_exchange','ef_amqp_ack','ef_amqp_durable','ef_qos','ef_coap_mode'].forEach(id => {
     const el=document.getElementById(id); if(el){ el.disabled=isBuiltin; el.style.opacity=isBuiltin?'.45':'1'; }
   });
   const saveBtn = document.getElementById('mgrSaveBtn');
@@ -564,7 +590,8 @@ async function saveMgrForm() {
     amqp_ack: get('ef_amqp_ack'),
     amqp_durable: get('ef_amqp_durable') === 'true',
     mqtt_qos: +get('ef_qos'),
-    coap_mode: get('ef_coap_mode')
+    coap_mode: get('ef_coap_mode'),
+    ...collectAdvancedParams('ef'),
   } : {
     name: get('cf_name').trim().replace(/\s+/g,'_'),
     description: get('cf_desc') || get('cf_name'),
@@ -583,7 +610,8 @@ async function saveMgrForm() {
     amqp_ack: get('cf_amqp_ack'),
     amqp_durable: get('cf_amqp_durable') === 'true',
     mqtt_qos: +get('cf_qos'),
-    coap_mode: get('cf_coap_mode')
+    coap_mode: get('cf_coap_mode'),
+    ...collectAdvancedParams('cf'),
   };
   if (!isEdit && !body.name) { showToast('Name is required','var(--amber)'); return; }
   try {
@@ -611,7 +639,7 @@ async function saveCustomAsPreset() {
     traffic_level: get('c_traffic'),
     num_spots: +get('c_spots'),
     sim_duration_h: +get('c_duration'),
-    seed: 42,
+    seed: +(get('c_seed') || 42),
     loss_rate: +get('c_loss') / 100,
     rate_limit: +get('c_ratelimit'),
     aggregation_interval: +get('c_agg'),
@@ -619,7 +647,10 @@ async function saveCustomAsPreset() {
     amqp_ack: get('c_amqp_ack') || 'manual',
     amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
     mqtt_qos: +(get('c_qos') || 1),
-    coap_mode: get('c_coap_mode') || 'CON'
+    coap_mode: get('c_coap_mode') || 'CON',
+    ...collectAdvancedParams('c'),
+    anomaly_detection: false,
+    adaptive_edge: false,
   };
   try {
     const r = await fetch('/api/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

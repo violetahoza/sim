@@ -38,6 +38,7 @@ function normalizeMetrics(raw) {
     source: raw.source, scenario_log: raw.scenario_log, latency_samples: raw.latency_samples,
     fault_injected_count: pick(raw, 'fault_injected_count'),
     final_spot_states: raw.final_spot_states, final_occupancy: raw.final_occupancy,
+    occupancy_series: raw.occupancy_series,
 
     events_generated_total: pick(raw, 'events_generated_total', 'events_generated'),
     state_changes_generated_total: pick(raw, 'state_changes_generated_total', 'valid_state_changes'),
@@ -74,6 +75,7 @@ function normalizeMetrics(raw) {
     cloud_reflection_ratio: pick(raw, 'cloud_reflection_ratio', 'cloud_state_agreement_ratio'),
     state_agreement_time_avg: pick(raw, 'state_agreement_time_avg'),
     latency_percentiles: pick(raw, 'latency_percentiles'),
+    latency_histogram: pick(raw, 'latency_histogram'),
     cloud_msgs_received: pick(raw, 'cloud_events_pre_dedup', 'cloud_msgs_received', 'cloud_msgs_received_total'),
     cloud_batches_received: pick(raw, 'cloud_batches_received'),
     cloud_events_post_dedup: pick(raw, 'cloud_events_post_dedup'),
@@ -181,8 +183,6 @@ async function loadSavedResults() {
   if (results.length) {
     allResults = results;
     showResult(results[results.length - 1]);
-    updateComparisonChart();
-    updateDeliveryChart();
     updateAIBadge();
   }
 }
@@ -200,11 +200,40 @@ function onProtocolChange() {
   document.getElementById(`${p}-opts`)?.classList.remove('hidden');
 }
 
+function toggleCustomAdvanced() {
+  const toggle = document.getElementById('customAdvToggle');
+  const content = document.getElementById('customAdvanced');
+  const open = content.classList.toggle('open');
+  toggle.classList.toggle('open', open);
+}
+
 async function runPreset() {
   if (simRunning) return;
   const name = document.getElementById('presetSelect').value;
   if (!name) return;
   await startRun('/api/run/preset/' + name, null);
+}
+
+
+function collectAdvancedParams(prefix) {
+  const el = suffix => document.getElementById(`${prefix}_${suffix}`);
+  const num = (suffix, fallback) => { const e = el(suffix); return e && e.value !== '' ? +e.value : fallback; };
+  const boolSel = (suffix, fallback) => { const e = el(suffix); return e ? e.value === 'true' : fallback; };
+  const occEl = el('occ');
+  return {
+    backhaul_loss_rate: num('backhaul_loss', 2) / 100,
+    base_delay_ms: num('base_delay', 80),
+    jitter_ms: num('jitter', 30),
+    max_payload_bytes: num('payload', 222),
+    heartbeat_interval_s: num('heartbeat', 60),
+    anomaly_detection: boolSel('anomaly', true),
+    adaptive_edge: boolSel('adaptive', false),
+    parking_duration_cv: num('cv', 1.5),
+    time_scale: num('tscale', 60),
+    use_time_of_day: boolSel('tod', false),
+    start_hour: num('starthour', 8),
+    initial_occupancy: occEl && occEl.value !== '' ? +occEl.value / 100 : null,
+  };
 }
 
 async function runCustom() {
@@ -219,11 +248,15 @@ async function runCustom() {
     sim_duration_h: +get('c_duration'),
     rate_limit: +get('c_ratelimit'),
     aggregation_interval: +get('c_agg'),
+    seed: +(get('c_seed') || '42'),
     amqp_exchange: get('c_amqp_exchange') || 'direct',
     amqp_ack: get('c_amqp_ack') || 'manual',
     amqp_durable: (get('c_amqp_durable') || 'true') === 'true',
     mqtt_qos: +(get('c_qos') || '1'),
     coap_mode: get('c_coap_mode') || 'CON',
+    ...collectAdvancedParams('c'),
+    anomaly_detection: false,
+    adaptive_edge: false,
   };
   await startRun('/api/run/custom', body);
 }
@@ -254,6 +287,38 @@ async function clearResults() {
   updateAIBadge();
 }
 
+async function deleteRun(r, rowEl) {
+  if (!confirm(`Delete run "${r.scenario_name}"? This cannot be undone.`)) return;
+  const runId = r.run_id;
+  try {
+    if (runId) {
+      const resp = await fetch(`/api/results/${encodeURIComponent(runId)}`, { method: 'DELETE' });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || `${resp.status}`);
+      }
+    }
+    const idx = allResults.indexOf(r);
+    if (idx !== -1) allResults.splice(idx, 1);
+    const wasCurrent = currentResult === r;
+    rowEl.remove();
+    updateAIBadge();
+
+    const container = document.getElementById('resultsTable');
+    if (!allResults.length) {
+      if (container) container.innerHTML = '<div class="results-empty">No runs yet. Start a scenario.</div>';
+    } else if (wasCurrent) {
+      const next = allResults[allResults.length - 1];
+      showResult(next);
+      document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
+      container?.querySelector(`.result-row[data-run-id="${next.run_id}"]`)?.classList.add('active');
+    }
+    if (typeof showToast === 'function') showToast('Run deleted', 'var(--red)');
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
 function setRunning(running) {
   simRunning = running;
   const sb = document.getElementById('stopBtn');
@@ -281,6 +346,7 @@ function connectSSE() {
     const ls = document.getElementById('lotStats');
     if (ls) ls.style.display = 'grid';
     resetLiveSection();
+    if (charts.occupancy) { charts.occupancy.data.datasets[0].data = []; charts.occupancy.update('none'); }
     currentArchitecture = d.architecture || null;
     const cloudOnly = currentArchitecture === 'cloud_only';
     ['progFilteredItem', 'progAnomaliesItem'].forEach(id => {
@@ -309,8 +375,6 @@ function connectSSE() {
     allResults.push(r);
     addResultRow(r, true);
     showResult(r);
-    updateComparisonChart();
-    updateDeliveryChart();
     updateAIBadge();
   });
   es.addEventListener('sim_error', e => {
@@ -343,6 +407,10 @@ function onProgress(d) {
   setText('progOccupancy', occ.occupancy_pct != null ? occ.occupancy_pct + '%' : '-');
   setText('progFiltered',  edge.filtered  ?? '-');
   setText('progAnomalies', edge.anomalies ?? '-');
+  if (charts.occupancy && occ.occupancy_pct != null) {
+    charts.occupancy.data.datasets[0].data.push({ x: +(simSec / 3600).toFixed(3), y: occ.occupancy_pct });
+    charts.occupancy.update('none');
+  }
   const spots = d.spot_states;
   if (spots) {
     const n = Object.keys(spots).length;
@@ -449,8 +517,12 @@ function addResultRow(r, scrollIntoView) {
   const historicalBadge = r.source === 'historical' ? '<span class="result-tag tag-historical">saved</span>' : '';
   const durationLabel = m.sim_duration_s ? `${(m.sim_duration_s / 3600).toFixed(1)}h` : '';
   const logBadge = m.scenario_log?.length > 0 ? '<span class="result-tag" style="color:var(--purple)">log</span>' : '';
+  if (r.run_id) row.dataset.runId = r.run_id;
   row.innerHTML = `
-    <div class="result-name" title="${m.scenario_name}">${m.scenario_name}</div>
+    <div class="result-head">
+      <div class="result-name" title="${m.scenario_name}">${m.scenario_name}</div>
+      <button class="result-del" title="Delete this run">✕</button>
+    </div>
     <div class="result-meta">
       ${historicalBadge}
       <span class="result-tag ${protoClass}">${(m.protocol || '').toUpperCase()}</span>
@@ -464,6 +536,10 @@ function addResultRow(r, scrollIntoView) {
     document.querySelectorAll('.result-row').forEach(rr => rr.classList.remove('active'));
     row.classList.add('active');
     showResult(r);
+  };
+  row.querySelector('.result-del').onclick = (ev) => {
+    ev.stopPropagation();
+    deleteRun(r, row);
   };
   container.insertBefore(row, container.firstChild);
   if (scrollIntoView) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -483,11 +559,12 @@ function showResult(r) {
   const m = normalizeMetrics(r);
   renderKpiStrip(m);
   renderMetricsTable(m);
-  // Saved runs carry no raw samples; the persisted p1..p99 percentile grid
-  // is a faithful shape substitute (each value ≈ 1% of the distribution).
-  updateLatencyHistogram(m.latency_samples?.length ? m.latency_samples : (m.latency_percentiles || []));
+  updateLatencyHistogram(m);
   updateMsgCountChart(m);
   updateBandwidthChart(m);
+  updateReliabilityChart(m);
+  updateLatencyEcdf(m);
+  updateOccupancyChart(m);
   restoreLotFromResult(m);
 }
 
@@ -765,40 +842,111 @@ function initCharts() {
     },
   });
 
-  charts.comparison = make('comparisonChart', {
-    type: 'bar',
-    data: { labels: [], datasets: [] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'right', labels: { font: { size: 9 }, padding: 6 } } },
-      scales: { y: { beginAtZero: true, title: { display: true, text: 'Median Latency (ms)', color: C.dim, font: { size: 9 } } } },
-    },
-  });
-
-  charts.delivery = make('deliveryChart', {
+  charts.reliability = make('reliabilityChart', {
     type: 'bar',
     data: {
-      labels: [],
-      datasets: [{ label: 'Event Delivery %', data: [], backgroundColor: C.green + '88', borderColor: C.green, borderWidth: 1, borderRadius: 4 }],
+      labels: ['Wireless', 'Backhaul', 'E2E Delivery', 'State Agreement'],
+      datasets: [{ label: 'Ratio %', data: [], backgroundColor: C.green + '88', borderColor: C.green, borderWidth: 1, borderRadius: 4 }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { y: { min: 0, max: 100, title: { display: true, text: 'Event Delivery % (e2e_unique)', color: C.dim, font: { size: 9 } } } },
+      scales: { y: { min: 0, max: 100, title: { display: true, text: '% delivered / agreement', color: C.dim, font: { size: 9 } } } },
+    },
+  });
+
+  charts.latencyEcdf = make('latencyEcdfChart', {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Cumulative %', data: [], borderColor: C.cyan, backgroundColor: C.cyan + '22',
+        borderWidth: 2, pointRadius: 0, tension: 0.1, fill: true, stepped: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      parsing: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `p${c.parsed.y.toFixed(0)} = ${c.parsed.x.toFixed(1)} ms` } },
+      },
+      scales: {
+        x: { type: 'logarithmic', title: { display: true, text: 'Latency (ms, log)', color: C.dim, font: { size: 9 } } },
+        y: { min: 0, max: 100, ticks: { stepSize: 25 }, title: { display: true, text: 'Cumulative %', color: C.dim, font: { size: 9 } } },
+      },
+    },
+  });
+
+  charts.occupancy = make('occupancyChart', {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Occupied %', data: [], borderColor: C.amber, backgroundColor: C.amber + '22',
+        borderWidth: 2, pointRadius: 0, tension: 0.25, fill: true,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      parsing: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `${c.parsed.y.toFixed(1)}% at ${c.parsed.x.toFixed(1)} h` } },
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'Simulated time (h)', color: C.dim, font: { size: 9 } } },
+        y: { min: 0, max: 100, title: { display: true, text: 'Occupied %', color: C.dim, font: { size: 9 } } },
+      },
     },
   });
 }
 
-function updateLatencyHistogram(samples) {
-  if (!charts.latencyHist || !samples?.length) return;
-  const B = 18;
-  const mn = Math.min(...samples);
-  const mx = Math.max(...samples);
-  const step = (mx - mn) / B || 1;
-  const counts = Array(B).fill(0);
-  const labels = [];
-  for (let i = 0; i < B; i++) labels.push((mn + i * step).toFixed(0));
-  samples.forEach(v => { counts[Math.min(Math.floor((v - mn) / step), B - 1)]++; });
+function updateLatencyEcdf(m) {
+  if (!charts.latencyEcdf) return;
+  let pts = [];
+  const samples = m.latency_samples;
+  if (samples && samples.length) {
+    const s = [...samples].sort((a, b) => a - b);
+    const n = s.length;
+    const step = Math.max(1, Math.floor(n / 200));
+    for (let i = 0; i < n; i += step) pts.push({ x: s[i], y: +((i + 1) / n * 100).toFixed(2) });
+    if (pts.length && pts[pts.length - 1].x !== s[n - 1]) pts.push({ x: s[n - 1], y: 100 });
+  } else if (m.latency_percentiles && m.latency_percentiles.length) {
+    pts = m.latency_percentiles.map((v, i) => ({ x: v, y: i + 1 })).filter(p => p.x > 0);
+  }
+  charts.latencyEcdf.data.datasets[0].data = pts;
+  charts.latencyEcdf.update('none');
+}
+
+function updateOccupancyChart(m) {
+  if (!charts.occupancy) return;
+  const series = m.occupancy_series;
+  const pts = Array.isArray(series)
+    ? series.filter(p => p && p.pct != null).map(p => ({ x: +(p.t / 3600).toFixed(3), y: p.pct }))
+    : [];
+  charts.occupancy.data.datasets[0].data = pts;
+  charts.occupancy.update('none');
+}
+
+function updateLatencyHistogram(m) {
+  if (!charts.latencyHist) return;
+  let labels = [], counts = [];
+  const h = m.latency_histogram;
+  if (h && Array.isArray(h.counts) && Array.isArray(h.edges) && h.counts.length) {
+    counts = h.counts;
+    labels = h.counts.map((_, i) => h.edges[i].toFixed(0));
+  } else {
+    const samples = (m.latency_samples && m.latency_samples.length) ? m.latency_samples : (m.latency_percentiles || []);
+    if (!samples.length) {
+      charts.latencyHist.data.labels = [];
+      charts.latencyHist.data.datasets[0].data = [];
+      charts.latencyHist.update('none');
+      return;
+    }
+    const B = 24, mn = Math.min(...samples), mx = Math.max(...samples), step = (mx - mn) / B || 1;
+    counts = Array(B).fill(0);
+    for (let i = 0; i < B; i++) labels.push((mn + i * step).toFixed(0));
+    samples.forEach(v => { counts[Math.min(Math.floor((v - mn) / step), B - 1)]++; });
+  }
   charts.latencyHist.data.labels = labels;
   charts.latencyHist.data.datasets[0].data = counts;
   charts.latencyHist.update('none');
@@ -839,39 +987,20 @@ function updateBandwidthChart(m) {
   charts.bandwidth.update('none');
 }
 
-function updateComparisonChart() {
-  if (!charts.comparison || !allResults.length) return;
-  const groups = {};
-  allResults.forEach(raw => {
-    const r = normalizeMetrics(raw);
-    const k = `${(r.protocol || '?').toUpperCase()} / ${r.architecture || ''}`;
-    if (!groups[k]) groups[k] = {};
-    groups[k][r.traffic_level] = r.latency_p50_ms ?? r.latency_mean_ms;
-  });
-  const levels = ['low', 'medium', 'peak'];
-  const keys = Object.keys(groups);
-  const pal = [C.cyan, C.blue, C.amber, C.purple, C.green, C.red];
-  charts.comparison.data.labels   = levels;
-  charts.comparison.data.datasets = keys.map((k, i) => ({
-    label: k,
-    data: levels.map(l => groups[k][l] ?? null),
-    backgroundColor: pal[i % pal.length] + '99',
-    borderColor: pal[i % pal.length],
-    borderWidth: 1, borderRadius: 4,
-  }));
-  charts.comparison.update('none');
-}
-
-function updateDeliveryChart() {
-  if (!charts.delivery || !allResults.length) return;
-  const norm = allResults.map(normalizeMetrics);
-  const labels = norm.map(m => (m.scenario_name || '').replace(/_/g, ' ').substring(0, 20));
-  const data = norm.map(m => m.e2e_unique_delivery_ratio != null ? +(m.e2e_unique_delivery_ratio * 100).toFixed(1) : null);
+function updateReliabilityChart(m) {
+  if (!charts.reliability) return;
+  const toPct = v => v != null ? +(v * 100).toFixed(1) : null;
+  const data = [
+    toPct(m.s2e_delivery_ratio),
+    isCloudOnly(m) ? null : toPct(m.backhaul_delivery_ratio),
+    toPct(m.e2e_unique_delivery_ratio),
+    toPct(m.cloud_reflection_ratio),
+  ];
   const colors = data.map(v => v == null ? C.dim + '55' : v >= 98 ? C.green + '99' : v >= 90 ? C.amber + '99' : C.red + '99');
-  charts.delivery.data.labels = labels;
-  charts.delivery.data.datasets[0].data = data;
-  charts.delivery.data.datasets[0].backgroundColor = colors;
-  charts.delivery.update('none');
+  charts.reliability.data.datasets[0].data = data;
+  charts.reliability.data.datasets[0].backgroundColor = colors;
+  charts.reliability.data.datasets[0].borderColor = data.map(v => v == null ? C.dim : v >= 98 ? C.green : v >= 90 ? C.amber : C.red);
+  charts.reliability.update('none');
 }
 
 function aiSetOutput(html) {

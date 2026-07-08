@@ -95,6 +95,23 @@ html,body { height:100%; background:var(--bg-base); color:var(--text); font-fami
 
 .input-group { margin-bottom:.75rem; }
 .input-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 .6rem; }
+.input-grid .input-group { display:flex; flex-direction:column; justify-content:flex-end; }
+.input-grid .input-group label { margin-top:auto; }
+
+.adv-toggle {
+  display:flex; align-items:center; gap:.4rem; cursor:pointer; user-select:none;
+  font-family:var(--mono); font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--cyan); padding:.5rem 0 .45rem; margin-top:.35rem; border-top:1px solid var(--border);
+}
+.adv-toggle:hover { color:var(--text); }
+.adv-toggle .adv-caret { display:inline-block; transition:transform .15s; font-size:.7rem; }
+.adv-toggle.open .adv-caret { transform:rotate(90deg); }
+.adv-content { display:none; }
+.adv-content.open { display:block; }
+.adv-group-label {
+  font-family:var(--mono); font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text3); margin:.5rem 0 .5rem; padding-bottom:.25rem; border-bottom:1px solid var(--border);
+}
 label {
   display:block; font-size:.65rem; font-family:var(--mono);
   color:var(--text2); text-transform:uppercase; letter-spacing:.07em; margin-bottom:.25rem;
@@ -139,8 +156,14 @@ label {
 }
 .result-row:hover { border-color:var(--border-hi); }
 .result-row.active { border-color:var(--cyan); }
-.result-name { font-family:var(--mono); font-size:.65rem; color:var(--blue); margin-bottom:.25rem;
+.result-head { display:flex; align-items:center; gap:.4rem; margin-bottom:.25rem; }
+.result-name { font-family:var(--mono); font-size:.65rem; color:var(--blue); flex:1; min-width:0;
                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.result-del { background:none; border:none; color:var(--text3); cursor:pointer; flex:none;
+              font-size:.72rem; line-height:1; padding:.05rem .25rem; border-radius:3px;
+              opacity:0; transition:opacity .15s, color .15s, background .15s; }
+.result-row:hover .result-del { opacity:.7; }
+.result-del:hover { opacity:1; color:var(--red); background:var(--bg-hover); }
 .result-meta { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; }
 .result-tag  { background:var(--bg-hover); padding:.08rem .3rem; border-radius:3px;
                font-family:var(--mono); font-size:.58rem; text-transform:uppercase; }
@@ -280,7 +303,6 @@ label {
 .ai-output em { color:var(--text2); font-style:italic; }
 .ai-output code { font-family:var(--mono); font-size:.7rem; background:rgba(77,155,255,.1); color:var(--blue); padding:.08rem .3rem; border-radius:3px; white-space:nowrap; }
 
-/* Scenario Manager Modal  */
 .modal-overlay {
   display:none; position:fixed; inset:0; z-index:500;
   background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
@@ -339,12 +361,12 @@ label {
   border:1px solid var(--border); flex-shrink:0;
 }
 
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 .65rem; }
-.form-grid .full { grid-column:span 2; }
+.form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0 .65rem; }
+.form-grid .full { grid-column:1 / -1; }
 .form-section {
   font-family:var(--mono); font-size:.6rem; letter-spacing:.12em; color:var(--text3);
   text-transform:uppercase; margin:.85rem 0 .5rem; padding-bottom:.3rem;
-  border-bottom:1px solid var(--border); grid-column:span 2;
+  border-bottom:1px solid var(--border); grid-column:1 / -1;
 }
 
 .btn-modal-save {
@@ -583,6 +605,17 @@ label {
   margin-bottom: .55rem;
 }
 
+.cmp-chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.cmp-chart-canvas {
+  height: 160px;
+  position: relative;
+}
+
 .cmp-table-wrap {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -653,6 +686,8 @@ label {
 .cmp-empty-sub { font-size: .75rem; color: var(--text3); line-height: 1.6; max-width: 320px; }
 
 .modal.modal-wide { width: min(960px, 95vw); }
+.modal.modal-wide.modal-compare { width: min(1360px, 97vw); }
+.modal.modal-compare .cmp-charts-wrap { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 
 .metrics-table-toggle {
   cursor: pointer;

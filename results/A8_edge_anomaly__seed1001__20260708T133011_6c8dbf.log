@@ -1,0 +1,456 @@
+Scenario Log: A8_edge_anomaly
+Architecture: edge_filtered   Protocol: mqtt
+Traffic: peak   Spots: 500   Duration: 10800s
+========================================================================
+
+SUMMARY
+  Anomalies detected    : 300
+  Anomalies resolved    : 187
+  Active at end         : 113
+  Affected spots        : 155
+  Quarantined at end    : 134
+  Quarantine suppressed : 16
+  Heartbeats suppressed : 4077
+  Adaptive mode switches: 0
+
+EVENT LOG
+  t_virtual(s)  event                   detail
+------------------------------------------------------------------------
+          60.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+         120.0  ANOMALY_FLAG            spot=289 rule=seq_integrity
+         150.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+         210.0  QUARANTINE_ADD          spot=104 incidents=5 rules=['seq_integrity']
+         210.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+         300.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+         360.0  QUARANTINE_ADD          spot=322 incidents=7 rules=['seq_integrity']
+         360.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+         420.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+         630.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+         720.0  QUARANTINE_ADD          spot=289 incidents=8 rules=['seq_integrity']
+         720.0  ANOMALY_FLAG            spot=289 rule=seq_integrity
+         780.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+         810.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+         810.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+         840.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        1260.0  ANOMALY_FLAG            spot=428 rule=seq_integrity
+        1380.0  QUARANTINE_ADD          spot=224 incidents=9 rules=['seq_integrity']
+        1380.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+        1530.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        1710.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        1710.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        1830.0  ANOMALY_FLAG            spot=125 rule=silent
+        1830.0  ANOMALY_FLAG            spot=362 rule=silent
+        1830.0  ANOMALY_FLAG            spot=389 rule=silent
+        1830.0  ANOMALY_FLAG            spot=132 rule=silent
+        1830.0  ANOMALY_FLAG            spot=317 rule=silent
+        1830.0  ANOMALY_FLAG            spot=315 rule=silent
+        1830.0  ANOMALY_FLAG            spot=375 rule=silent
+        1830.0  ANOMALY_FLAG            spot=254 rule=silent
+        1830.0  ANOMALY_FLAG            spot=124 rule=silent
+        1830.0  ANOMALY_FLAG            spot=119 rule=silent
+        1860.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+        1980.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+        2040.0  QUARANTINE_ADD          spot=324 incidents=7 rules=['seq_integrity']
+        2040.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+        2040.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        2100.0  ANOMALY_FLAG            spot=245 rule=silent
+        2220.0  ANOMALY_FLAG            spot=104 rule=rate_outlier
+        2220.0  ANOMALY_FLAG            spot=382 rule=silent
+        2250.0  ANOMALY_FLAG            spot=33 rule=silent
+        2310.0  QUARANTINE_ADD          spot=435 incidents=5 rules=['seq_integrity']
+        2310.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+        2340.0  ANOMALY_FLAG            spot=499 rule=silent
+        2370.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        2400.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        2400.0  ANOMALY_FLAG            spot=65 rule=seq_integrity
+        2430.0  QUARANTINE_ADD          spot=376 incidents=5 rules=['seq_integrity']
+        2460.0  ANOMALY_FLAG            spot=297 rule=silent
+        2520.0  ANOMALY_FLAG            spot=295 rule=silent
+        2550.0  QUARANTINE_ADD          spot=119 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=125 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=132 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=254 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=317 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=362 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=375 incidents=5 rules=['silent']
+        2550.0  QUARANTINE_ADD          spot=389 incidents=5 rules=['silent']
+        2550.0  ANOMALY_FLAG            spot=58 rule=silent
+        2640.0  ANOMALY_FLAG            spot=75 rule=silent
+        2700.0  ANOMALY_FLAG            spot=113 rule=silent
+        2790.0  ANOMALY_FLAG            spot=176 rule=silent
+        2910.0  ANOMALY_FLAG            spot=213 rule=silent
+        2940.0  QUARANTINE_ADD          spot=382 incidents=5 rules=['silent']
+        2970.0  QUARANTINE_ADD          spot=33 incidents=5 rules=['silent']
+        3060.0  QUARANTINE_ADD          spot=499 incidents=5 rules=['silent']
+        3240.0  QUARANTINE_ADD          spot=295 incidents=5 rules=['silent']
+        3510.0  QUARANTINE_ADD          spot=176 incidents=5 rules=['silent']
+        3630.0  QUARANTINE_ADD          spot=213 incidents=5 rules=['silent']
+        3660.0  ANOMALY_FLAG            spot=112 rule=silent
+        3660.0  ANOMALY_FLAG            spot=83 rule=silent
+        3690.0  ANOMALY_FLAG            spot=196 rule=silent
+        3690.0  ANOMALY_FLAG            spot=176 rule=seq_integrity
+        3750.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+        3780.0  ANOMALY_FLAG            spot=98 rule=silent
+        3870.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        3900.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+        4020.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        4080.0  QUARANTINE_ADD          spot=490 incidents=7 rules=['seq_integrity']
+        4080.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        4230.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        4230.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        4260.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+        4290.0  ANOMALY_FLAG            spot=366 rule=silent
+        4320.0  QUARANTINE_ADD          spot=285 incidents=7 rules=['seq_integrity']
+        4320.0  ANOMALY_FLAG            spot=289 rule=seq_integrity
+        4320.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        4320.0  ANOMALY_FLAG            spot=490 rule=rate_outlier
+        4320.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        4380.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+        4410.0  QUARANTINE_ADD          spot=164 incidents=5 rules=['seq_integrity']
+        4410.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        4470.0  ANOMALY_FLAG            spot=105 rule=silent
+        4500.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        4620.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        4650.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+        4710.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        4710.0  ANOMALY_FLAG            spot=370 rule=silent
+        4710.0  ANOMALY_FLAG            spot=260 rule=silent
+        4770.0  ANOMALY_FLAG            spot=189 rule=silent
+        4800.0  ANOMALY_FLAG            spot=277 rule=silent
+        4860.0  QUARANTINE_ADD          spot=297 incidents=5 rules=['silent']
+        4860.0  ANOMALY_FLAG            spot=297 rule=silent
+        4860.0  ANOMALY_FLAG            spot=428 rule=seq_integrity
+        4920.0  ANOMALY_FLAG            spot=491 rule=silent
+        5010.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+        5130.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        5190.0  QUARANTINE_ADD          spot=105 incidents=5 rules=['silent']
+        5340.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        5430.0  QUARANTINE_ADD          spot=260 incidents=5 rules=['silent']
+        5430.0  QUARANTINE_ADD          spot=370 incidents=5 rules=['silent']
+        5430.0  ANOMALY_FLAG            spot=353 rule=silent
+        5430.0  ANOMALY_FLAG            spot=213 rule=stuck
+        5430.0  ANOMALY_FLAG            spot=461 rule=stuck
+        5490.0  QUARANTINE_ADD          spot=189 incidents=5 rules=['silent']
+        5490.0  ANOMALY_FLAG            spot=71 rule=stuck
+        5490.0  ANOMALY_FLAG            spot=499 rule=stuck
+        5520.0  ANOMALY_FLAG            spot=149 rule=stuck
+        5520.0  ANOMALY_FLAG            spot=289 rule=stuck
+        5520.0  ANOMALY_FLAG            spot=331 rule=silent
+        5550.0  ANOMALY_FLAG            spot=410 rule=stuck
+        5550.0  ANOMALY_FLAG            spot=410 rule=silent
+        5610.0  ANOMALY_FLAG            spot=465 rule=stuck
+        5610.0  ANOMALY_FLAG            spot=252 rule=stuck
+        5610.0  ANOMALY_FLAG            spot=187 rule=stuck
+        5640.0  QUARANTINE_ADD          spot=491 incidents=5 rules=['silent']
+        5640.0  ANOMALY_FLAG            spot=335 rule=stuck
+        5700.0  ANOMALY_FLAG            spot=270 rule=stuck
+        5730.0  ANOMALY_FLAG            spot=50 rule=stuck
+        5760.0  ANOMALY_FLAG            spot=115 rule=stuck
+        5790.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+        5820.0  ANOMALY_FLAG            spot=489 rule=stuck
+        5820.0  ANOMALY_FLAG            spot=382 rule=stuck
+        5820.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        5880.0  ANOMALY_FLAG            spot=212 rule=stuck
+        5880.0  ANOMALY_FLAG            spot=476 rule=stuck
+        5910.0  ANOMALY_FLAG            spot=301 rule=stuck
+        5940.0  ANOMALY_FLAG            spot=166 rule=silent
+        5940.0  ANOMALY_FLAG            spot=123 rule=stuck
+        5940.0  ANOMALY_FLAG            spot=382 rule=silent
+        5940.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        5970.0  ANOMALY_FLAG            spot=147 rule=stuck
+        6000.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        6060.0  ANOMALY_FLAG            spot=319 rule=stuck
+        6090.0  ANOMALY_FLAG            spot=408 rule=stuck
+        6150.0  QUARANTINE_ADD          spot=353 incidents=5 rules=['silent']
+        6150.0  QUARANTINE_ADD          spot=461 incidents=5 rules=['stuck']
+        6150.0  ANOMALY_FLAG            spot=397 rule=stuck
+        6150.0  ANOMALY_FLAG            spot=151 rule=stuck
+        6150.0  ANOMALY_FLAG            spot=176 rule=seq_integrity
+        6210.0  QUARANTINE_ADD          spot=71 incidents=5 rules=['stuck']
+        6210.0  ANOMALY_FLAG            spot=261 rule=stuck
+        6210.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        6240.0  QUARANTINE_ADD          spot=149 incidents=5 rules=['stuck']
+        6240.0  QUARANTINE_ADD          spot=331 incidents=5 rules=['silent']
+        6270.0  QUARANTINE_ADD          spot=410 incidents=5 rules=['stuck']
+        6270.0  ANOMALY_FLAG            spot=214 rule=stuck
+        6270.0  ANOMALY_FLAG            spot=229 rule=stuck
+        6270.0  ANOMALY_FLAG            spot=2 rule=stuck
+        6300.0  ANOMALY_FLAG            spot=376 rule=silent
+        6300.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        6300.0  ANOMALY_FLAG            spot=104 rule=rate_outlier
+        6330.0  QUARANTINE_ADD          spot=187 incidents=5 rules=['stuck']
+        6330.0  QUARANTINE_ADD          spot=252 incidents=5 rules=['stuck']
+        6330.0  QUARANTINE_ADD          spot=465 incidents=5 rules=['stuck']
+        6330.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        6330.0  ANOMALY_FLAG            spot=406 rule=stuck
+        6360.0  QUARANTINE_ADD          spot=335 incidents=5 rules=['stuck']
+        6360.0  ANOMALY_FLAG            spot=363 rule=stuck
+        6390.0  ANOMALY_FLAG            spot=490 rule=rate_outlier
+        6390.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        6390.0  ANOMALY_FLAG            spot=447 rule=silent
+        6420.0  QUARANTINE_ADD          spot=270 incidents=5 rules=['stuck']
+        6420.0  ANOMALY_FLAG            spot=202 rule=stuck
+        6450.0  QUARANTINE_ADD          spot=50 incidents=5 rules=['stuck']
+        6480.0  QUARANTINE_ADD          spot=115 incidents=5 rules=['stuck']
+        6510.0  ANOMALY_FLAG            spot=277 rule=stuck
+        6510.0  ANOMALY_FLAG            spot=151 rule=silent
+        6510.0  ANOMALY_FLAG            spot=266 rule=stuck
+        6540.0  QUARANTINE_ADD          spot=489 incidents=5 rules=['stuck']
+        6600.0  QUARANTINE_ADD          spot=212 incidents=5 rules=['stuck']
+        6600.0  QUARANTINE_ADD          spot=476 incidents=5 rules=['stuck']
+        6600.0  ANOMALY_FLAG            spot=438 rule=silent
+        6600.0  ANOMALY_FLAG            spot=343 rule=silent
+        6630.0  QUARANTINE_ADD          spot=301 incidents=5 rules=['stuck']
+        6660.0  QUARANTINE_ADD          spot=123 incidents=5 rules=['stuck']
+        6660.0  QUARANTINE_ADD          spot=166 incidents=5 rules=['silent']
+        6660.0  ANOMALY_FLAG            spot=333 rule=stuck
+        6690.0  QUARANTINE_ADD          spot=147 incidents=5 rules=['stuck']
+        6690.0  ANOMALY_FLAG            spot=333 rule=silent
+        6720.0  ANOMALY_FLAG            spot=194 rule=silent
+        6750.0  ANOMALY_FLAG            spot=295 rule=silent
+        6780.0  ANOMALY_FLAG            spot=224 rule=stuck
+        6810.0  QUARANTINE_ADD          spot=408 incidents=5 rules=['stuck']
+        6840.0  ANOMALY_FLAG            spot=455 rule=stuck
+        6870.0  QUARANTINE_ADD          spot=151 incidents=5 rules=['silent', 'stuck']
+        6870.0  QUARANTINE_ADD          spot=397 incidents=5 rules=['stuck']
+        6870.0  ANOMALY_FLAG            spot=129 rule=stuck
+        6930.0  QUARANTINE_ADD          spot=261 incidents=5 rules=['stuck']
+        6990.0  QUARANTINE_ADD          spot=2 incidents=5 rules=['stuck']
+        6990.0  QUARANTINE_ADD          spot=214 incidents=5 rules=['stuck']
+        6990.0  QUARANTINE_ADD          spot=229 incidents=5 rules=['stuck']
+        6990.0  ANOMALY_FLAG            spot=464 rule=stuck
+        7020.0  ANOMALY_FLAG            spot=472 rule=stuck
+        7020.0  ANOMALY_FLAG            spot=51 rule=stuck
+        7020.0  ANOMALY_FLAG            spot=263 rule=stuck
+        7050.0  QUARANTINE_ADD          spot=277 incidents=5 rules=['stuck']
+        7050.0  QUARANTINE_ADD          spot=406 incidents=5 rules=['stuck']
+        7050.0  ANOMALY_FLAG            spot=21 rule=stuck
+        7080.0  QUARANTINE_ADD          spot=363 incidents=5 rules=['stuck']
+        7110.0  QUARANTINE_ADD          spot=447 incidents=5 rules=['silent']
+        7110.0  ANOMALY_FLAG            spot=418 rule=silent
+        7200.0  ANOMALY_FLAG            spot=244 rule=silent
+        7230.0  QUARANTINE_ADD          spot=266 incidents=5 rules=['stuck']
+        7230.0  ANOMALY_FLAG            spot=314 rule=stuck
+        7260.0  QUARANTINE_ADD          spot=112 incidents=5 rules=['stuck']
+        7260.0  ANOMALY_FLAG            spot=112 rule=stuck
+        7260.0  ANOMALY_FLAG            spot=66 rule=silent
+        7260.0  ANOMALY_FLAG            spot=128 rule=stuck
+        7290.0  ANOMALY_FLAG            spot=433 rule=silent
+        7320.0  QUARANTINE_ADD          spot=343 incidents=5 rules=['silent']
+        7350.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+        7350.0  ANOMALY_FLAG            spot=422 rule=stuck
+        7380.0  QUARANTINE_ADD          spot=333 incidents=5 rules=['silent', 'stuck']
+        7380.0  ANOMALY_FLAG            spot=308 rule=silent
+        7380.0  ANOMALY_FLAG            spot=124 rule=stuck
+        7380.0  ANOMALY_FLAG            spot=98 rule=stuck
+        7380.0  ANOMALY_FLAG            spot=224 rule=rate_outlier
+        7380.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+        7440.0  ANOMALY_FLAG            spot=281 rule=silent
+        7440.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        7470.0  ANOMALY_FLAG            spot=324 rule=seq_integrity
+        7500.0  ANOMALY_FLAG            spot=496 rule=stuck
+        7500.0  ANOMALY_FLAG            spot=277 rule=silent
+        7530.0  ANOMALY_FLAG            spot=306 rule=stuck
+        7560.0  QUARANTINE_ADD          spot=455 incidents=5 rules=['stuck']
+        7590.0  QUARANTINE_ADD          spot=129 incidents=5 rules=['stuck']
+        7590.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        7620.0  ANOMALY_FLAG            spot=104 rule=seq_integrity
+        7620.0  ANOMALY_FLAG            spot=105 rule=stuck
+        7620.0  ANOMALY_FLAG            spot=91 rule=stuck
+        7650.0  ANOMALY_FLAG            spot=415 rule=stuck
+        7680.0  ANOMALY_FLAG            spot=337 rule=stuck
+        7680.0  ANOMALY_FLAG            spot=401 rule=stuck
+        7710.0  QUARANTINE_ADD          spot=464 incidents=5 rules=['stuck']
+        7710.0  ANOMALY_FLAG            spot=63 rule=silent
+        7740.0  QUARANTINE_ADD          spot=51 incidents=5 rules=['stuck']
+        7740.0  QUARANTINE_ADD          spot=98 incidents=5 rules=['stuck']
+        7740.0  QUARANTINE_ADD          spot=263 incidents=5 rules=['stuck']
+        7740.0  QUARANTINE_ADD          spot=472 incidents=5 rules=['stuck']
+        7740.0  ANOMALY_FLAG            spot=286 rule=stuck
+        7740.0  ANOMALY_FLAG            spot=444 rule=stuck
+        7740.0  ANOMALY_FLAG            spot=493 rule=stuck
+        7740.0  ANOMALY_FLAG            spot=168 rule=stuck
+        7770.0  QUARANTINE_ADD          spot=21 incidents=5 rules=['stuck']
+        7770.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+        7830.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        7830.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        7830.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        7830.0  ANOMALY_FLAG            spot=176 rule=seq_integrity
+        7920.0  QUARANTINE_ADD          spot=124 incidents=5 rules=['stuck']
+        7920.0  ANOMALY_FLAG            spot=289 rule=seq_integrity
+        7920.0  ANOMALY_FLAG            spot=430 rule=silent
+        7920.0  ANOMALY_FLAG            spot=263 rule=silent
+        7950.0  QUARANTINE_ADD          spot=314 incidents=5 rules=['stuck']
+        7950.0  ANOMALY_FLAG            spot=247 rule=stuck
+        7950.0  ANOMALY_FLAG            spot=346 rule=stuck
+        7980.0  QUARANTINE_ADD          spot=66 incidents=5 rules=['silent']
+        7980.0  QUARANTINE_ADD          spot=128 incidents=5 rules=['stuck']
+        7980.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+        8010.0  QUARANTINE_ADD          spot=433 incidents=5 rules=['silent']
+        8010.0  ANOMALY_FLAG            spot=481 rule=stuck
+        8010.0  ANOMALY_FLAG            spot=49 rule=stuck
+        8010.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        8040.0  ANOMALY_FLAG            spot=285 rule=rate_outlier
+        8040.0  ANOMALY_FLAG            spot=46 rule=stuck
+        8070.0  QUARANTINE_ADD          spot=422 incidents=5 rules=['stuck']
+        8070.0  ANOMALY_FLAG            spot=105 rule=silent
+        8100.0  ANOMALY_FLAG            spot=184 rule=silent
+        8130.0  ANOMALY_FLAG            spot=370 rule=silent
+        8160.0  QUARANTINE_ADD          spot=281 incidents=5 rules=['silent']
+        8160.0  ANOMALY_FLAG            spot=414 rule=stuck
+        8190.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        8190.0  ANOMALY_FLAG            spot=450 rule=stuck
+        8190.0  ANOMALY_FLAG            spot=176 rule=seq_integrity
+        8220.0  QUARANTINE_ADD          spot=496 incidents=5 rules=['stuck']
+        8220.0  ANOMALY_FLAG            spot=365 rule=silent
+        8250.0  QUARANTINE_ADD          spot=306 incidents=5 rules=['stuck']
+        8250.0  ANOMALY_FLAG            spot=144 rule=silent
+        8250.0  ANOMALY_FLAG            spot=150 rule=silent
+        8250.0  ANOMALY_FLAG            spot=410 rule=silent
+        8340.0  QUARANTINE_ADD          spot=91 incidents=5 rules=['stuck']
+        8340.0  ANOMALY_FLAG            spot=174 rule=stuck
+        8340.0  ANOMALY_FLAG            spot=359 rule=stuck
+        8400.0  QUARANTINE_ADD          spot=337 incidents=5 rules=['stuck']
+        8400.0  QUARANTINE_ADD          spot=401 incidents=5 rules=['stuck']
+        8430.0  QUARANTINE_ADD          spot=63 incidents=5 rules=['silent']
+        8430.0  ANOMALY_FLAG            spot=28 rule=stuck
+        8430.0  ANOMALY_FLAG            spot=80 rule=silent
+        8430.0  ANOMALY_FLAG            spot=300 rule=silent
+        8460.0  QUARANTINE_ADD          spot=168 incidents=5 rules=['stuck']
+        8460.0  QUARANTINE_ADD          spot=286 incidents=5 rules=['stuck']
+        8460.0  QUARANTINE_ADD          spot=493 incidents=5 rules=['stuck']
+        8460.0  ANOMALY_FLAG            spot=54 rule=stuck
+        8550.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        8550.0  ANOMALY_FLAG            spot=122 rule=stuck
+        8610.0  ANOMALY_FLAG            spot=234 rule=stuck
+        8640.0  ANOMALY_FLAG            spot=92 rule=silent
+        8640.0  ANOMALY_FLAG            spot=424 rule=silent
+        8640.0  ANOMALY_FLAG            spot=362 rule=stuck
+        8670.0  QUARANTINE_ADD          spot=247 incidents=5 rules=['stuck']
+        8670.0  QUARANTINE_ADD          spot=346 incidents=5 rules=['stuck']
+        8670.0  ANOMALY_FLAG            spot=68 rule=stuck
+        8700.0  ANOMALY_FLAG            spot=398 rule=stuck
+        8730.0  QUARANTINE_ADD          spot=49 incidents=5 rules=['stuck']
+        8730.0  ANOMALY_FLAG            spot=376 rule=seq_integrity
+        8730.0  ANOMALY_FLAG            spot=420 rule=stuck
+        8760.0  QUARANTINE_ADD          spot=46 incidents=5 rules=['stuck']
+        8760.0  ANOMALY_FLAG            spot=29 rule=stuck
+        8850.0  ANOMALY_FLAG            spot=47 rule=stuck
+        8850.0  ANOMALY_FLAG            spot=112 rule=silent
+        8850.0  ANOMALY_FLAG            spot=366 rule=silent
+        8880.0  ANOMALY_FLAG            spot=15 rule=stuck
+        8910.0  QUARANTINE_ADD          spot=450 incidents=5 rules=['stuck']
+        8910.0  ANOMALY_FLAG            spot=164 rule=seq_integrity
+        8910.0  ANOMALY_FLAG            spot=206 rule=stuck
+        8940.0  QUARANTINE_ADD          spot=365 incidents=5 rules=['silent']
+        8940.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+        8940.0  ANOMALY_FLAG            spot=224 rule=seq_integrity
+        8940.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        8970.0  QUARANTINE_ADD          spot=144 incidents=5 rules=['silent']
+        8970.0  ANOMALY_FLAG            spot=433 rule=stuck
+        9030.0  ANOMALY_FLAG            spot=217 rule=stuck
+        9030.0  ANOMALY_FLAG            spot=93 rule=stuck
+        9030.0  ANOMALY_FLAG            spot=282 rule=stuck
+        9060.0  QUARANTINE_ADD          spot=174 incidents=5 rules=['stuck']
+        9090.0  ANOMALY_FLAG            spot=176 rule=seq_integrity
+        9120.0  ANOMALY_FLAG            spot=174 rule=silent
+        9120.0  ANOMALY_FLAG            spot=76 rule=stuck
+        9150.0  QUARANTINE_ADD          spot=28 incidents=5 rules=['stuck']
+        9150.0  QUARANTINE_ADD          spot=80 incidents=5 rules=['silent']
+        9150.0  ANOMALY_FLAG            spot=34 rule=stuck
+        9180.0  QUARANTINE_ADD          spot=54 incidents=5 rules=['stuck']
+        9180.0  ANOMALY_FLAG            spot=217 rule=silent
+        9180.0  ANOMALY_FLAG            spot=102 rule=stuck
+        9210.0  ANOMALY_FLAG            spot=194 rule=silent
+        9210.0  ANOMALY_FLAG            spot=151 rule=silent
+        9210.0  ANOMALY_FLAG            spot=84 rule=stuck
+        9270.0  QUARANTINE_ADD          spot=122 incidents=5 rules=['stuck']
+        9270.0  ANOMALY_FLAG            spot=171 rule=stuck
+        9300.0  ANOMALY_FLAG            spot=432 rule=stuck
+        9330.0  QUARANTINE_ADD          spot=234 incidents=5 rules=['stuck']
+        9330.0  ANOMALY_FLAG            spot=142 rule=stuck
+        9360.0  QUARANTINE_ADD          spot=424 incidents=5 rules=['silent']
+        9360.0  QUARANTINE_ADD          spot=428 incidents=5 rules=['seq_integrity', 'stuck']
+        9360.0  ANOMALY_FLAG            spot=428 rule=seq_integrity
+        9360.0  ANOMALY_FLAG            spot=428 rule=stuck
+        9390.0  QUARANTINE_ADD          spot=68 incidents=5 rules=['stuck']
+        9390.0  ANOMALY_FLAG            spot=243 rule=stuck
+        9420.0  QUARANTINE_ADD          spot=398 incidents=5 rules=['stuck']
+        9420.0  ANOMALY_FLAG            spot=66 rule=stuck
+        9420.0  ANOMALY_FLAG            spot=287 rule=stuck
+        9450.0  QUARANTINE_ADD          spot=420 incidents=5 rules=['stuck']
+        9480.0  QUARANTINE_ADD          spot=29 incidents=5 rules=['stuck']
+        9480.0  ANOMALY_FLAG            spot=32 rule=stuck
+        9510.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+        9510.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        9540.0  ANOMALY_FLAG            spot=362 rule=silent
+        9540.0  ANOMALY_FLAG            spot=499 rule=silent
+        9570.0  QUARANTINE_ADD          spot=47 incidents=5 rules=['stuck']
+        9570.0  QUARANTINE_ADD          spot=194 incidents=5 rules=['silent']
+        9600.0  QUARANTINE_ADD          spot=15 incidents=5 rules=['stuck']
+        9600.0  ANOMALY_FLAG            spot=38 rule=stuck
+        9600.0  ANOMALY_FLAG            spot=107 rule=stuck
+        9660.0  ANOMALY_FLAG            spot=96 rule=stuck
+        9660.0  ANOMALY_FLAG            spot=322 rule=stuck
+        9660.0  ANOMALY_FLAG            spot=391 rule=stuck
+        9690.0  ANOMALY_FLAG            spot=316 rule=stuck
+        9750.0  QUARANTINE_ADD          spot=93 incidents=5 rules=['stuck']
+        9750.0  QUARANTINE_ADD          spot=217 incidents=5 rules=['silent', 'stuck']
+        9750.0  QUARANTINE_ADD          spot=282 incidents=5 rules=['stuck']
+        9750.0  ANOMALY_FLAG            spot=487 rule=stuck
+        9750.0  ANOMALY_FLAG            spot=268 rule=stuck
+        9780.0  ANOMALY_FLAG            spot=285 rule=seq_integrity
+        9810.0  ANOMALY_FLAG            spot=79 rule=stuck
+        9810.0  ANOMALY_FLAG            spot=491 rule=silent
+        9870.0  QUARANTINE_ADD          spot=34 incidents=5 rules=['stuck']
+        9870.0  ANOMALY_FLAG            spot=153 rule=stuck
+        9900.0  QUARANTINE_ADD          spot=102 incidents=5 rules=['stuck']
+        9900.0  QUARANTINE_RELEASE      spot=125 reason=score recovered (5 clean ticks)
+        9930.0  QUARANTINE_ADD          spot=84 incidents=5 rules=['stuck']
+        9930.0  ANOMALY_FLAG            spot=59 rule=stuck
+        9990.0  QUARANTINE_ADD          spot=171 incidents=5 rules=['stuck']
+        9990.0  ANOMALY_FLAG            spot=249 rule=stuck
+        9990.0  ANOMALY_FLAG            spot=164 rule=silent
+        9990.0  ANOMALY_FLAG            spot=433 rule=silent
+        9990.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+       10020.0  QUARANTINE_ADD          spot=432 incidents=5 rules=['stuck']
+       10020.0  ANOMALY_FLAG            spot=310 rule=stuck
+       10020.0  ANOMALY_FLAG            spot=305 rule=stuck
+       10050.0  QUARANTINE_ADD          spot=142 incidents=5 rules=['stuck']
+       10050.0  ANOMALY_FLAG            spot=322 rule=seq_integrity
+       10110.0  QUARANTINE_ADD          spot=243 incidents=5 rules=['stuck']
+       10110.0  ANOMALY_FLAG            spot=5 rule=stuck
+       10140.0  QUARANTINE_ADD          spot=287 incidents=5 rules=['stuck']
+       10140.0  ANOMALY_FLAG            spot=335 rule=silent
+       10140.0  ANOMALY_FLAG            spot=454 rule=stuck
+       10170.0  ANOMALY_FLAG            spot=469 rule=stuck
+       10200.0  QUARANTINE_ADD          spot=32 incidents=5 rules=['stuck']
+       10200.0  ANOMALY_FLAG            spot=322 rule=rate_outlier
+       10200.0  ANOMALY_FLAG            spot=343 rule=stuck
+       10200.0  ANOMALY_FLAG            spot=386 rule=stuck
+       10200.0  ANOMALY_FLAG            spot=426 rule=stuck
+       10230.0  ANOMALY_FLAG            spot=300 rule=silent
+       10320.0  QUARANTINE_ADD          spot=38 incidents=5 rules=['stuck']
+       10320.0  QUARANTINE_ADD          spot=107 incidents=5 rules=['stuck']
+       10320.0  ANOMALY_FLAG            spot=425 rule=stuck
+       10320.0  QUARANTINE_RELEASE      spot=33 reason=score recovered (5 clean ticks)
+       10380.0  QUARANTINE_ADD          spot=96 incidents=5 rules=['stuck']
+       10380.0  QUARANTINE_ADD          spot=391 incidents=5 rules=['stuck']
+       10410.0  QUARANTINE_ADD          spot=316 incidents=5 rules=['stuck']
+       10410.0  ANOMALY_FLAG            spot=435 rule=seq_integrity
+       10410.0  ANOMALY_FLAG            spot=155 rule=stuck
+       10440.0  ANOMALY_FLAG            spot=125 rule=silent
+       10470.0  QUARANTINE_ADD          spot=268 incidents=5 rules=['stuck']
+       10470.0  QUARANTINE_ADD          spot=487 incidents=5 rules=['stuck']
+       10470.0  ANOMALY_FLAG            spot=490 rule=seq_integrity
+       10500.0  ANOMALY_FLAG            spot=442 rule=stuck
+       10500.0  ANOMALY_FLAG            spot=364 rule=stuck
+       10530.0  QUARANTINE_ADD          spot=79 incidents=5 rules=['stuck']
+       10590.0  QUARANTINE_ADD          spot=153 incidents=5 rules=['stuck']
+       10650.0  QUARANTINE_ADD          spot=59 incidents=5 rules=['stuck']
+       10650.0  ANOMALY_FLAG            spot=58 rule=silent
+       10710.0  QUARANTINE_ADD          spot=249 incidents=5 rules=['stuck']
+       10710.0  ANOMALY_FLAG            spot=418 rule=stuck
+       10740.0  QUARANTINE_ADD          spot=305 incidents=5 rules=['stuck']
+       10740.0  QUARANTINE_ADD          spot=310 incidents=5 rules=['stuck']
+       10770.0  ANOMALY_FLAG            spot=467 rule=stuck

@@ -175,10 +175,12 @@ class ExperimentMetrics:
 
     latency_samples: list[float] = field(default_factory=list)
     latency_percentiles: list[float] = field(default_factory=list)
+    latency_histogram: dict = field(default_factory=dict)
     scenario_log: list[dict] = field(default_factory=list)
 
     final_spot_states: dict[int, str] = field(default_factory=dict)
     final_occupancy: dict = field(default_factory=dict)
+    occupancy_series: list[dict] = field(default_factory=list)
 
 
     def to_dict(self) -> dict:
@@ -237,9 +239,11 @@ class ExperimentMetrics:
             "latency_min_ms": self.latency_min_ms,
             "latency_max_ms": self.latency_max_ms,
             "latency_percentiles": self.latency_percentiles,
+            "latency_histogram": self.latency_histogram,
 
             "final_spot_states": self.final_spot_states,
-            "final_occupancy": self.final_occupancy
+            "final_occupancy": self.final_occupancy,
+            "occupancy_series": self.occupancy_series
         }
 
         if is_cloud_only:

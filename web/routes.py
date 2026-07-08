@@ -28,9 +28,20 @@ async def list_scenarios():
             "group_order": s.group_order,
             "is_builtin": s.is_builtin,
             "loss_rate": s.link.packet_loss_rate,
+            "backhaul_loss_rate": s.backhaul_link.packet_loss_rate,
             "rate_limit": s.link.rate_limit_msgs_per_sec,
             "aggregation_interval": s.edge.aggregation_interval_s,
             "heartbeat_interval_s": s.traffic.heartbeat_interval_s,
+            "base_delay_ms": s.link.base_delay_ms,
+            "jitter_ms": s.link.jitter_ms,
+            "max_payload_bytes": s.link.max_payload_bytes,
+            "anomaly_detection": s.edge.anomaly_detection,
+            "adaptive_edge": s.edge.adaptive_edge,
+            "initial_occupancy": s.traffic.initial_occupancy,
+            "parking_duration_cv": s.traffic.parking_duration_cv,
+            "time_scale": s.traffic.time_scale,
+            "use_time_of_day": s.traffic.use_time_of_day,
+            "start_hour": s.traffic.start_hour,
             "mqtt_qos": s.mqtt.qos,
             "coap_mode": s.coap.mode,
             "amqp_exchange": s.amqp.exchange_type,
@@ -128,6 +139,18 @@ async def get_results():
 @router.get("/api/results/latest")
 async def get_latest_result():
     return state.results[-1] if state.results else {}
+
+@router.delete("/api/results/{run_id}")
+async def delete_result(run_id: str):
+    before = len(state.results)
+    state.results[:] = [r for r in state.results if str(r.get("run_id")) != run_id]
+    removed = before - len(state.results)
+    if removed == 0:
+        raise HTTPException(404, f"Run '{run_id}' not found")
+    if RESULTS_DIR.exists():
+        for f in RESULTS_DIR.glob(f"*{run_id}*"):
+            f.unlink(missing_ok=True)
+    return {"status": "deleted", "run_id": run_id, "removed": removed}
 
 @router.delete("/api/results")
 async def clear_results():

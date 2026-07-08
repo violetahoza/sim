@@ -74,9 +74,25 @@
           <div class="input-group"><label>Duration (h)</label><input class="styled-input" type="number" id="cf_duration" value="8" step="0.5"/></div>
           <div class="input-group"><label>Seed</label><input class="styled-input" type="number" id="cf_seed" value="42"/></div>
           <div class="form-section">Link &amp; Edge</div>
-          <div class="input-group"><label>Loss %</label><input class="styled-input" type="number" id="cf_loss" value="2" step="0.5"/></div>
+          <div class="input-group"><label>Sensor Loss %</label><input class="styled-input" type="number" id="cf_loss" value="2" step="0.5"/></div>
+          <div class="input-group"><label>Backhaul Loss %</label><input class="styled-input" type="number" id="cf_backhaul_loss" value="2" step="0.5"/></div>
           <div class="input-group"><label>Rate Limit (msg/s)</label><input class="styled-input" type="number" id="cf_ratelimit" value="5"/></div>
           <div class="input-group"><label>Agg. Interval (s)</label><input class="styled-input" type="number" id="cf_agg" value="30" step="5"/></div>
+          <div class="input-group"><label>Link Delay (ms)</label><input class="styled-input" type="number" id="cf_base_delay" value="80" step="5"/></div>
+          <div class="input-group"><label>Link Jitter (ms)</label><input class="styled-input" type="number" id="cf_jitter" value="30" step="5"/></div>
+          <div class="input-group"><label>Max Payload (bytes)</label><input class="styled-input" type="number" id="cf_payload" value="222"/></div>
+          <div class="input-group"><label>Heartbeat (s)</label><input class="styled-input" type="number" id="cf_heartbeat" value="60" step="5"/></div>
+          <div class="input-group"><label>Anomaly Detection</label>
+            <select class="styled-select" id="cf_anomaly"><option value="true">On</option><option value="false">Off</option></select></div>
+          <div class="input-group"><label>Adaptive Edge</label>
+            <select class="styled-select" id="cf_adaptive"><option value="false">Off</option><option value="true">On</option></select></div>
+          <div class="form-section">Traffic Model</div>
+          <div class="input-group"><label>Initial Occupancy %</label><input class="styled-input" type="number" id="cf_occ" placeholder="empty-lot start" step="5" min="0" max="100"/></div>
+          <div class="input-group"><label>Parking Duration CV</label><input class="styled-input" type="number" id="cf_cv" value="1.5" step="0.1"/></div>
+          <div class="input-group"><label>Time Scale (×)</label><input class="styled-input" type="number" id="cf_tscale" value="60" step="5"/></div>
+          <div class="input-group"><label>Time-of-Day Pattern</label>
+            <select class="styled-select" id="cf_tod"><option value="false">Off</option><option value="true">On</option></select></div>
+          <div class="input-group"><label>Start Hour</label><input class="styled-input" type="number" id="cf_starthour" value="8" step="0.5" min="0" max="24"/></div>
           <div class="form-section">Protocol Options</div>
           <div id="cf_amqp"  class="input-group"><label>Exchange</label>
             <select class="styled-select" id="cf_amqp_exchange">
@@ -133,9 +149,25 @@
           <div class="input-group"><label>Duration (h)</label><input class="styled-input" type="number" id="ef_duration" step="0.5"/></div>
           <div class="input-group"><label>Seed</label><input class="styled-input" type="number" id="ef_seed"/></div>
           <div class="form-section">Link &amp; Edge</div>
-          <div class="input-group"><label>Loss %</label><input class="styled-input" type="number" id="ef_loss" step="0.5"/></div>
+          <div class="input-group"><label>Sensor Loss %</label><input class="styled-input" type="number" id="ef_loss" step="0.5"/></div>
+          <div class="input-group"><label>Backhaul Loss %</label><input class="styled-input" type="number" id="ef_backhaul_loss" step="0.5"/></div>
           <div class="input-group"><label>Rate Limit (msg/s)</label><input class="styled-input" type="number" id="ef_ratelimit"/></div>
           <div class="input-group"><label>Agg. Interval (s)</label><input class="styled-input" type="number" id="ef_agg" step="5"/></div>
+          <div class="input-group"><label>Link Delay (ms)</label><input class="styled-input" type="number" id="ef_base_delay" step="5"/></div>
+          <div class="input-group"><label>Link Jitter (ms)</label><input class="styled-input" type="number" id="ef_jitter" step="5"/></div>
+          <div class="input-group"><label>Max Payload (bytes)</label><input class="styled-input" type="number" id="ef_payload"/></div>
+          <div class="input-group"><label>Heartbeat (s)</label><input class="styled-input" type="number" id="ef_heartbeat" step="5"/></div>
+          <div class="input-group"><label>Anomaly Detection</label>
+            <select class="styled-select" id="ef_anomaly"><option value="true">On</option><option value="false">Off</option></select></div>
+          <div class="input-group"><label>Adaptive Edge</label>
+            <select class="styled-select" id="ef_adaptive"><option value="false">Off</option><option value="true">On</option></select></div>
+          <div class="form-section">Traffic Model</div>
+          <div class="input-group"><label>Initial Occupancy %</label><input class="styled-input" type="number" id="ef_occ" placeholder="empty-lot start" step="5" min="0" max="100"/></div>
+          <div class="input-group"><label>Parking Duration CV</label><input class="styled-input" type="number" id="ef_cv" step="0.1"/></div>
+          <div class="input-group"><label>Time Scale (×)</label><input class="styled-input" type="number" id="ef_tscale" step="5"/></div>
+          <div class="input-group"><label>Time-of-Day Pattern</label>
+            <select class="styled-select" id="ef_tod"><option value="false">Off</option><option value="true">On</option></select></div>
+          <div class="input-group"><label>Start Hour</label><input class="styled-input" type="number" id="ef_starthour" step="0.5" min="0" max="24"/></div>
           <div class="form-section">Protocol Options</div>
           <div id="ef_amqp"  class="input-group"><label>Exchange</label>
             <select class="styled-select" id="ef_amqp_exchange">
@@ -324,6 +356,31 @@
             <option value="CON">CON</option><option value="NON">NON</option>
           </select></div>
       </div>
+
+      <div class="adv-toggle" id="customAdvToggle" onclick="toggleCustomAdvanced()">
+        <span class="adv-caret">▸</span> Advanced parameters
+      </div>
+      <div class="adv-content" id="customAdvanced">
+        <div class="adv-group-label">Link &amp; Edge</div>
+        <div class="input-grid">
+          <div class="input-group"><label>Backhaul Loss %</label><input type="number" id="c_backhaul_loss" class="styled-input" value="2" step="0.5"/></div>
+          <div class="input-group"><label>Link Delay (ms)</label><input type="number" id="c_base_delay" class="styled-input" value="80" step="5"/></div>
+          <div class="input-group"><label>Link Jitter (ms)</label><input type="number" id="c_jitter" class="styled-input" value="30" step="5"/></div>
+          <div class="input-group"><label>Max Payload (B)</label><input type="number" id="c_payload" class="styled-input" value="222"/></div>
+          <div class="input-group"><label>Heartbeat (s)</label><input type="number" id="c_heartbeat" class="styled-input" value="60" step="5"/></div>
+        </div>
+        <div class="adv-group-label">Traffic Model</div>
+        <div class="input-grid">
+          <div class="input-group"><label>Seed</label><input type="number" id="c_seed" class="styled-input" value="42"/></div>
+          <div class="input-group"><label>Initial Occ. %</label><input type="number" id="c_occ" class="styled-input" placeholder="empty" step="5" min="0" max="100"/></div>
+          <div class="input-group"><label>Parking CV</label><input type="number" id="c_cv" class="styled-input" value="1.5" step="0.1"/></div>
+          <div class="input-group"><label>Time Scale (×)</label><input type="number" id="c_tscale" class="styled-input" value="60" step="5"/></div>
+          <div class="input-group"><label>Time-of-Day</label>
+            <select id="c_tod" class="styled-select"><option value="false">Off</option><option value="true">On</option></select></div>
+          <div class="input-group"><label>Start Hour</label><input type="number" id="c_starthour" class="styled-input" value="8" step="0.5" min="0" max="24"/></div>
+        </div>
+      </div>
+
       <div style="display:flex;gap:.4rem;margin-top:.85rem">
         <button class="btn-run" onclick="runCustom()" style="flex:1"><span>▶</span> RUN</button>
         <button class="btn-run" onclick="saveCustomAsPreset()" style="flex:1;background:transparent;border:1px solid var(--cyan);color:var(--cyan)">💾 SAVE</button>
@@ -404,13 +461,13 @@
     </div>
 
     <div class="charts-grid">
-      <div class="chart-card span2">
-        <div class="chart-title">Protocol Comparison — Median Latency per Traffic Level (ms)</div>
-        <canvas id="comparisonChart" style="max-height:180px"></canvas>
-      </div>
       <div class="chart-card">
         <div class="chart-title">Latency Distribution (last run)</div>
         <canvas id="latencyHistChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Latency CDF — cumulative % (log ms)</div>
+        <canvas id="latencyEcdfChart" style="max-height:180px"></canvas>
       </div>
       <div class="chart-card">
         <div class="chart-title" id="msgCountChartTitle">Message Flow by Stage</div>
@@ -421,8 +478,12 @@
         <canvas id="bandwidthChart" style="max-height:180px"></canvas>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Event Delivery % by Scenario</div>
-        <canvas id="deliveryChart" style="max-height:180px"></canvas>
+        <div class="chart-title">Delivery &amp; Reliability (current run, %)</div>
+        <canvas id="reliabilityChart" style="max-height:180px"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Occupancy Over Time (occupied % vs sim time)</div>
+        <canvas id="occupancyChart" style="max-height:180px"></canvas>
       </div>
     </div>
 

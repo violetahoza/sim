@@ -215,11 +215,14 @@ class ExperimentRunner:
         logger.info(f"[{cfg.name}] DES simulated — {cfg.sim_duration_s:.0f} s virtual …")
 
         _snapshot_interval = max(1, int(cfg.sim_duration_s / 50))
+        self._occupancy_series = []
 
         def des_progress(virtual_now: float, end_time: float) -> None:
-            if self.progress_cb is None:
-                return
             if int(virtual_now) % _snapshot_interval != 0:
+                return
+            occ = sensors.occupancy_snapshot()
+            self._occupancy_series.append({"t": int(round(virtual_now)), "pct": occ.get("occupancy_pct")})
+            if self.progress_cb is None:
                 return
             es = edge.summary()
             snap = {
@@ -234,7 +237,7 @@ class ExperimentRunner:
                 "heartbeats": sensors.heartbeats_generated,
                 "heartbeat_interval_s": cfg.traffic.heartbeat_interval_s,
                 "cloud_events": cloud.received_events,
-                "occupancy": sensors.occupancy_snapshot(),
+                "occupancy": occ,
                 "spot_states": dict(self._spot_states),
                 "edge": es
             }
@@ -280,6 +283,18 @@ class ExperimentRunner:
         post_samples = cloud.get_all_latency_samples()
         lat_mean, lat_p50, lat_p95, lat_p99, lat_min, lat_max = _stats(post_samples)
         lat_percentiles = ([round(float(v), 2) for v in np.percentile(np.array(post_samples), range(1, 100))] if post_samples else [])
+        lat_histogram: dict = {}
+        if post_samples:
+            _arr = np.asarray(post_samples, dtype=float)
+            _lo, _hi = float(_arr.min()), float(_arr.max())
+            if _hi > _lo > 0:
+                _edges = np.logspace(np.log10(_lo), np.log10(_hi), 31)
+                _scale = "log"
+            else:
+                _edges = np.linspace(_lo, _hi + 1.0, 31)
+                _scale = "linear"
+            _counts, _edges = np.histogram(_arr, bins=_edges)
+            lat_histogram = {"counts": [int(c) for c in _counts], "edges": [round(float(e), 2) for e in _edges], "scale": _scale}
 
         sensor_events = sensors.total_generated
         state_changes_generated = sensors.state_changes_generated
@@ -388,6 +403,7 @@ class ExperimentRunner:
             latency_min_ms=_r(lat_min),
             latency_max_ms=_r(lat_max),
             latency_percentiles=lat_percentiles,
+            latency_histogram=lat_histogram,
 
             events_generated=sensor_events,
             valid_state_changes=state_changes_generated,
@@ -457,7 +473,8 @@ class ExperimentRunner:
             scenario_log=es.get("event_log", []),
 
             final_spot_states=sensors.final_spot_states(),
-            final_occupancy=sensors.occupancy_snapshot()
+            final_occupancy=sensors.occupancy_snapshot(),
+            occupancy_series=getattr(self, "_occupancy_series", [])
         )
 
 
