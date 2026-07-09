@@ -133,12 +133,7 @@ class ExperimentRunner:
                 count = int(spec_dict.get("count", 1))
                 chosen = pool[idx:idx + count]
                 idx += count
-                spec = FaultSpec(
-                    fault_type=FaultType(spec_dict["type"]),
-                    stuck_state=spec_dict.get("stuck_state", "occupied"),
-                    replay_count=int(spec_dict.get("replay_count", 3)),
-                    flood_count=int(spec_dict.get("flood_count", 10))
-                )
+                spec = FaultSpec(fault_type=FaultType(spec_dict["type"]), stuck_state=spec_dict.get("stuck_state", "occupied"), replay_count=int(spec_dict.get("replay_count", 3)), flood_count=int(spec_dict.get("flood_count", 10)))
                 fi.set_faults(chosen, spec)
                 self._fault_true_spots.update(chosen)
             sensors.set_fault_injector(fi)
@@ -226,20 +221,10 @@ class ExperimentRunner:
                 return
             es = edge.summary()
             snap = {
-                "elapsed_s": round(time.time() - self._start_time, 1),
-                "wall_duration_s": round(end_time / cfg.traffic.time_scale, 1),
-                "simulated_elapsed_s": round(virtual_now, 0),
-                "simulated_duration_s": end_time,
-                "time_scale": cfg.traffic.time_scale,
-                "sim_duration_s": cfg.sim_duration_s,
-                "progress_pct": min(100, round(virtual_now / end_time * 100, 1)),
-                "generated": sensors.total_generated,
-                "heartbeats": sensors.heartbeats_generated,
-                "heartbeat_interval_s": cfg.traffic.heartbeat_interval_s,
-                "cloud_events": cloud.received_events,
-                "occupancy": occ,
-                "spot_states": dict(self._spot_states),
-                "edge": es
+                "elapsed_s": round(time.time() - self._start_time, 1), "wall_duration_s": round(end_time / cfg.traffic.time_scale, 1), "simulated_elapsed_s": round(virtual_now, 0), "simulated_duration_s": end_time,
+                "time_scale": cfg.traffic.time_scale, "sim_duration_s": cfg.sim_duration_s, "progress_pct": min(100, round(virtual_now / end_time * 100, 1)),
+                "generated": sensors.total_generated, "heartbeats": sensors.heartbeats_generated, "heartbeat_interval_s": cfg.traffic.heartbeat_interval_s,
+                "cloud_events": cloud.received_events, "occupancy": occ, "spot_states": dict(self._spot_states), "edge": es
             }
             self.progress_cb(snap)
 
@@ -567,10 +552,7 @@ def _make_simulated_backend(cfg, clock, cloud_recv, seed, outage_seed=None):
 
     outage = None
     if proto in ("mqtt", "amqp") and cfg.architecture != "cloud_only" and cfg.backhaul_link.outage_mean_up_s is not None:
-        outage = ConnectionOutageModel(
-            clock, random.Random(outage_seed if outage_seed is not None else seed),
-            cfg.backhaul_link.outage_mean_up_s, cfg.backhaul_link.outage_mean_down_s
-        )
+        outage = ConnectionOutageModel(clock, random.Random(outage_seed if outage_seed is not None else seed), cfg.backhaul_link.outage_mean_up_s, cfg.backhaul_link.outage_mean_down_s)
 
     if proto == "mqtt":
         return SimulatedMQTTBackend(cfg.mqtt, clock, cloud_recv, uplink_loss, seed, ack_one_way, ack_jitter, downlink_loss, loss_provider, outage=outage)

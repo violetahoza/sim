@@ -144,7 +144,7 @@ def build_summaries(results: list[dict]) -> list[dict]:
             "proto_duplicates_suppressed": r.get("proto_duplicates_suppressed"),
             "bytes_s2e_sent_kb": kb(r.get("bytes_s2e_sent")),
             "bytes_e2c_sent_kb": kb(r.get("bytes_e2c_sent")),
-            "proto_bytes_sent_kb": kb(r.get("proto_bytes_sent")),
+            "proto_bytes_sent_kb": kb(r.get("proto_bytes_sent"))
         }
         for r in results
     ]
@@ -157,12 +157,9 @@ async def call_groq(system: str, user: str) -> str:
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
                 "temperature": 0.3,
-                "max_tokens": 1500,
+                "max_tokens": 1500
             },
         )
         if r.status_code == 200:
@@ -181,7 +178,7 @@ async def interpret(summaries: list[dict], focus: str) -> dict:
                 "interpretation": rule_based_interpret(summaries),
                 "model": "rule-based",
                 "powered_by": "Built-in Analyzer",
-                "warning": f"Groq unavailable ({exc}) - showing built-in analysis",
+                "warning": f"Groq unavailable ({exc}) - showing built-in analysis"
             }
     return {"interpretation": rule_based_interpret(summaries), "model": "rule-based", "powered_by": "Built-in Analyzer"}
 
@@ -335,11 +332,7 @@ def rule_based_interpret(summaries: list[dict]) -> str:
         lines.append("Architecture comparison: " + "; ".join(parts) + ".\n")
 
     lines.append("\n### ✅ Recommendations\n")
-    balanced = sorted(
-        [s for s in summaries
-         if (s.get("cloud_reflection_ratio") or 0) > 0.95 and s.get("latency_mean_ms")],
-        key=lambda x: x["latency_mean_ms"],
-    )
+    balanced = sorted([s for s in summaries if (s.get("cloud_reflection_ratio") or 0) > 0.95 and s.get("latency_mean_ms")], key=lambda x: x["latency_mean_ms"])
     if balanced:
         r = balanced[0]
         lines.append(

@@ -10,6 +10,7 @@ env/
 .env
 
 results/multiseed
+experiments/figs
 
 .vscode/
 .idea/

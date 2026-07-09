@@ -871,7 +871,7 @@ function initCharts() {
         tooltip: { callbacks: { label: c => `p${c.parsed.y.toFixed(0)} = ${c.parsed.x.toFixed(1)} ms` } },
       },
       scales: {
-        x: { type: 'logarithmic', title: { display: true, text: 'Latency (ms, log)', color: C.dim, font: { size: 9 } } },
+        x: { type: 'logarithmic', title: { display: true, text: 'Latency (ms)', color: C.dim, font: { size: 9 } } },
         y: { min: 0, max: 100, ticks: { stepSize: 25 }, title: { display: true, text: 'Cumulative %', color: C.dim, font: { size: 9 } } },
       },
     },
